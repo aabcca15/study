@@ -2,7 +2,7 @@
 
 跟踪孩子学校课、兴趣班课表及相关费用。当前是 Vue3 + Vite + TypeScript 的移动 H5，数据暂存在浏览器 `localStorage`（键 `myhome.v1`），尚无服务端。
 
-GitHub 仓库：`myhome/studylog`。本机仅本目录关联该远程，不改动全局 Git 账号。
+GitHub 仓库：[aabcca15/study](https://github.com/aabcca15/study)。本机仅本目录关联该远程，不改动全局 Git 账号。
 
 ## 当前能跑什么
 
