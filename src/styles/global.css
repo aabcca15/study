@@ -1,0 +1,435 @@
+:root {
+  --bg: #f5f6fa;
+  --paper: #ffffff;
+  --ink: #1f2430;
+  --muted: #8b93a5;
+  --line: #ecedf3;
+  --accent: #5147d8;
+  --accent-text: #5147d8;
+  --accent-soft: #edecfb;
+  --sage: #3d6b5a;
+  --navy: #3b5b8a;
+  --rose: #8a4d6e;
+  --gold: #b0892a;
+  --paid: #3d6b5a;
+  --unpaid: #c45c26;
+  --pending: #b0892a;
+  --shadow: 0 10px 26px rgba(48, 58, 88, 0.06);
+  --radius: 22px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page {
+  padding: 18px 18px calc(116px + var(--safe-bottom));
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+h1 {
+  font-size: 26px;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  margin-top: 4px;
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f0ecfb;
+}
+
+.chip.dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.btn {
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(81, 71, 216, .2);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.btn:active {
+  transform: scale(.95);
+  box-shadow: 0 4px 12px rgba(81, 71, 216, .16);
+}
+
+.btn.ghost {
+  background: rgba(255,255,255,.78);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.btn.accent {
+  background: var(--accent);
+}
+
+.btn.block {
+  width: 100%;
+}
+
+.btn.danger {
+  background: #9b3a2a;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 14px;
+  padding: 11px 12px;
+  outline: none;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.weekdays button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 0;
+}
+
+.weekdays button.on {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.status-paid { color: var(--paid); }
+.status-unpaid { color: var(--unpaid); }
+.status-pending { color: var(--pending); }
+
+.tabbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(10px + var(--safe-bottom));
+  transform: translateX(-50%);
+  width: min(432px, calc(100% - 24px));
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  padding: 8px;
+  background: rgba(255,255,255,.93);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(78,87,116,.08);
+  border-radius: 28px;
+  box-shadow: 0 18px 45px rgba(52,62,94,.16);
+}
+
+.tabbar a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-height: 50px;
+  padding: 6px 0;
+  border-radius: 18px;
+  font-size: 10px;
+  color: #8c93a3;
+  transition: color .25s ease, background .25s ease, transform .2s ease;
+}
+
+.tabbar a span {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width .25s ease, margin-left .25s ease, opacity .2s ease;
+}
+
+.tabbar a:active {
+  transform: scale(.9);
+}
+
+.tabbar svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.tabbar a.active {
+  background: #eeecff;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.tabbar a.active span {
+  max-width: 42px;
+  margin-left: 6px;
+  opacity: 1;
+}
+
+.empty {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--muted);
+}
+
+html,
+body,
+.card,
+.editor-card,
+input,
+select,
+textarea {
+  transition: color .28s ease, background-color .28s ease, border-color .28s ease;
+}
+
+html[data-theme="dark"] {
+  --bg: #0f1117;
+  --paper: #171a22;
+  --ink: #eceef4;
+  --muted: #8d94a5;
+  --line: #262a34;
+  --accent-text: #a9a3f5;
+  --accent-soft: #23253a;
+  --shadow: 0 16px 42px rgba(0, 0, 0, .36);
+  --paid: #79d2aa;
+  --unpaid: #ff9d76;
+  --pending: #ffd66d;
+}
+
+html[data-theme="dark"] body {
+  background: var(--bg);
+}
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .editor-card,
+html[data-theme="dark"] .sheet,
+html[data-theme="dark"] .slot-sheet,
+html[data-theme="dark"] .confirm-dialog,
+html[data-theme="dark"] .quick-menu {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+html[data-theme="dark"] .lesson-card,
+html[data-theme="dark"] .course,
+html[data-theme="dark"] .overview-main,
+html[data-theme="dark"] .overview-bill {
+  --lesson-color: color-mix(in srgb, var(--card-tint) 76%, #fff);
+  --course-accent: color-mix(in srgb, var(--course-color) 76%, #fff);
+  --card-ink: var(--ink);
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+html[data-theme="dark"] .lesson-time i,
+html[data-theme="dark"] .lesson-type,
+html[data-theme="dark"] .course-icon,
+html[data-theme="dark"] .course-type {
+  background: color-mix(in srgb, var(--card-tint, var(--course-color)) 16%, transparent);
+}
+
+html[data-theme="dark"] .lesson-actions button,
+html[data-theme="dark"] .edit-course {
+  border-color: var(--line);
+  background: #1d212a;
+}
+
+html[data-theme="dark"] .progress-track {
+  background: #262a34;
+}
+
+html[data-theme="dark"] .field input,
+html[data-theme="dark"] .field select,
+html[data-theme="dark"] .field textarea,
+html[data-theme="dark"] .time-range input {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #1d212a;
+}
+
+html[data-theme="dark"] .app-header h1,
+html[data-theme="dark"] .section-title h2,
+html[data-theme="dark"] .editor-hero h1,
+html[data-theme="dark"] .editor-card h2,
+html[data-theme="dark"] .cal h2 {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .header-actions button,
+html[data-theme="dark"] .header-actions a,
+html[data-theme="dark"] .week-toolbar button {
+  color: #dfe3ec;
+  background: #1d212a;
+  box-shadow: 0 9px 22px rgba(0,0,0,.22);
+}
+
+html[data-theme="dark"] .date-strip button strong {
+  color: #cdd2de;
+}
+
+html[data-theme="dark"] .date-strip button.active strong {
+  color: #fff;
+}
+
+html[data-theme="dark"] .section-actions button,
+html[data-theme="dark"] .section-actions a,
+html[data-theme="dark"] .apply-time {
+  color: #b9b3f6;
+  background: #23253a;
+}
+
+html[data-theme="dark"] .bill-row,
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .preset-list > button,
+html[data-theme="dark"] .slot-list button,
+html[data-theme="dark"] .icon-options button {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #1d212a;
+}
+
+html[data-theme="dark"] .preset-list > button.selected,
+html[data-theme="dark"] .icon-options button.active {
+  color: #c3bdfb;
+  border-color: #4a45a8;
+  background: #23253a;
+}
+
+html[data-theme="dark"] .btn.ghost {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #1d212a;
+}
+
+html[data-theme="dark"] .tabbar {
+  border-color: rgba(255,255,255,.07);
+  background: rgba(23, 26, 34, .94);
+  box-shadow: 0 18px 45px rgba(0,0,0,.34);
+}
+
+html[data-theme="dark"] .tabbar a {
+  color: #8d94a5;
+}
+
+html[data-theme="dark"] .tabbar a.active {
+  color: #c3bdfb;
+  background: #262a3d;
+}
+
+html[data-theme="dark"] .day,
+html[data-theme="dark"] .weekdays button {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #1d212a;
+}
