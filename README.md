@@ -6,31 +6,32 @@ GitHub 仓库：[aabcca15/study](https://github.com/aabcca15/study)。本机仅�
 
 ## 当前能跑什么
 
+在仓库根目录：
+
 ```bash
 npm install
 npm run dev
 ```
 
-开发地址默认 `http://localhost:5173/`。
+开发地址默认 `http://localhost:5173/`（实际工程在 `apps/web/`）。
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## 仓库布局（现阶段保持原样）
+## 仓库布局
 
-H5 仍在仓库根目录（`src/`、`index.html`、Vite 配置），方便现有开发不被打断。
-
-后续会迁到 `apps/web/`，并与 Node 服务、微信小程序同仓：
+单仓 Monorepo（npm workspaces）：
 
 | 路径 | 状态 | 用途 |
 |---|---|---|
-| `src/` 等根目录前端 | 现有 | H5 业务与 UI |
-| `docs/` | 已建骨架 | PRD、设计说明、领域口径、架构 |
-| `.cursor/skills/` | 已有 | 给 AI 的后端契约与事务规则 |
-| `server/` | 占位 | 后期 Node.js API |
+| `apps/web/` | 现有 | H5（Vue3 + Vite + Pinia） |
 | `apps/miniprogram/` | 占位 | 后期微信小程序（与 H5 共用后端） |
+| `server/` | 占位 | 后期 Node.js API |
+| `packages/domain/` | 占位 | 后期抽出共用类型与口径 |
+| `docs/` | 已建 | PRD、设计说明、领域口径、架构 |
+| `.cursor/skills/` | 已有 | 给 AI 的后端契约与事务规则 |
 
 ## 给后续前后端 / 小程序
 
