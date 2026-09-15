@@ -6,6 +6,8 @@ const props = defineProps<{
   modelValue: string
   options: TimeSlotOption[]
   ariaLabel?: string
+  placement?: 'top' | 'bottom'
+  showLegend?: boolean
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -37,7 +39,7 @@ function choose(option: TimeSlotOption) {
     </button>
 
     <Transition name="time-menu">
-      <div v-if="open" class="time-popover">
+      <div v-if="open" class="time-popover" :class="{ top: placement === 'top' }">
         <div class="time-grid">
           <button
             v-for="option in options"
@@ -49,7 +51,7 @@ function choose(option: TimeSlotOption) {
             @click="choose(option)"
           >{{ option.label }}</button>
         </div>
-        <p class="time-legend">灰色时间段已有安排，无法选择。</p>
+        <p v-if="showLegend !== false" class="time-legend">灰色时间段已有安排，无法选择。</p>
       </div>
     </Transition>
   </div>
@@ -108,11 +110,17 @@ function choose(option: TimeSlotOption) {
   box-shadow: var(--elev-lg), var(--glow-top);
 }
 
+.time-popover.top {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 .time-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
   gap: 6px;
   max-height: 216px;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 

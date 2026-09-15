@@ -6,6 +6,7 @@ import StatsPage from '@/pages/StatsPage.vue'
 import CourseEditPage from '@/pages/CourseEditPage.vue'
 import ExpenseEditPage from '@/pages/ExpenseEditPage.vue'
 import CoursesPage from '@/pages/CoursesPage.vue'
+import CourseBillsPage from '@/pages/CourseBillsPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -19,6 +20,7 @@ const router = createRouter({
     { path: '/bills', name: 'bills', component: BillsPage, meta: { tab: 'stats' } },
     { path: '/stats', name: 'stats', component: StatsPage, meta: { tab: 'stats' } },
     { path: '/courses', name: 'courses', component: CoursesPage, meta: { tab: 'courses' } },
+    { path: '/courses/:id/bills', name: 'course-bills', component: CourseBillsPage, meta: { tab: 'courses' } },
     { path: '/courses/edit/:id?', name: 'course-edit', component: CourseEditPage },
     { path: '/bills/edit/:id?', name: 'expense-edit', component: ExpenseEditPage },
   ],

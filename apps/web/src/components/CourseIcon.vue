@@ -30,7 +30,10 @@ defineProps<{ name: CourseIcon }>()
     <path d="m16 3 5 5L10 19l-6 2 2-6L16 3Zm-8.5 11.5 5 5M14 5l5 5" />
   </svg>
   <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M5 4h14v16H5zM8 8h8m-8 4h8m-8 4h5" />
+    <path d="M8 9V7.2A4 4 0 0 1 16 7.2V9" />
+    <path d="M7 9h10a2.4 2.4 0 0 1 2.4 2.4v7.2A2.4 2.4 0 0 1 17 21H7a2.4 2.4 0 0 1-2.4-2.4v-7.2A2.4 2.4 0 0 1 7 9Z" />
+    <path d="M9.5 13.5h5M12 13.5v3.2" />
+    <path d="M7 9v2.2M17 9v2.2" />
   </svg>
 </template>
 
@@ -43,5 +46,20 @@ svg {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.7;
+  stroke-dasharray: 72;
+  stroke-dashoffset: 72;
+  animation: icon-grow .72s .04s cubic-bezier(.22,.8,.24,1) forwards;
+}
+
+@keyframes icon-grow {
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  svg {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
 }
 </style>

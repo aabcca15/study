@@ -2,7 +2,9 @@ import dayjs from 'dayjs'
 import type { Expense, ExpenseCategory, ExpenseStatus } from '@/domain/types'
 
 export function money(n: number) {
-  return `¥${n.toLocaleString('zh-CN', { minimumFractionDigits: 0 })}`
+  const amount = Math.round((Number(n) || 0) * 100) / 100
+  const digits = Number.isInteger(amount) ? 0 : 2
+  return `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: 2 })}`
 }
 
 export function filterByPeriod(expenses: Expense[], period: string) {
@@ -15,6 +17,16 @@ export function filterByYear(expenses: Expense[], year: number) {
 
 export function sumByStatus(expenses: Expense[], status: ExpenseStatus) {
   return expenses.filter((item) => item.status === status).reduce((s, i) => s + i.amount, 0)
+}
+
+export function billsInDueRange(expenses: Expense[], start: string, end: string) {
+  return expenses.filter((item) => item.status !== 'void' && item.dueDate >= start && item.dueDate <= end)
+}
+
+export function summarizeBills(expenses: Expense[]) {
+  const total = expenses.reduce((sum, item) => sum + item.amount, 0)
+  const paid = expenses.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0)
+  return { total, paid, unpaid: total - paid }
 }
 
 export function groupByCategory(expenses: Expense[]) {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { occurrencesInRange } from '@/services/schedule'
 import { WEEKDAY_SHORT } from '@/domain/constants'
@@ -9,11 +8,15 @@ import type { DayOccurrence } from '@/domain/types'
 import { courseScheduleProgress } from '@/services/courseSchedule'
 import PageHeader from '@/components/PageHeader.vue'
 import CourseScheduleList from '@/components/CourseScheduleList.vue'
+import AddOccurrenceSheet from '@/components/AddOccurrenceSheet.vue'
+import OccurrenceEditSheet from '@/components/OccurrenceEditSheet.vue'
 
 const store = useAppStore()
-const router = useRouter()
 const cursor = ref(dayjs())
 const selected = ref(dayjs().format('YYYY-MM-DD'))
+const addSheetOpen = ref(false)
+const editing = ref<DayOccurrence | null>(null)
+const cancelling = ref<DayOccurrence | null>(null)
 
 const monthStart = computed(() => cursor.value.startOf('month'))
 const grid = computed(() => {
@@ -45,12 +48,37 @@ function courseProgress(item: DayOccurrence) {
   return courseScheduleProgress(item.course, selected.value, store.overviewScheduleExceptions)
 }
 
-function addCourse() {
-  router.push({ path: '/courses/edit', query: { returnTo: '/calendar' } })
+function addToSelectedDay() {
+  addSheetOpen.value = true
+}
+
+function onOccurrenceAdded(date: string) {
+  selected.value = date
+  const added = dayjs(date)
+  if (!added.isSame(cursor.value, 'month')) cursor.value = added
 }
 
 function editCourse(item: DayOccurrence) {
-  router.push({ path: `/courses/edit/${item.course.id}`, query: { returnTo: '/calendar' } })
+  editing.value = item
+}
+
+function requestCancel(item: DayOccurrence) {
+  cancelling.value = item
+  editing.value = null
+}
+
+function confirmCancel() {
+  if (!cancelling.value) return
+  const item = cancelling.value
+  if (item.exception?.status === 'added') store.dropOccurrenceSlot(item.course.id, item.date)
+  else {
+    store.upsertScheduleException({
+      courseId: item.course.id,
+      date: item.date,
+      status: 'cancelled',
+    })
+  }
+  cancelling.value = null
 }
 
 function pick(date: dayjs.Dayjs) {
@@ -100,10 +128,32 @@ function pick(date: dayjs.Dayjs) {
       :title="`${dayjs(selected).format('M月D日')}安排`"
       :items="dayItems"
       :progress-for="courseProgress"
-      action-label="加课程"
-      @add="addCourse"
+      action-label="新增"
+      @add="addToSelectedDay"
       @edit="editCourse"
     />
+
+    <AddOccurrenceSheet
+      v-model:open="addSheetOpen"
+      :date="selected"
+      @added="onOccurrenceAdded"
+    />
+
+    <OccurrenceEditSheet
+      :item="editing"
+      @close="editing = null"
+      @cancel="requestCancel"
+    />
+
+    <div v-if="cancelling" class="overlay" @click.self="cancelling = null">
+      <section class="confirm-dialog">
+        <h2>取消这一次课程？</h2>
+        <div class="confirm-actions">
+          <button type="button" @click="cancelling = null">暂不取消</button>
+          <button class="danger" type="button" @click="confirmCancel">确认取消</button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -190,4 +240,30 @@ function pick(date: dayjs.Dayjs) {
   height: 5px;
   border-radius: 50%;
 }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(28, 22, 48, .38);
+}
+.confirm-dialog {
+  width: min(100%, 330px);
+  padding: 24px 20px 18px;
+  text-align: center;
+  border-radius: 24px;
+  background: var(--paper);
+}
+.confirm-dialog h2 { margin-bottom: 20px; font-size: 20px; }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.confirm-actions button {
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-weight: 650;
+}
+.confirm-actions .danger { color: #fff; background: #ed5d6e; }
 </style>

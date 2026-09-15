@@ -1,26 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
 import CourseScheduleList from '@/components/CourseScheduleList.vue'
-import CourseIcon from '@/components/CourseIcon.vue'
-import AppDatePicker from '@/components/AppDatePicker.vue'
-import AppTimeSelect from '@/components/AppTimeSelect.vue'
+import AddOccurrenceSheet from '@/components/AddOccurrenceSheet.vue'
+import OccurrenceEditSheet from '@/components/OccurrenceEditSheet.vue'
 import { money } from '@/services/billing'
-import { currentPeriod } from '@/services/billing'
-import type { CourseIcon as CourseIconName, DayOccurrence, Expense, ExpenseStatus } from '@/domain/types'
-import {
-  busyIntervalsOnDate,
-  endTimeOptions,
-  findBusyConflict,
-  minutesBetween,
-  nextAvailableEndTime,
-  occurrencesOnDate,
-  startTimeOptions,
-} from '@/services/schedule'
+import type { DayOccurrence } from '@/domain/types'
+import { occurrencesOnDate } from '@/services/schedule'
 import { useHomeDate } from '@/composables/useHomeDate'
 import { useQuickAdd } from '@/composables/useQuickAdd'
 import { courseScheduleProgress } from '@/services/courseSchedule'
+import {
+  sumUnbilledCharges,
+} from '@/services/charges'
 
 const store = useAppStore()
 const { view } = useHomeDate()
@@ -29,28 +22,8 @@ const today = dayjs()
 const editing = ref<DayOccurrence | null>(null)
 const cancelling = ref<DayOccurrence | null>(null)
 const recentlyCancelled = ref<DayOccurrence | null>(null)
-const addingPreset = ref(false)
-const selectedCourseId = ref('')
-const quickEntry = ref(false)
-const addMode = ref<'preset' | 'temporary'>('preset')
+const addSheetOpen = ref(false)
 let toastTimer: ReturnType<typeof setTimeout> | undefined
-
-const editForm = reactive({
-  title: '',
-  startTime: '',
-  endTime: '',
-  location: '',
-  note: '',
-})
-
-const quickForm = reactive({
-  date: dayjs().format('YYYY-MM-DD'),
-  title: '',
-  startTime: '09:00',
-  endTime: '10:00',
-  amount: 0,
-  expenseStatus: 'unpaid' as ExpenseStatus,
-})
 
 const weekDays = computed(() => {
   const anchor = today.add(view.weekOffset, 'week')
@@ -80,93 +53,17 @@ const selectedItems = computed(() =>
     return a.course.recurrence.endTime.localeCompare(b.course.recurrence.endTime)
   }),
 )
-const quickTargetDate = computed(() => (quickEntry.value ? quickForm.date : view.selectedDate))
-
-const pickerScheduledCourseIds = computed(
-  () =>
-    new Set(
-      occurrencesOnDate(store.overviewCourses, quickTargetDate.value, store.overviewScheduleExceptions)
-        .map((item) => item.course.id),
-    ),
-)
-
-const quickBusyIntervals = computed(() =>
-  busyIntervalsOnDate(store.overviewCourses, quickForm.date, store.overviewScheduleExceptions),
-)
-
-const quickStartOptions = computed(() => startTimeOptions(quickBusyIntervals.value))
-const quickEndOptions = computed(() => endTimeOptions(quickBusyIntervals.value, quickForm.startTime))
-
-const quickConflict = computed(() =>
-  findBusyConflict(quickBusyIntervals.value, quickForm.startTime, quickForm.endTime),
-)
-
-// 提交按钮不做“静默禁用”：任何不可提交的状态都给出对应原因
-const quickFormError = computed(() => {
-  if (!quickForm.title.trim()) return '请填写课程名称'
-  if (!quickForm.date) return '请选择安排日期'
-  if (!quickForm.startTime || !quickForm.endTime) return '请选择开始和结束时间'
-  if (quickForm.endTime <= quickForm.startTime) return '结束时间要晚于开始时间'
-  if (quickConflict.value) return `这一天 ${quickConflict.value.title} 已占用该时间段`
-  return ''
-})
-
-const PREFERRED_QUICK_START = '09:00'
-
-function pickDefaultQuickTimes(date: string) {
-  const intervals = busyIntervalsOnDate(store.overviewCourses, date, store.overviewScheduleExceptions)
-  const free = startTimeOptions(intervals).filter((item) => !item.disabled)
-  const start = free.find((item) => item.value >= PREFERRED_QUICK_START)?.value
-    ?? free[0]?.value
-    ?? PREFERRED_QUICK_START
-  quickForm.startTime = start
-  quickForm.endTime = nextAvailableEndTime(intervals, start, 60)
-}
-
-// 用户改开始时间时按原时长顺延结束时间，避免出现“结束早于开始”导致按钮一直不可点
-function setQuickStartTime(start: string) {
-  const duration = minutesBetween(quickForm.startTime, quickForm.endTime)
-  quickForm.startTime = start
-  quickForm.endTime = nextAvailableEndTime(
-    quickBusyIntervals.value,
-    start,
-    duration > 0 ? duration : 60,
-  )
-}
-
-watch(() => quickForm.date, (date) => {
-  if (!addingPreset.value || !date) return
-  if (quickConflict.value || !quickForm.endTime) pickDefaultQuickTimes(date)
-})
 
 function courseProgress(item: DayOccurrence) {
   return courseScheduleProgress(item.course, view.selectedDate, store.overviewScheduleExceptions)
 }
 
-const openBills = computed(() =>
-  store.overviewExpenses
-    .filter((item) => item.period === currentPeriod() && item.status !== 'paid')
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .slice(0, 2),
-)
-
-function courseForBill(bill: Expense) {
-  return bill.courseId ? store.snapshot.courses.find((course) => course.id === bill.courseId) : undefined
-}
-
-function billCourseIcon(bill: Expense): CourseIconName {
-  return courseForBill(bill)?.icon ?? 'generic'
-}
-
-function billIconStyle(bill: Expense) {
-  const course = courseForBill(bill)
-  return course ? { '--bill-course-color': course.color } : undefined
-}
-
 const weekBills = computed(() => {
   const start = weekDays.value[0].format('YYYY-MM-DD')
   const end = weekDays.value[6].format('YYYY-MM-DD')
-  return store.overviewExpenses.filter((item) => item.dueDate >= start && item.dueDate <= end)
+  return store.overviewExpenses.filter(
+    (item) => item.status !== 'void' && item.dueDate >= start && item.dueDate <= end,
+  )
 })
 
 const weekOpenAmount = computed(() =>
@@ -194,35 +91,22 @@ const dayDonePercent = computed(() => {
   return Math.round((done / total) * 100)
 })
 
+const weekUnbilled = computed(() => {
+  const start = weekDays.value[0].format('YYYY-MM-DD')
+  const end = weekDays.value[6].format('YYYY-MM-DD')
+  return sumUnbilledCharges(store.overviewCharges, (charge) => {
+    const record = store.snapshot.occurrenceRecords?.find((item) => item.id === charge.occurrenceId)
+    const date = record?.date ?? charge.occurrenceId.slice(charge.occurrenceId.lastIndexOf('_') + 1)
+    return date >= start && date <= end
+  })
+})
+
 function openEdit(item: DayOccurrence) {
   editing.value = item
-  Object.assign(editForm, {
-    title: item.course.title,
-    startTime: item.course.recurrence.startTime,
-    endTime: item.course.recurrence.endTime,
-    location: item.course.location,
-    note: item.exception?.note ?? '',
-  })
 }
 
-function saveTodayChange() {
-  if (!editing.value || !editForm.title.trim()) return
-  store.upsertScheduleException({
-    courseId: editing.value.course.id,
-    date: editing.value.date,
-    status: editing.value.exception?.status === 'added' ? 'added' : 'rescheduled',
-    title: editForm.title.trim(),
-    startTime: editForm.startTime,
-    endTime: editForm.endTime,
-    location: editForm.location.trim(),
-    note: editForm.note.trim(),
-  })
-  editing.value = null
-}
-
-function requestCancelFromEdit() {
-  if (!editing.value) return
-  cancelling.value = editing.value
+function requestCancelFromEdit(item: DayOccurrence) {
+  cancelling.value = item
   editing.value = null
 }
 
@@ -272,21 +156,17 @@ function undoCancel() {
   window.clearTimeout(toastTimer)
 }
 
-function openPresetPicker(fromQuickMenu = false) {
-  selectedCourseId.value = ''
-  quickEntry.value = fromQuickMenu
-  addMode.value = 'preset'
-  quickForm.date = fromQuickMenu ? dayjs().format('YYYY-MM-DD') : view.selectedDate
-  quickForm.title = ''
-  quickForm.amount = 0
-  quickForm.expenseStatus = 'unpaid'
-  pickDefaultQuickTimes(quickForm.date)
-  addingPreset.value = true
+function openDayAdd() {
+  addSheetOpen.value = true
+}
+
+function openPresetPicker() {
+  addSheetOpen.value = true
 }
 
 // 底部菜单的「新增日期安排」：请求可能早于本页挂载，挂载时与变化时都尝试消费
 function handlePresetRequest() {
-  if (consumePresetRequest()) openPresetPicker(true)
+  if (consumePresetRequest()) openPresetPicker()
 }
 
 onMounted(handlePresetRequest)
@@ -311,40 +191,6 @@ function mondayOf(value: dayjs.Dayjs) {
 function focusDate(date: string) {
   view.weekOffset = mondayOf(dayjs(date)).diff(mondayOf(today), 'week')
   view.selectedDate = date
-}
-
-function addPresetToDate() {
-  const course = store.overviewCourses.find((item) => item.id === selectedCourseId.value)
-  const targetDate = quickEntry.value ? quickForm.date : view.selectedDate
-  if (!course || pickerScheduledCourseIds.value.has(course.id)) return
-  const sample = course.recurrence.dates?.[0]
-  store.upsertScheduleException({
-    courseId: course.id,
-    date: targetDate,
-    status: 'added',
-    startTime: sample?.startTime ?? course.recurrence.startTime,
-    endTime: sample?.endTime ?? course.recurrence.endTime,
-    title: course.title,
-    location: course.location,
-    note: '从课程预设添加',
-  })
-  focusDate(targetDate)
-  addingPreset.value = false
-}
-
-function addTemporaryArrangement() {
-  if (quickFormError.value) return
-  const result = store.createQuickArrangement({
-    date: quickForm.date,
-    title: quickForm.title,
-    startTime: quickForm.startTime,
-    endTime: quickForm.endTime,
-    amount: quickForm.amount,
-    expenseStatus: quickForm.expenseStatus,
-  })
-  if (!result.ok) return
-  focusDate(quickForm.date)
-  addingPreset.value = false
 }
 </script>
 
@@ -406,20 +252,20 @@ function addTemporaryArrangement() {
           </span>
         </div>
       </router-link>
-      <router-link class="overview-card is-bill" to="/bills">
+      <router-link class="overview-card is-bill" :to="{ path: '/bills', query: { from: 'today' } }">
         <header>
           <i aria-hidden="true">
             <svg viewBox="0 0 24 24">
               <path d="M7 4h10v16l-5-3-5 3V4Zm3 4h4m-4 4h4" />
             </svg>
           </i>
-          <span>本周待支付</span>
+          <span>本周课程账单</span>
           <b>›</b>
         </header>
         <div class="overview-body">
           <p>
             <strong>{{ money(weekOpenAmount) }}</strong>
-            <small>{{ weekBills.length }} 笔账单</small>
+            <small>{{ weekBills.length }} 笔账单<template v-if="weekUnbilled"> · 待结算 {{ money(weekUnbilled) }}</template></small>
           </p>
           <span class="overview-ring" :style="{ '--ring': `${weekSettledPercent}%` }">
             <i>{{ weekSettledPercent }}%</i>
@@ -433,180 +279,27 @@ function addTemporaryArrangement() {
       :items="selectedItems"
       :progress-for="courseProgress"
       action-label="新增"
-      @add="openPresetPicker"
+      @add="openDayAdd"
       @edit="openEdit"
     />
 
-    <section v-if="openBills.length" class="content-block bill-block">
-      <div class="section-title">
-        <div>
-          <h2>待处理账单</h2>
-          <p>别错过结算日期</p>
-        </div>
-        <router-link to="/bills">查看全部</router-link>
-      </div>
-      <router-link v-for="bill in openBills" :key="bill.id" :to="`/bills/edit/${bill.id}`" class="bill-row">
-        <span class="bill-icon" :class="{ fallback: !courseForBill(bill) }" :style="billIconStyle(bill)">
-          <CourseIcon v-if="courseForBill(bill)" :name="billCourseIcon(bill)" />
-          <template v-else>¥</template>
-        </span>
-        <div>
-          <strong>{{ bill.title }}</strong>
-          <small>{{ bill.dueDate }} 前结算</small>
-        </div>
-        <b>{{ money(bill.amount) }}</b>
-      </router-link>
-    </section>
+    <AddOccurrenceSheet
+      v-model:open="addSheetOpen"
+      :date="view.selectedDate"
+      @added="focusDate"
+    />
 
-    <Transition name="fade">
-      <div v-if="addingPreset" class="overlay" @click.self="addingPreset = false">
-        <section class="sheet preset-sheet">
-          <i class="sheet-handle" />
-          <div class="sheet-title">
-            <div>
-              <p>{{ quickEntry ? '快速新增安排' : `新增到 ${selectedDay.format('M月D日 dddd')}` }}</p>
-              <h2>{{ quickEntry ? '安排课程' : '选择课程预设' }}</h2>
-            </div>
-            <button type="button" @click="addingPreset = false">×</button>
-          </div>
-
-          <div v-if="quickEntry" class="quick-date-field">
-            <label>安排日期</label>
-            <AppDatePicker v-model="quickForm.date" aria-label="选择安排日期" />
-          </div>
-
-          <div v-if="quickEntry" class="add-mode-tabs" aria-label="新增方式">
-            <button type="button" :class="{ active: addMode === 'preset' }" @click="addMode = 'preset'">选择已有课程</button>
-            <button type="button" :class="{ active: addMode === 'temporary' }" @click="addMode = 'temporary'">临时新增安排</button>
-          </div>
-
-          <template v-if="addMode === 'preset'">
-            <p class="preset-tip">老师、时间和地点将自动带入，添加后仍可单独调整这一次安排。</p>
-            <div v-if="store.overviewCourses.length" class="preset-list">
-            <button
-              v-for="course in store.overviewCourses"
-              :key="course.id"
-              type="button"
-              :disabled="pickerScheduledCourseIds.has(course.id)"
-              :class="{ selected: selectedCourseId === course.id }"
-              @click="selectedCourseId = course.id"
-            >
-              <i :style="{ background: course.color }" />
-              <div>
-                <strong>{{ course.title }}</strong>
-                <small>{{ course.recurrence.startTime }}–{{ course.recurrence.endTime }} · {{ course.teacher || '老师待定' }}</small>
-              </div>
-              <span v-if="pickerScheduledCourseIds.has(course.id)">已安排</span>
-              <b v-else>{{ selectedCourseId === course.id ? '✓' : '' }}</b>
-            </button>
-            </div>
-            <div v-else class="preset-empty">
-              <p>还没有课程预设，请先新增课程。</p>
-              <router-link :to="{ path: '/courses/edit', query: { returnTo: '/' } }">新增课程</router-link>
-            </div>
-            <button
-              v-if="store.overviewCourses.length"
-              class="sheet-submit"
-              type="button"
-              :disabled="!selectedCourseId"
-              @click="addPresetToDate"
-            >
-              添加到 {{ dayjs(quickEntry ? quickForm.date : view.selectedDate).format('M月D日') }}
-            </button>
-          </template>
-
-          <form v-else class="temporary-form" @submit.prevent="addTemporaryArrangement">
-            <div class="field">
-              <label>课程名称</label>
-              <input v-model="quickForm.title" placeholder="例如 临时钢琴课" />
-            </div>
-            <div class="time-fields">
-              <div class="field">
-                <label>开始时间</label>
-                <AppTimeSelect
-                  :model-value="quickForm.startTime"
-                  :options="quickStartOptions"
-                  aria-label="选择开始时间"
-                  @update:model-value="setQuickStartTime"
-                />
-              </div>
-              <div class="field">
-                <label>结束时间</label>
-                <AppTimeSelect v-model="quickForm.endTime" :options="quickEndOptions" aria-label="选择结束时间" />
-              </div>
-            </div>
-            <ul v-if="quickBusyIntervals.length" class="busy-hint">
-              <li v-for="busy in quickBusyIntervals" :key="`${busy.start}-${busy.title}`">
-                <b>{{ busy.start }}–{{ busy.end }}</b><span>{{ busy.title }}</span>
-              </li>
-            </ul>
-            <div class="field">
-              <label>费用</label>
-              <div class="quick-money-input"><span>¥</span><input v-model.number="quickForm.amount" type="number" min="0" step="0.01" /></div>
-              <small>填写 0 表示本次无费用，不创建账单。</small>
-            </div>
-            <div class="field">
-              <label>结算状态</label>
-              <div class="settlement-options">
-                <button type="button" :class="{ active: quickForm.expenseStatus === 'unpaid' }" @click="quickForm.expenseStatus = 'unpaid'">未结算</button>
-                <button type="button" :class="{ active: quickForm.expenseStatus === 'paid' }" @click="quickForm.expenseStatus = 'paid'">已结算</button>
-              </div>
-            </div>
-            <p v-if="quickFormError" class="quick-form-error">{{ quickFormError }}</p>
-            <button class="sheet-submit" type="submit" :disabled="Boolean(quickFormError)">
-              创建临时安排
-            </button>
-          </form>
-        </section>
-      </div>
-    </Transition>
-
-    <Transition name="fade">
-      <div v-if="editing" class="overlay" @click.self="editing = null">
-        <section class="sheet">
-          <i class="sheet-handle" />
-          <div class="sheet-title">
-            <div>
-              <p>仅修改今天</p>
-              <h2>调整课程安排</h2>
-            </div>
-            <button type="button" @click="editing = null">×</button>
-          </div>
-          <div class="field">
-            <label>课程名称</label>
-            <input v-model="editForm.title" />
-          </div>
-          <div class="time-fields">
-            <div class="field">
-              <label>开始时间</label>
-              <input v-model="editForm.startTime" type="time" />
-            </div>
-            <div class="field">
-              <label>结束时间</label>
-              <input v-model="editForm.endTime" type="time" />
-            </div>
-          </div>
-          <div class="field">
-            <label>上课地点</label>
-            <input v-model="editForm.location" placeholder="线下地点或在线平台" />
-          </div>
-          <div class="field">
-            <label>调整说明</label>
-            <textarea v-model="editForm.note" rows="2" placeholder="例如：老师临时调整时间" />
-          </div>
-          <button class="sheet-submit" type="button" @click="saveTodayChange">保存今日调整</button>
-          <button class="sheet-delete" type="button" @click="requestCancelFromEdit">取消这一次课程</button>
-          <p class="sheet-tip">周期课程保持不变，只会修改 {{ dayjs(editing.date).format('M月D日') }} 这一次安排。</p>
-        </section>
-      </div>
-    </Transition>
+    <OccurrenceEditSheet
+      :item="editing"
+      @close="editing = null"
+      @cancel="requestCancelFromEdit"
+    />
 
     <Transition name="fade">
       <div v-if="cancelling" class="overlay dialog-overlay" @click.self="cancelling = null">
         <section class="confirm-dialog">
           <div class="confirm-icon">!</div>
           <h2>取消这一次课程？</h2>
-          <p>“{{ cancelling.course.title }}”将从 {{ dayjs(cancelling.date).format('M月D日') }} 安排移除，不会删除之后的周期课程。</p>
           <div>
             <button type="button" @click="cancelling = null">暂不取消</button>
             <button class="danger" type="button" @click="confirmCancel">确认取消</button>
@@ -755,7 +448,7 @@ function addTemporaryArrangement() {
   padding: 12px 10px 10px;
   border: 0;
   border-radius: 24px;
-  background: linear-gradient(170deg, #fff 0%, color-mix(in srgb, var(--accent) 4%, #fff) 100%);
+  background: linear-gradient(170deg, var(--paper) 0%, color-mix(in srgb, var(--accent) 8%, var(--paper)) 100%);
   box-shadow: var(--elev-md), var(--glow-top);
   animation: page-in .5s .05s ease both;
 }
@@ -886,7 +579,7 @@ function addTemporaryArrangement() {
   border: 0;
   border-radius: 24px;
   background:
-    linear-gradient(150deg, color-mix(in srgb, var(--ring-color) 13%, #fff) 0%, #fff 62%),
+    linear-gradient(150deg, color-mix(in srgb, var(--ring-color) 16%, var(--mix-base)) 0%, var(--mix-base) 62%),
     var(--paper);
   box-shadow:
     0 2px 5px rgba(25,31,58,.04),
@@ -997,7 +690,7 @@ function addTemporaryArrangement() {
     from 210deg,
     var(--ring-deep) 0deg,
     var(--ring-color) var(--ring),
-    color-mix(in srgb, var(--ring-color) 14%, #e9ebf2) var(--ring)
+    color-mix(in srgb, var(--ring-color) 16%, var(--track)) var(--ring)
   );
   box-shadow: 0 8px 16px -8px color-mix(in srgb, var(--ring-color) 70%, transparent);
 }
@@ -1007,8 +700,8 @@ function addTemporaryArrangement() {
   width: 33px;
   height: 33px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: inset 0 1px 3px rgba(25,31,58,.08);
+  background: var(--mix-base);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--ink) 8%, transparent);
   content: "";
 }
 
@@ -1185,44 +878,6 @@ function addTemporaryArrangement() {
 .empty-state p { margin: 8px 0 16px; color: var(--muted); font-size: 12px; }
 .empty-state a,
 .empty-state button { display: inline-block; padding: 9px 16px; color: #fff; border: 0; border-radius: 13px; background: var(--accent-gradient); box-shadow: 0 12px 22px -10px rgba(255,122,69,.75); font-size: 13px; }
-
-.bill-block {
-  animation: page-in .55s .24s ease both;
-}
-
-.bill-row {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  gap: 11px;
-  align-items: center;
-  margin-bottom: 9px;
-  padding: 12px;
-  border: 0;
-  border-radius: 18px;
-  background: var(--paper);
-  box-shadow: var(--elev-sm), var(--glow-top);
-  transition: transform .2s ease;
-}
-
-.bill-row:active { transform: scale(.98); }
-.bill-icon {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  color: #fff;
-  border-radius: 13px;
-  background: var(--bill-course-color);
-  box-shadow: 0 10px 18px -10px color-mix(in srgb, var(--bill-course-color) 80%, transparent), inset 0 1px 0 rgba(255,255,255,.35);
-  font-size: 21px;
-  font-weight: 750;
-}
-.bill-icon :deep(svg) { width: 23px; height: 23px; }
-.bill-icon.fallback { --bill-course-color: #ff6b8a; font-size: 15px; }
-.bill-row div { min-width: 0; }
-.bill-row div strong { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.bill-row small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
-.bill-row > b { color: var(--ink); font-size: 14px; }
 
 .preset-sheet {
   max-height: min(88vh, 720px);
@@ -1541,8 +1196,7 @@ function addTemporaryArrangement() {
 .dialog-overlay { align-items: center; }
 .confirm-dialog { width: min(100%, 330px); padding: 25px 20px 18px; text-align: center; border-radius: 27px; background: #fff; box-shadow: 0 25px 70px rgba(37,25,69,.3); animation: dialog-in .3s cubic-bezier(.2,.85,.25,1) both; }
 .confirm-icon { display: grid; width: 50px; height: 50px; margin: 0 auto 14px; place-items: center; color: #f05b6d; border-radius: 17px; background: #fff0f2; font-size: 23px; font-weight: 800; }
-.confirm-dialog h2 { font-size: 20px; }
-.confirm-dialog p { margin: 10px 0 20px; color: #8d8799; font-size: 13px; line-height: 1.6; }
+.confirm-dialog h2 { margin-bottom: 20px; font-size: 20px; }
 .confirm-dialog > div:last-child { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .confirm-dialog button { padding: 12px 8px; color: #5e576a; border: 0; border-radius: 14px; background: #f2eff7; font-weight: 650; }
 .confirm-dialog button.danger { color: #fff; background: #ed5d6e; }

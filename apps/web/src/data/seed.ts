@@ -8,12 +8,14 @@ export function createSeed(): AppSnapshot {
   const basketballId = createId('course')
   const englishId = createId('course')
   const schoolId = createId('course')
+  const swimId = createId('course')
   const month = dayjs().format('YYYY-MM')
   const lastMonth = dayjs().subtract(1, 'month').format('YYYY-MM')
   const yearStart = dayjs().startOf('year')
 
   return {
     version: 1,
+    billingSchemaVersion: 4,
     session: { role: 'parent', childId },
     children: [
       {
@@ -36,6 +38,8 @@ export function createSeed(): AppSnapshot {
         location: '实验小学',
         icon: 'school',
         color: '#7B61FF',
+        billingPolicy: { pricingMode: 'free', settlementCycle: 'manual' },
+        needsBillingReview: false,
         billingMode: 'free',
         amount: 0,
         recurrence: {
@@ -58,6 +62,8 @@ export function createSeed(): AppSnapshot {
         location: '艺术中心 3 楼',
         icon: 'music',
         color: '#C265F0',
+        billingPolicy: { pricingMode: 'fixed_period', settlementCycle: 'monthly' },
+        needsBillingReview: false,
         billingMode: 'monthly',
         amount: 680,
         recurrence: {
@@ -75,11 +81,13 @@ export function createSeed(): AppSnapshot {
         childId,
         childIds: [childId],
         title: '篮球兴趣班',
-        type: 'interest',
+        type: 'sport',
         teacher: '赵教练',
         location: '体育馆',
         icon: 'sport',
         color: '#26C281',
+        billingPolicy: { pricingMode: 'per_session', settlementCycle: 'manual' },
+        needsBillingReview: false,
         billingMode: 'session',
         amount: 120,
         recurrence: {
@@ -97,11 +105,13 @@ export function createSeed(): AppSnapshot {
         childId,
         childIds: [childId],
         title: '外教口语',
-        type: 'online',
+        type: 'culture',
         teacher: 'Ms. Amy',
         location: '线上 Zoom',
         icon: 'english',
         color: '#3E9BFF',
+        billingPolicy: { pricingMode: 'fixed_period', settlementCycle: 'monthly' },
+        needsBillingReview: false,
         billingMode: 'monthly',
         amount: 399,
         recurrence: {
@@ -110,6 +120,35 @@ export function createSeed(): AppSnapshot {
           startDate: yearStart.format('YYYY-MM-DD'),
           startTime: '19:30',
           endTime: '20:10',
+        },
+        archived: false,
+        note: '',
+      },
+      {
+        id: swimId,
+        childId,
+        childIds: [childId],
+        title: '游泳课包',
+        type: 'interest',
+        teacher: '周教练',
+        location: '市游泳馆',
+        icon: 'swimming',
+        color: '#22C4CC',
+        billingPolicy: {
+          pricingMode: 'prepaid',
+          settlementCycle: 'upfront',
+          packageUnits: 20,
+          packageUnit: 'session',
+        },
+        needsBillingReview: false,
+        billingMode: 'term',
+        amount: 2400,
+        recurrence: {
+          freq: 'weekly',
+          byWeekday: [6],
+          startDate: yearStart.format('YYYY-MM-DD'),
+          startTime: '16:00',
+          endTime: '17:00',
         },
         archived: false,
         note: '',
@@ -134,7 +173,7 @@ export function createSeed(): AppSnapshot {
         childId,
         courseId: englishId,
         title: '外教口语 · 本月课时包',
-        category: 'online',
+        category: 'culture',
         billingMode: 'monthly',
         amount: 399,
         period: month,
@@ -175,7 +214,7 @@ export function createSeed(): AppSnapshot {
         childId,
         courseId: englishId,
         title: '外教口语 · 上月课时包',
-        category: 'online',
+        category: 'culture',
         billingMode: 'monthly',
         amount: 399,
         period: lastMonth,
@@ -183,6 +222,21 @@ export function createSeed(): AppSnapshot {
         status: 'paid',
         paidAt: dayjs().subtract(1, 'month').date(6).format('YYYY-MM-DD'),
         note: '',
+      },
+      {
+        id: createId('exp'),
+        childId,
+        courseId: swimId,
+        source: 'course_upfront',
+        title: '游泳课包 · 一次性课程费',
+        category: 'interest',
+        billingMode: 'term',
+        amount: 2400,
+        period: lastMonth,
+        dueDate: dayjs().subtract(1, 'month').date(3).format('YYYY-MM-DD'),
+        status: 'paid',
+        paidAt: dayjs().subtract(1, 'month').date(3).format('YYYY-MM-DD'),
+        note: '由课程一次性支付设置同步',
       },
     ],
     goals: [
@@ -197,5 +251,9 @@ export function createSeed(): AppSnapshot {
       },
     ],
     scheduleExceptions: [],
+    occurrenceRecords: [],
+    charges: [],
+    payments: [],
+    billingMigrationAudits: [],
   }
 }

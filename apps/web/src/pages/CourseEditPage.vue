@@ -2,12 +2,30 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { COURSE_COLORS, COURSE_ICON_COLORS, COURSE_ICON_OPTIONS, WEEKDAY_SHORT } from '@/domain/constants'
-import type { BillingMode, CourseDateSlot, CourseIcon as CourseIconName, CourseType } from '@/domain/types'
+import {
+  COURSE_COLORS,
+  COURSE_ICON_COLORS,
+  COURSE_ICON_OPTIONS,
+  COURSE_TYPE_OPTIONS,
+  WEEKDAY_SHORT,
+  unusedCourseColor,
+} from '@/domain/constants'
+import type {
+  BillingMode,
+  CourseDateSlot,
+  CourseIcon as CourseIconName,
+  CoursePricingMode,
+  CourseType,
+  PackageUnit,
+} from '@/domain/types'
 import { effectiveCourseSlots } from '@/services/courseSchedule'
+import { scheduleConflictMessage } from '@/services/schedule'
+import { endTimeOptions, startTimeOptions, type TimeSlotOption } from '@/services/schedule'
 import CourseIcon from '@/components/CourseIcon.vue'
 import ChildProfilePicker from '@/components/ChildProfilePicker.vue'
 import AppSelect from '@/components/AppSelect.vue'
+import AppTimeSelect from '@/components/AppTimeSelect.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import dayjs from 'dayjs'
 
 const store = useAppStore()
@@ -24,6 +42,7 @@ const batchStartTime = ref(existing.value?.recurrence.startTime ?? '18:00')
 const batchEndTime = ref(existing.value?.recurrence.endTime ?? '19:00')
 const editingSlot = ref<CourseDateSlot | null>(null)
 const formError = ref('')
+const slotTimeError = ref('')
 const dragging = ref(false)
 let dragMode: 'add' | 'remove' = 'add'
 const dragVisited = new Set<string>()
@@ -31,24 +50,45 @@ let dragStartDate = ''
 let dragStartX = 0
 let dragStartY = 0
 let didDrag = false
-const courseTypeOptions = [
-  { value: 'school', label: '学校课程' },
-  { value: 'interest', label: '兴趣班' },
-  { value: 'online', label: '在线课堂' },
+const courseTypeOptions = COURSE_TYPE_OPTIONS
+const pricingPlanOptions = [
+  { value: 'prepaid', label: '一次性支付', caption: '报名或购买课包时支付总金额' },
+  { value: 'usage', label: '按需计费', caption: '按实际次数或小时累计' },
+  { value: 'free', label: '无需缴费', caption: '只记录课程安排' },
 ]
-const billingModeOptions = [
-  { value: 'monthly', label: '按月结算' },
-  { value: 'session', label: '单次结算' },
-  { value: 'term', label: '按期结算' },
-  { value: 'free', label: '无需缴费' },
+const usageUnitOptions = [
+  { value: 'per_session', label: '按次', caption: '每完成一节按单次价格计费' },
+  { value: 'per_hour', label: '按小时', caption: '按课程实际时长计算' },
 ]
 
 function setCourseType(value: string) {
   form.type = value as CourseType
 }
 
-function setBillingMode(value: string) {
-  form.billingMode = value as BillingMode
+function initialPricingMode(): CoursePricingMode {
+  if (!existing.value) return 'prepaid'
+  if (existing.value.billingPolicy?.pricingMode === 'fixed_period') return 'per_session'
+  if (existing.value.billingPolicy) return existing.value.billingPolicy.pricingMode
+  if (existing.value.billingMode === 'free') return 'free'
+  if (existing.value.billingMode === 'session') return 'per_session'
+  if (existing.value.billingMode === 'term') return 'prepaid'
+  return 'per_session'
+}
+
+function initialSettlementCycle(): SettlementCycle {
+  if (!existing.value) return 'upfront'
+  if (existing.value?.billingPolicy) return existing.value.billingPolicy.settlementCycle
+  if (existing.value?.billingMode === 'monthly') return 'monthly'
+  if (existing.value?.billingMode === 'term') return 'upfront'
+  return 'manual'
+}
+
+function upfrontExpenseStatus() {
+  const expense = store.snapshot.expenses.find(
+    (item) => item.courseId === id.value
+      && (item.source === 'course_upfront' || item.billingMode === 'term'),
+  )
+  return expense?.status === 'paid' ? 'paid' as const : 'unpaid' as const
 }
 
 function initialChildIds() {
@@ -64,11 +104,82 @@ const form = reactive({
   teacher: existing.value?.teacher ?? '',
   location: existing.value?.location ?? '',
   icon: (existing.value?.icon ?? 'generic') as CourseIconName,
-  color: existing.value?.color ?? COURSE_COLORS[0],
-  billingMode: (existing.value?.billingMode ?? 'monthly') as BillingMode,
+  color: existing.value?.color ?? unusedCourseColor(store.snapshot.courses),
+  pricingMode: initialPricingMode(),
+  settlementCycle: initialSettlementCycle(),
+  paymentStatus: upfrontExpenseStatus(),
   amount: existing.value?.amount ?? 0,
+  packageEnabled: Number(existing.value?.billingPolicy?.packageUnits) > 0,
+  packageUnit: (existing.value?.billingPolicy?.packageUnit ?? 'session') as PackageUnit,
+  packageUnits: existing.value?.billingPolicy?.packageUnits ?? 20,
   note: existing.value?.note ?? '',
 })
+
+const paymentPlan = computed(() => {
+  if (form.pricingMode === 'per_session' || form.pricingMode === 'per_hour') return 'usage'
+  return form.pricingMode
+})
+
+const billingAmountLabel = computed(() => {
+  if (form.pricingMode === 'prepaid') return '课程总金额'
+  if (form.pricingMode === 'per_hour') return '每小时费用'
+  return '单次费用'
+})
+
+const billingSummary = computed(() => {
+  const amount = `¥${Math.max(0, Number(form.amount) || 0).toLocaleString('zh-CN')}`
+  if (form.pricingMode === 'free') return '该课程无需缴费，只记录课程安排。'
+  if (form.pricingMode === 'prepaid') {
+    return `课程总费用 ${amount}，当前${form.paymentStatus === 'paid' ? '已支付' : '待支付'}。`
+  }
+  const unit = form.pricingMode === 'per_hour' ? '每小时' : '每完成 1 次'
+  return `${unit}计费 ${amount}；取消未上的课次不计费。`
+})
+
+function choosePaymentPlan(value: string) {
+  if (value === 'usage') {
+    if (form.pricingMode !== 'per_session' && form.pricingMode !== 'per_hour') {
+      form.pricingMode = 'per_session'
+    }
+    form.settlementCycle = 'manual'
+    return
+  }
+  form.pricingMode = value as CoursePricingMode
+  form.settlementCycle = value === 'prepaid' ? 'upfront' : 'manual'
+}
+
+function setUsageUnit(value: string) {
+  form.pricingMode = value as Extract<CoursePricingMode, 'per_session' | 'per_hour'>
+}
+
+function compatibilityBillingMode(): BillingMode {
+  if (form.pricingMode === 'free') return 'free'
+  if (form.pricingMode === 'prepaid') return 'term'
+  if (form.pricingMode === 'fixed_period') return 'monthly'
+  return 'session'
+}
+
+function includeCurrentTime(options: TimeSlotOption[], value: string) {
+  if (!value || options.some((option) => option.value === value)) return options
+  return [...options, { value, label: value, disabled: false }]
+    .sort((a, b) => a.value.localeCompare(b.value))
+}
+
+const batchStartTimeOptions = computed(() =>
+  includeCurrentTime(startTimeOptions([]), batchStartTime.value),
+)
+const slotStartTimeOptions = computed(() =>
+  includeCurrentTime(startTimeOptions([]), editingSlot.value?.startTime ?? ''),
+)
+const batchEndTimeOptions = computed(() =>
+  includeCurrentTime(endTimeOptions([], batchStartTime.value), batchEndTime.value),
+)
+const slotEndTimeOptions = computed(() =>
+  includeCurrentTime(
+    endTimeOptions([], editingSlot.value?.startTime ?? ''),
+    editingSlot.value?.endTime ?? '',
+  ),
+)
 
 function selectCourseIcon(icon: CourseIconName) {
   const systemColors = new Set([
@@ -76,8 +187,11 @@ function selectCourseIcon(icon: CourseIconName) {
     ...Object.values(COURSE_ICON_COLORS).map((color) => color.toUpperCase()),
   ])
   form.icon = icon
-  if (systemColors.has(form.color.toUpperCase())) {
-    form.color = COURSE_ICON_COLORS[icon]
+  if (!id.value || systemColors.has(form.color.toUpperCase())) {
+    form.color = unusedCourseColor(store.snapshot.courses, {
+      preferred: COURSE_ICON_COLORS[icon],
+      exceptId: id.value || undefined,
+    })
   }
 }
 
@@ -105,9 +219,14 @@ watch(id, () => {
     teacher: course?.teacher ?? '',
     location: course?.location ?? '',
     icon: (course?.icon ?? 'generic') as CourseIconName,
-    color: course?.color ?? COURSE_COLORS[0],
-    billingMode: (course?.billingMode ?? 'monthly') as BillingMode,
+    color: course?.color ?? unusedCourseColor(store.snapshot.courses),
+    pricingMode: initialPricingMode(),
+    settlementCycle: initialSettlementCycle(),
+    paymentStatus: upfrontExpenseStatus(),
     amount: course?.amount ?? 0,
+    packageEnabled: Number(course?.billingPolicy?.packageUnits) > 0,
+    packageUnit: (course?.billingPolicy?.packageUnit ?? 'session') as PackageUnit,
+    packageUnits: course?.billingPolicy?.packageUnits ?? 20,
     note: course?.note ?? '',
   })
 })
@@ -183,6 +302,11 @@ function startSelecting(date: string, event: PointerEvent) {
 }
 
 function applyBatchTime() {
+  if (!batchStartTime.value || !batchEndTime.value || batchEndTime.value <= batchStartTime.value) {
+    formError.value = '结束时间要晚于开始时间'
+    return
+  }
+  formError.value = ''
   for (const slot of slots.value) {
     slot.startTime = batchStartTime.value
     slot.endTime = batchEndTime.value
@@ -191,6 +315,12 @@ function applyBatchTime() {
 
 function saveSlotTime() {
   if (!editingSlot.value) return
+  if (!editingSlot.value.startTime || !editingSlot.value.endTime
+    || editingSlot.value.endTime <= editingSlot.value.startTime) {
+    slotTimeError.value = '结束时间要晚于开始时间'
+    return
+  }
+  slotTimeError.value = ''
   const target = findSlot(editingSlot.value.date)
   if (target) {
     target.startTime = editingSlot.value.startTime
@@ -200,6 +330,7 @@ function saveSlotTime() {
 }
 
 function openSlot(slot: CourseDateSlot) {
+  slotTimeError.value = ''
   editingSlot.value = { ...slot }
 }
 
@@ -217,7 +348,28 @@ function save() {
     formError.value = '请至少选择一个孩子'
     return
   }
+  if (form.pricingMode !== 'free' && (!Number.isFinite(Number(form.amount)) || Number(form.amount) <= 0)) {
+    formError.value = `请填写${billingAmountLabel.value}`
+    return
+  }
+  if (
+    form.pricingMode === 'prepaid'
+    && form.packageEnabled
+    && (!Number.isInteger(Number(form.packageUnits)) || Number(form.packageUnits) <= 0)
+  ) {
+    formError.value = '请填写大于 0 的课包总量'
+    return
+  }
+  if (slots.value.some((slot) => !slot.startTime || !slot.endTime || slot.endTime <= slot.startTime)) {
+    formError.value = '课程中存在无效时间，请确认结束时间晚于开始时间'
+    return
+  }
   const dates = sortedSlots.value
+  const [conflict] = store.findCourseScheduleConflicts(dates, id.value || undefined, form.childIds)
+  if (conflict) {
+    formError.value = scheduleConflictMessage(conflict)
+    return
+  }
   const savedId = store.upsertCourse({
     id: id.value || undefined,
     childIds: [...form.childIds],
@@ -227,8 +379,19 @@ function save() {
     location: form.location.trim(),
     icon: form.icon,
     color: form.color,
-    billingMode: form.billingMode,
-    amount: Number(form.amount) || 0,
+    needsBillingReview: false,
+    billingPolicy: {
+      pricingMode: form.pricingMode,
+      settlementCycle: form.pricingMode === 'prepaid' ? 'upfront' : 'manual',
+      packageUnits: form.pricingMode === 'prepaid' && form.packageEnabled
+        ? Number(form.packageUnits)
+        : undefined,
+      packageUnit: form.pricingMode === 'prepaid' && form.packageEnabled
+        ? form.packageUnit
+        : undefined,
+    },
+    billingMode: compatibilityBillingMode(),
+    amount: form.pricingMode === 'free' ? 0 : Number(form.amount) || 0,
     recurrence: {
       freq: 'dates',
       byWeekday: [],
@@ -240,6 +403,7 @@ function save() {
     },
     note: form.note,
   })
+  store.syncCourseUpfrontExpense(savedId, form.paymentStatus)
   store.clearScheduleExceptionsForCourse(savedId)
   router.push(returnTo.value)
 }
@@ -256,13 +420,11 @@ onBeforeUnmount(stopDragging)
 
 <template>
   <main class="page course-editor">
-    <section class="editor-hero">
-      <div>
-        <p>{{ id ? '课程维护' : '创建课程预设' }}</p>
-        <h1>{{ id ? `编辑${existing?.title ?? '课程'}` : '新增课程' }}</h1>
-      </div>
-      <span>{{ slots.length }} 次课</span>
-    </section>
+    <PageHeader show-back :title="id ? '课程编辑' : '新增课程'">
+      <template #actions>
+        <span class="lesson-count">{{ slots.length }} 次课</span>
+      </template>
+    </PageHeader>
 
     <form @submit.prevent="save">
       <div class="course-participants">
@@ -298,20 +460,73 @@ onBeforeUnmount(stopDragging)
           <label>上课地点</label>
           <input v-model="form.location" placeholder="线下地点或在线平台" />
         </div>
-        <div class="two-fields">
-          <div class="field">
-            <label>结算方式</label>
-            <AppSelect
-              :model-value="form.billingMode"
-              :options="billingModeOptions"
-              aria-label="选择结算方式"
-              @update:model-value="setBillingMode"
-            />
+        <div class="billing-settings">
+          <div class="billing-heading">
+            <div><strong>课程费用</strong><small>先选择收费方式，系统会提示需要填写的金额</small></div>
           </div>
-          <div v-if="form.billingMode !== 'free'" class="field">
-            <label>金额</label>
-            <input v-model.number="form.amount" type="number" min="0" />
+          <div v-if="existing?.needsBillingReview" class="billing-review-tip">
+            旧版“按月/按期”无法判断是固定费用、一次性支付还是按课后付，请确认下面的收费方式后再保存。
           </div>
+          <div class="pricing-plan-grid">
+            <button
+              v-for="option in pricingPlanOptions"
+              :key="option.value"
+              type="button"
+              :class="{ active: paymentPlan === option.value }"
+              @click="choosePaymentPlan(option.value)"
+            >
+              <i>
+                <svg v-if="option.value === 'prepaid'" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14v11H5zM8 7V5h8v2M8 11h8m-8 3h5" /></svg>
+                <svg v-else-if="option.value === 'usage'" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v8m3-6.2c-.8-.7-1.7-1-3-1-1.5 0-2.5.7-2.5 1.7 0 2.5 5.2 1 5.2 3.6 0 1.1-1.1 1.9-2.7 1.9-1.3 0-2.4-.4-3.1-1.1" /></svg>
+                <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7" /></svg>
+              </i>
+              <span><b>{{ option.label }}</b><small>{{ option.caption }}</small></span>
+            </button>
+          </div>
+
+          <div v-if="paymentPlan === 'usage'" class="billing-detail">
+            <div class="field">
+              <label>计价单位</label>
+              <div class="option-pair">
+                <button
+                  v-for="option in usageUnitOptions"
+                  :key="option.value"
+                  type="button"
+                  :class="{ active: form.pricingMode === option.value }"
+                  @click="setUsageUnit(option.value)"
+                >
+                  <b>{{ option.label }}</b>
+                  <small>{{ option.caption }}</small>
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <label>{{ billingAmountLabel }}</label>
+              <div class="billing-money"><span>¥</span><input v-model.number="form.amount" type="number" min="0" step="0.01" /></div>
+            </div>
+          </div>
+
+          <div v-else-if="form.pricingMode === 'prepaid'" class="billing-detail">
+            <div class="field">
+              <label>{{ billingAmountLabel }}</label>
+              <div class="billing-money"><span>¥</span><input v-model.number="form.amount" type="number" min="0" step="0.01" /></div>
+            </div>
+            <div class="switch-row">
+              <span>是否已支付</span>
+              <button
+                class="pay-switch"
+                type="button"
+                role="switch"
+                :aria-checked="form.paymentStatus === 'paid'"
+                :aria-label="form.paymentStatus === 'paid' ? '已支付' : '未支付'"
+                @click="form.paymentStatus = form.paymentStatus === 'paid' ? 'unpaid' : 'paid'"
+              >
+                <i />
+              </button>
+            </div>
+          </div>
+
+          <p class="billing-summary">{{ billingSummary }}</p>
         </div>
       </section>
 
@@ -367,9 +582,25 @@ onBeforeUnmount(stopDragging)
           <div><h2>批量设置时间</h2><p>应用到当前已选的全部日期</p></div>
         </div>
         <div class="time-range">
-          <label><span>开始</span><input v-model="batchStartTime" type="time" /></label>
+          <div class="time-field">
+            <span>开始</span>
+            <AppTimeSelect
+              v-model="batchStartTime"
+              :options="batchStartTimeOptions"
+              :show-legend="false"
+              aria-label="选择批量开始时间"
+            />
+          </div>
           <i>→</i>
-          <label><span>结束</span><input v-model="batchEndTime" type="time" /></label>
+          <div class="time-field">
+            <span>结束</span>
+            <AppTimeSelect
+              v-model="batchEndTime"
+              :options="batchEndTimeOptions"
+              :show-legend="false"
+              aria-label="选择批量结束时间"
+            />
+          </div>
         </div>
         <button class="apply-time" type="button" :disabled="!slots.length" @click="applyBatchTime">
           应用到已选 {{ slots.length }} 个日期
@@ -458,10 +689,29 @@ onBeforeUnmount(stopDragging)
             <button type="button" @click="editingSlot = null">×</button>
           </div>
           <div class="time-range single">
-            <label><span>开始</span><input v-model="editingSlot.startTime" type="time" /></label>
+            <div class="time-field">
+              <span>开始</span>
+              <AppTimeSelect
+                v-model="editingSlot.startTime"
+                :options="slotStartTimeOptions"
+                placement="top"
+                :show-legend="false"
+                aria-label="选择当天开始时间"
+              />
+            </div>
             <i>→</i>
-            <label><span>结束</span><input v-model="editingSlot.endTime" type="time" /></label>
+            <div class="time-field">
+              <span>结束</span>
+              <AppTimeSelect
+                v-model="editingSlot.endTime"
+                :options="slotEndTimeOptions"
+                placement="top"
+                :show-legend="false"
+                aria-label="选择当天结束时间"
+              />
+            </div>
           </div>
+          <p v-if="slotTimeError" class="slot-time-error">{{ slotTimeError }}</p>
           <button class="save-button" type="button" @click="saveSlotTime">保存当天时间</button>
           <p class="slot-tip">只修改这一天，不影响当前课程的其他已选日期。</p>
         </section>
@@ -480,7 +730,7 @@ onBeforeUnmount(stopDragging)
   padding: 15px 14px 12px;
   border: 0;
   border-radius: 22px;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 8%, #fff) 0%, var(--paper) 68%);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 10%, var(--mix-base)) 0%, var(--paper) 68%);
   box-shadow: var(--elev-sm), var(--glow-top);
 }
 
@@ -561,27 +811,9 @@ onBeforeUnmount(stopDragging)
   line-height: 1;
 }
 
-.editor-hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-
-.editor-hero p {
-  margin: 0 0 4px;
-  color: var(--accent-text);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.editor-hero h1 {
-  font-size: 26px;
-}
-
-.editor-hero > span {
+.lesson-count {
   padding: 7px 11px;
-  color: #7048df;
+  color: var(--accent-text);
   border-radius: 12px;
   background: var(--accent-soft);
   font-size: 12px;
@@ -622,11 +854,11 @@ onBeforeUnmount(stopDragging)
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
-  color: #352f42;
+  color: var(--ink);
   text-align: left;
   border: 0;
   border-radius: 16px;
-  background: #f8f6fb;
+  background: var(--surface-2);
 }
 
 .extra-child-row .choose-existing span {
@@ -674,7 +906,7 @@ onBeforeUnmount(stopDragging)
   padding: 12px 14px;
   border: 1px solid #e7e2ef;
   border-radius: 14px;
-  background: #faf9fc;
+  background: var(--surface-2);
 }
 
 .child-name-sheet {
@@ -689,7 +921,7 @@ onBeforeUnmount(stopDragging)
   padding: 12px;
   border: 0;
   border-radius: 18px;
-  background: linear-gradient(150deg, #f7f6fd 0%, #fff 72%);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 8%, var(--mix-base)) 0%, var(--paper) 72%);
   box-shadow: var(--elev-sm), var(--glow-top);
 }
 
@@ -768,6 +1000,240 @@ onBeforeUnmount(stopDragging)
   gap: 10px;
 }
 
+.billing-settings {
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+}
+
+.billing-heading {
+  display: flex;
+  margin-bottom: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.billing-heading strong,
+.billing-heading small {
+  display: block;
+}
+
+.billing-heading strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.billing-heading small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.billing-review-tip {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  color: #7657ba;
+  border-radius: 13px;
+  background: #f2edff;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.pricing-plan-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.pricing-plan-grid > button {
+  display: grid;
+  min-height: 68px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  padding: 9px;
+  color: var(--muted);
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--paper) 92%, var(--bg));
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+
+.pricing-plan-grid > button:active {
+  transform: scale(.98);
+}
+
+.pricing-plan-grid > button.active {
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: var(--accent-soft);
+}
+
+.pricing-plan-grid i {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--accent-text);
+  border-radius: 11px;
+  background: var(--paper);
+  font-style: normal;
+}
+
+.pricing-plan-grid svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.pricing-plan-grid b,
+.pricing-plan-grid small {
+  display: block;
+}
+
+.pricing-plan-grid b {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.pricing-plan-grid small {
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.billing-detail {
+  display: grid;
+  gap: 13px;
+  margin-top: 12px;
+  padding: 13px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--paper));
+}
+
+.billing-fields {
+  align-items: end;
+}
+
+.option-pair,
+.payment-status {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.option-pair button,
+.payment-status button {
+  min-height: 56px;
+  padding: 9px 10px;
+  color: var(--muted);
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.option-pair button.active,
+.payment-status button.active {
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 78%, var(--paper));
+}
+
+.option-pair b,
+.option-pair small,
+.payment-status span,
+.payment-status small {
+  display: block;
+}
+
+.option-pair b,
+.payment-status span {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.option-pair small,
+.payment-status small {
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.billing-money {
+  display: grid;
+  min-height: 47px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  color: var(--accent-text);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line), var(--elev-sm);
+}
+
+.billing-money span {
+  padding-left: 13px;
+  font-weight: 800;
+}
+
+.billing-money input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+}
+.switch-row > span { color: var(--muted); font-size: 12px; }
+.pay-switch {
+  position: relative;
+  width: 48px;
+  height: 30px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--track);
+  transition: background-color .2s ease;
+}
+.pay-switch[aria-checked="true"] { background: #2f9d70; }
+.pay-switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(28, 22, 48, .2);
+  transition: transform .2s ease;
+}
+.pay-switch[aria-checked="true"] i { transform: translateX(18px); }
+
+.billing-summary {
+  margin: 12px 1px 0;
+  padding: 10px 12px;
+  color: var(--accent-text);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--accent-soft) 58%, transparent);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
 .legacy-tip {
   margin: -4px 0 14px;
   padding: 10px 12px;
@@ -792,10 +1258,10 @@ onBeforeUnmount(stopDragging)
   height: 36px;
   padding: 0;
   place-items: center;
-  color: #655e73;
+  color: var(--ink);
   border: 0;
   border-radius: 12px;
-  background: #f3f0f8;
+  background: var(--surface-2);
 }
 
 .calendar-nav button svg {
@@ -821,7 +1287,7 @@ onBeforeUnmount(stopDragging)
 
 .calendar-week {
   margin-bottom: 6px;
-  color: #a19aaa;
+  color: var(--muted);
   text-align: center;
   font-size: 10px;
 }
@@ -837,10 +1303,10 @@ onBeforeUnmount(stopDragging)
   aspect-ratio: 1;
   padding: 0;
   place-items: center;
-  color: #514a5e;
+  color: var(--ink);
   border: 0;
   border-radius: 13px;
-  background: #f8f6fb;
+  background: var(--surface-2);
   transition: color .16s ease, background .16s ease, transform .16s ease;
 }
 
@@ -895,23 +1361,14 @@ onBeforeUnmount(stopDragging)
   align-items: end;
 }
 
-.time-range label {
+.time-field {
   display: grid;
   gap: 6px;
 }
 
-.time-range label span {
+.time-field > span {
   color: #8e8799;
   font-size: 11px;
-}
-
-.time-range input {
-  width: 100%;
-  padding: 11px 8px;
-  color: #352f42;
-  border: 1px solid #e7e2ef;
-  border-radius: 13px;
-  background: #faf9fc;
 }
 
 .time-range > i {
@@ -950,11 +1407,11 @@ onBeforeUnmount(stopDragging)
   gap: 10px;
   align-items: center;
   padding: 11px 12px;
-  color: #352f42;
+  color: var(--ink);
   text-align: left;
   border: 0;
   border-radius: 15px;
-  background: #f8f6fb;
+  background: var(--surface-2);
 }
 
 .slot-list span b,
@@ -998,7 +1455,7 @@ onBeforeUnmount(stopDragging)
   color: #81798d;
   border: 1px solid #e9e4f0;
   border-radius: 14px;
-  background: #faf9fc;
+  background: var(--surface-2);
   transition: color .2s ease, border .2s ease, background .2s ease, transform .2s ease;
 }
 
@@ -1124,7 +1581,7 @@ onBeforeUnmount(stopDragging)
   width: min(100%, 480px);
   padding: 10px 20px calc(22px + env(safe-area-inset-bottom, 0px));
   border-radius: 29px;
-  background: #fff;
+  background: var(--paper);
   box-shadow: 0 25px 70px rgba(37,25,69,.3);
   animation: sheet-up .35s cubic-bezier(.2,.8,.2,1) both;
 }
@@ -1168,6 +1625,13 @@ onBeforeUnmount(stopDragging)
 
 .time-range.single {
   margin-bottom: 16px;
+}
+
+.slot-time-error {
+  margin: -7px 0 12px;
+  color: #b4485a;
+  text-align: center;
+  font-size: 10px;
 }
 
 .slot-sheet .save-button {

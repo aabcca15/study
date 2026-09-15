@@ -27,6 +27,7 @@ export function occurrencesInRange(
     }
     list.push({
       id: `${course.id}_${date}`,
+      occurrenceId: `occ_${course.id}_${date}`,
       date,
       course: effectiveCourse,
       exception,
@@ -76,6 +77,7 @@ export function occurrencesInRange(
     if (!course || course.archived) continue
     list.push({
       id: `${course.id}_${exception.date}`,
+      occurrenceId: `occ_${course.id}_${exception.date}`,
       date: exception.date,
       exception,
       course: {
@@ -154,6 +156,64 @@ export function busyIntervalsOnDate(
 export function findBusyConflict(intervals: BusyInterval[], start: string, end: string) {
   if (!start || !end || end <= start) return undefined
   return intervals.find((item) => start < item.end && end > item.start)
+}
+
+export interface ScheduleSlot {
+  date: string
+  startTime: string
+  endTime: string
+}
+
+export interface ScheduleConflict extends ScheduleSlot {
+  title: string
+}
+
+/** 一组待写入的课次是否与已有安排重叠。创建/加课时统一走这里。 */
+export function courseParticipantIds(course: Pick<Course, 'childId' | 'childIds'>) {
+  return course.childIds?.length ? course.childIds : [course.childId]
+}
+
+/** 只保留与指定孩子有交集的课程。不同孩子可以同一时间上课。 */
+export function coursesForParticipants(courses: Course[], childIds: string[]) {
+  const ids = new Set(childIds.filter(Boolean))
+  if (!ids.size) return []
+  return courses.filter((course) => courseParticipantIds(course).some((id) => ids.has(id)))
+}
+
+/** 一组待写入的课次是否与已有安排重叠。只比同一孩子的课，不比全家日历。 */
+export function findScheduleConflicts(
+  slots: ScheduleSlot[],
+  courses: Course[],
+  exceptions: ScheduleException[] = [],
+  exceptCourseId?: string,
+  childIds?: string[],
+): ScheduleConflict[] {
+  const scoped = childIds?.length ? coursesForParticipants(courses, childIds) : courses
+  const conflicts: ScheduleConflict[] = []
+  for (const slot of slots) {
+    if (!slot.date || !slot.startTime || !slot.endTime || slot.endTime <= slot.startTime) continue
+    const intervals = occurrencesOnDate(scoped, slot.date, exceptions)
+      .filter((item) => item.course.id !== exceptCourseId)
+      .map((item) => ({
+        start: item.course.recurrence.startTime,
+        end: item.course.recurrence.endTime,
+        title: item.course.title,
+      }))
+    const conflict = findBusyConflict(intervals, slot.startTime, slot.endTime)
+    if (conflict) {
+      conflicts.push({
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        title: conflict.title,
+      })
+    }
+  }
+  return conflicts
+}
+
+export function scheduleConflictMessage(conflict: ScheduleConflict) {
+  return `${dayjs(conflict.date).format('M月D日')} ${conflict.startTime}–${conflict.endTime} 与「${conflict.title}」时间冲突`
 }
 
 export function timeSlots(step = TIME_SLOT_STEP_MINUTES) {

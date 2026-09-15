@@ -22,6 +22,8 @@ const tabs = [
 ]
 
 const activeKey = computed(() => {
+  if (route.path === '/bills' && route.query.from === 'today') return 'today'
+  if (route.path.endsWith('/bills') && route.query.returnTo === '/stats') return 'stats'
   if (route.path === '/' && isViewingToday.value) return 'today'
   return String(route.meta.tab ?? '')
 })

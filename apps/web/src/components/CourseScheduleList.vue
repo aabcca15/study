@@ -78,10 +78,11 @@ function participantsFor(item: DayOccurrence) {
     </TransitionGroup>
 
     <div v-else class="empty-state">
-      <div>✦</div>
+      <button class="empty-add" type="button" :aria-label="actionLabel" @click="$emit('add')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
       <h3>{{ emptyTitle }}</h3>
       <p>{{ emptyDescription }}</p>
-      <button type="button" @click="$emit('add')">{{ actionLabel }}</button>
     </div>
   </section>
 </template>
@@ -219,7 +220,7 @@ function participantsFor(item: DayOccurrence) {
 }
 
 .empty-state {
-  padding: 32px 20px;
+  padding: 28px 20px 24px;
   text-align: center;
   border: 0;
   border-radius: 24px;
@@ -227,18 +228,32 @@ function participantsFor(item: DayOccurrence) {
   box-shadow: var(--elev-md), var(--glow-top);
 }
 
-.empty-state > div {
+.empty-state h3 { font-size: 17px; }
+.empty-state p { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+
+.empty-add {
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   margin: 0 auto 12px;
+  padding: 0;
   place-items: center;
-  color: #fff;
-  border-radius: 16px;
-  background: var(--accent-gradient);
+  color: var(--accent-text);
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
 }
 
-.empty-state h3 { font-size: 17px; }
-.empty-state p { margin: 8px 0 16px; color: var(--muted); font-size: 12px; }
-.empty-state > button { padding: 9px 16px; color: #fff; border: 0; border-radius: 13px; background: var(--accent-gradient); }
+.empty-add:active {
+  transform: scale(.96);
+}
+
+.empty-add svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
 </style>

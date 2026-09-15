@@ -1,8 +1,9 @@
-import { CHILD_AVATAR_OPTIONS, STORAGE_KEY } from '@/domain/constants'
-import type { AppSnapshot } from '@/domain/types'
+import { BILLING_SCHEMA_VERSION, CHILD_AVATAR_OPTIONS, STORAGE_KEY, normalizeCourseType } from '@/domain/constants'
+import type { AppSnapshot, BillingMigrationAudit } from '@/domain/types'
 import { createSeed } from './seed'
 import { reconcileCoursesWithExceptions } from '@/services/courseSchedule'
-import type { Course, CourseIcon } from '@/domain/types'
+import type { Course, CourseBillingPolicy, CourseIcon } from '@/domain/types'
+import dayjs from 'dayjs'
 
 const LEGACY_COLORS: Record<string, string> = {
   '#c45c26': '#FF9A3D',
@@ -41,10 +42,98 @@ function inferCourseIcon(course: Course): CourseIcon {
   return 'generic'
 }
 
+function inferBillingPolicy(course: Course): CourseBillingPolicy {
+  if (course.billingMode === 'free') {
+    return { pricingMode: 'free', settlementCycle: 'manual' }
+  }
+  if (course.billingMode === 'session') {
+    return { pricingMode: 'per_session', settlementCycle: 'manual' }
+  }
+  // monthly / term 语义不明确，只给可编辑的默认值，并靠 needsBillingReview 让用户确认。
+  if (course.billingMode === 'term') {
+    return { pricingMode: 'prepaid', settlementCycle: 'upfront' }
+  }
+  return { pricingMode: 'fixed_period', settlementCycle: 'monthly' }
+}
+
+function migrateBillingSchema(parsed: AppSnapshot) {
+  let changed = false
+  if (!Array.isArray(parsed.occurrenceRecords)) {
+    parsed.occurrenceRecords = []
+    changed = true
+  }
+  if (!Array.isArray(parsed.charges)) {
+    parsed.charges = []
+    changed = true
+  }
+  if (!Array.isArray(parsed.payments)) {
+    parsed.payments = []
+    changed = true
+  }
+  if (!Array.isArray(parsed.billingMigrationAudits)) {
+    parsed.billingMigrationAudits = []
+    changed = true
+  }
+
+  for (const expense of parsed.expenses) {
+    if (expense.status === 'paid' && !expense.paidAt) {
+      expense.paidAt = expense.dueDate || `${expense.period}-01`
+      changed = true
+    }
+    if (!expense.chargeIds) {
+      expense.chargeIds = []
+      changed = true
+    }
+    if (
+      expense.status === 'paid'
+      && !parsed.payments.some((payment) => payment.expenseId === expense.id && payment.kind === 'payment')
+    ) {
+      parsed.payments.push({
+        id: `pay_legacy_${expense.id}`,
+        childId: expense.childId,
+        expenseId: expense.id,
+        kind: 'payment',
+        amount: expense.amount,
+        paidAt: expense.paidAt ?? expense.dueDate ?? `${expense.period}-01`,
+        note: '由历史已支付账单迁移',
+      })
+      changed = true
+    }
+  }
+
+  const fromVersion = parsed.billingSchemaVersion ?? 1
+  if (fromVersion < BILLING_SCHEMA_VERSION) {
+    const alreadyAudited = parsed.billingMigrationAudits.some((item) => item.toVersion >= BILLING_SCHEMA_VERSION)
+    if (!alreadyAudited) {
+      const audit: BillingMigrationAudit = {
+        fromVersion,
+        toVersion: BILLING_SCHEMA_VERSION,
+        at: dayjs().format('YYYY-MM-DD'),
+        notes: [
+          '未为历史课次补写 OccurrenceRecord 或 Charge，过去课次仍显示待确认',
+          '未推断课包次数或分钟，需在课程编辑中由家长填写后才追踪余额',
+          `保留已支付账单 ${parsed.expenses.filter((item) => item.status === 'paid').length} 笔，不重算金额或支付日`,
+        ],
+        preservedPaidExpenseIds: parsed.expenses
+          .filter((item) => item.status === 'paid')
+          .map((item) => item.id),
+        coursesNeedingReview: parsed.courses
+          .filter((course) => course.needsBillingReview)
+          .map((course) => course.id),
+      }
+      parsed.billingMigrationAudits.push(audit)
+    }
+    parsed.billingSchemaVersion = BILLING_SCHEMA_VERSION
+    changed = true
+  }
+  return changed
+}
+
 export function loadSnapshot(): AppSnapshot {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) {
     const seed = createSeed()
+    migrateBillingSchema(seed)
     saveSnapshot(seed)
     return seed
   }
@@ -78,6 +167,11 @@ export function loadSnapshot(): AppSnapshot {
       changed = true
     }
     for (const course of parsed.courses) {
+      const nextType = normalizeCourseType(course.type)
+      if (course.type !== nextType) {
+        course.type = nextType
+        changed = true
+      }
       if (!Array.isArray(course.childIds) || !course.childIds.length) {
         course.childIds = [course.childId]
         changed = true
@@ -86,9 +180,36 @@ export function loadSnapshot(): AppSnapshot {
         course.icon = inferCourseIcon(course)
         changed = true
       }
+      if (!course.billingPolicy) {
+        course.billingPolicy = inferBillingPolicy(course)
+        changed = true
+      }
+      if (course.needsBillingReview === undefined) {
+        course.needsBillingReview = course.source !== 'temporary'
+          && (course.billingMode === 'monthly' || course.billingMode === 'term')
+        changed = true
+      }
       const migratedColor = LEGACY_COLORS[course.color.toLowerCase()]
       if (migratedColor) {
         course.color = migratedColor
+        changed = true
+      }
+      if (!course.source && course.note === '通过快速新增创建的临时安排') {
+        course.source = 'temporary'
+        changed = true
+      }
+    }
+    const temporaryCourseIds = new Set(
+      parsed.courses.filter((course) => course.source === 'temporary').map((course) => course.id),
+    )
+    for (const expense of parsed.expenses) {
+      if ((expense.category as string) === 'online') {
+        expense.category = 'other'
+        changed = true
+      }
+      if (expense.courseId && temporaryCourseIds.has(expense.courseId) && expense.category !== 'temporary') {
+        expense.category = 'temporary'
+        expense.source = 'temporary'
         changed = true
       }
     }
@@ -102,6 +223,7 @@ export function loadSnapshot(): AppSnapshot {
     if (reconcileCoursesWithExceptions(parsed.courses, parsed.scheduleExceptions)) {
       changed = true
     }
+    if (migrateBillingSchema(parsed)) changed = true
     if (changed) saveSnapshot(parsed)
     return parsed
   } catch {
@@ -117,6 +239,7 @@ export function saveSnapshot(snapshot: AppSnapshot) {
 
 export function resetSnapshot() {
   const seed = createSeed()
+  migrateBillingSchema(seed)
   saveSnapshot(seed)
   return seed
 }

@@ -11,9 +11,25 @@ import type {
 export const STORAGE_KEY = 'myhome.v1'
 
 export const COURSE_TYPE_LABEL: Record<CourseType, string> = {
-  school: '学校课程',
-  interest: '兴趣班',
-  online: '在线课堂',
+  interest: '兴趣课',
+  sport: '运动课',
+  culture: '文化课',
+  school: '学校课',
+  other: '其它',
+}
+
+export const COURSE_TYPE_OPTIONS: Array<{ value: CourseType; label: string }> = [
+  { value: 'interest', label: '兴趣课' },
+  { value: 'sport', label: '运动课' },
+  { value: 'culture', label: '文化课' },
+  { value: 'school', label: '学校课' },
+  { value: 'other', label: '其它' },
+]
+
+export function normalizeCourseType(value: string | undefined): CourseType {
+  if (value === 'online') return 'other'
+  if (value && value in COURSE_TYPE_LABEL) return value as CourseType
+  return 'interest'
 }
 
 export const BILLING_MODE_LABEL: Record<BillingMode, string> = {
@@ -24,17 +40,20 @@ export const BILLING_MODE_LABEL: Record<BillingMode, string> = {
 }
 
 export const EXPENSE_STATUS_LABEL: Record<ExpenseStatus, string> = {
-  pending: '待结算',
-  unpaid: '未结算',
-  paid: '已结算',
+  pending: '待出账',
+  unpaid: '待支付',
+  paid: '已支付',
+  void: '已作废',
 }
 
 export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
-  school: '学校课程',
-  interest: '兴趣班',
-  online: '在线课堂',
+  interest: '兴趣课',
+  sport: '运动课',
+  culture: '文化课',
+  school: '学校课',
+  other: '其它',
+  temporary: '临时课程',
   material: '学习用品',
-  other: '其他',
 }
 
 export const WEEKDAY_SHORT = ['日', '一', '二', '三', '四', '五', '六']
@@ -80,6 +99,23 @@ export function childAvatarOption(key?: ChildAvatarKey) {
   return CHILD_AVATAR_OPTIONS.find((item) => item.key === key) ?? DEFAULT_CHILD_AVATAR
 }
 
+export function unusedCourseColor(
+  courses: Array<{ id?: string; color?: string }>,
+  options?: { preferred?: string; exceptId?: string },
+) {
+  const used = new Set(
+    courses
+      .filter((course) => course.id !== options?.exceptId)
+      .map((course) => course.color?.toUpperCase())
+      .filter(Boolean),
+  )
+  const preferred = options?.preferred
+  const palette = preferred
+    ? [preferred, ...COURSE_COLORS.filter((color) => color.toUpperCase() !== preferred.toUpperCase())]
+    : COURSE_COLORS
+  return palette.find((color) => !used.has(color.toUpperCase())) ?? preferred ?? COURSE_COLORS[0]
+}
+
 export const COURSE_ICON_OPTIONS: Array<{ value: CourseIcon; label: string }> = [
   { value: 'school', label: '学校' },
   { value: 'sport', label: '运动' },
@@ -92,15 +128,22 @@ export const COURSE_ICON_OPTIONS: Array<{ value: CourseIcon; label: string }> = 
   { value: 'generic', label: '通用' },
 ]
 
+export const BILLING_SCHEMA_VERSION = 4
+
 export function emptySnapshot(): AppSnapshot {
   return {
     version: 1,
+    billingSchemaVersion: BILLING_SCHEMA_VERSION,
     session: { role: 'parent', childId: '' },
     children: [],
     courses: [],
     expenses: [],
     goals: [],
     scheduleExceptions: [],
+    occurrenceRecords: [],
+    charges: [],
+    payments: [],
+    billingMigrationAudits: [],
   }
 }
 

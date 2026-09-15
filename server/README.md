@@ -4,4 +4,4 @@
 
 尚未实现。接口形状、事务和迁移规则见仓库根目录：
 
-`.cursor/skills/myhome-backend-contracts/`
+`.cursor/skills/myhome-backend-contracts/`（`backend-contracts.md` 接口与事务，`account-model.md` 账号与家庭）

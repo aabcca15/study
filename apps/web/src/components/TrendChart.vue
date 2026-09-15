@@ -77,7 +77,7 @@ const labelIndexes = computed(() => {
         </defs>
         <line v-for="y in [32, 64, 96]" :key="y" x1="12" :y1="y" x2="308" :y2="y" class="grid-line" />
         <path v-if="areaPath" :d="areaPath" class="area" :fill="`url(#${areaGradientId})`" />
-        <path v-if="linePath" :d="linePath" class="line" :stroke="`url(#${gradientId})`" />
+        <path v-if="linePath" pathLength="1" :d="linePath" class="line" :stroke="`url(#${gradientId})`" />
         <circle
           v-for="(point, index) in coordinates"
           v-show="point.value > 0"
@@ -86,6 +86,7 @@ const labelIndexes = computed(() => {
           :cy="point.y"
           r="3.2"
           class="point"
+          :style="{ animationDelay: `${220 + index * 40}ms` }"
         />
         <text
           v-for="index in labelIndexes"
@@ -147,7 +148,8 @@ svg {
 }
 
 .area {
-  opacity: 1;
+  opacity: 0;
+  animation: trend-area-in .55s .28s ease forwards;
 }
 
 .line {
@@ -155,14 +157,45 @@ svg {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 4;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   filter: drop-shadow(0 4px 5px color-mix(in srgb, var(--series-color) 26%, transparent));
+  animation: trend-line-in .9s .08s cubic-bezier(.22,.8,.24,1) forwards;
 }
 
 .point {
   fill: var(--paper);
   stroke: var(--series-color);
   stroke-width: 2.4;
+  transform-box: fill-box;
+  transform-origin: center;
   filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--series-color) 24%, transparent));
+  animation: trend-point-in .38s cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes trend-line-in {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes trend-area-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes trend-point-in {
+  from { opacity: 0; transform: scale(.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .area,
+  .line,
+  .point {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+    transform: none;
+  }
 }
 
 text {

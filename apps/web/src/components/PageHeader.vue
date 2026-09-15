@@ -1,16 +1,51 @@
 <script setup lang="ts">
-defineProps<{
+import { useRoute, useRouter } from 'vue-router'
+
+const props = defineProps<{
   eyebrow?: string
   title: string
   avatarLabel?: string
   avatarColor?: string
+  showBack?: boolean
+  backTo?: string
 }>()
+
+const emit = defineEmits<{
+  back: []
+}>()
+
+const route = useRoute()
+const router = useRouter()
+
+function goBack() {
+  emit('back')
+  const returnTo = typeof route.query.returnTo === 'string' ? route.query.returnTo : ''
+  const target = (returnTo.startsWith('/') ? returnTo : '') || props.backTo
+  if (target) {
+    router.replace(target)
+    return
+  }
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/')
+}
 </script>
 
 <template>
-  <header class="page-header">
+  <header class="page-header" :class="{ nav: showBack }">
+    <button
+      v-if="showBack"
+      class="page-back"
+      type="button"
+      aria-label="返回"
+      @click="goBack"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" /></svg>
+    </button>
     <div class="page-header-copy">
-      <p v-if="eyebrow">{{ eyebrow }}</p>
+      <p v-if="eyebrow && !showBack">{{ eyebrow }}</p>
       <h1>
         <i
           v-if="avatarLabel"
@@ -83,6 +118,56 @@ defineProps<{
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
+}
+
+.page-header.nav {
+  min-height: 42px;
+  margin-bottom: 16px;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.page-header.nav .page-header-copy {
+  flex: 1;
+}
+
+.page-header.nav h1 {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -.03em;
+}
+
+.page-header.nav .page-header-actions {
+  margin-left: auto;
+}
+
+.page-back {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  color: var(--ink);
+  border: 0;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: var(--elev-sm), var(--glow-top);
+}
+
+.page-back:active {
+  background: var(--accent-soft);
+  transform: scale(.92);
+}
+
+.page-back svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 @keyframes page-header-in {

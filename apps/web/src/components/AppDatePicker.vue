@@ -3,27 +3,52 @@ import { computed, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 
 const props = withDefaults(defineProps<{
-  modelValue: string
+  modelValue: string | string[]
   mode?: 'date' | 'month'
+  multiple?: boolean
   ariaLabel?: string
 }>(), {
   mode: 'date',
+  multiple: false,
   ariaLabel: '选择日期',
 })
 
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
 const open = ref(false)
-const cursor = ref(dayjs(props.modelValue || undefined))
+const cursor = ref(dayjs(anchorDate(props.modelValue) || undefined))
+
+function asDates(value: string | string[]) {
+  if (Array.isArray(value)) return [...value].filter(Boolean).sort()
+  return value ? [value] : []
+}
+
+function anchorDate(value: string | string[]) {
+  const dates = asDates(value)
+  return dates[dates.length - 1] ?? ''
+}
 
 watch(() => props.modelValue, (value) => {
-  if (value) cursor.value = dayjs(props.mode === 'month' ? `${value}-01` : value)
+  const key = props.mode === 'month' && typeof value === 'string'
+    ? `${value}-01`
+    : anchorDate(value)
+  if (key) cursor.value = dayjs(key)
 })
 
 const displayValue = computed(() => {
-  if (!props.modelValue) return props.mode === 'month' ? '选择账期' : '选择日期'
-  const value = dayjs(props.mode === 'month' ? `${props.modelValue}-01` : props.modelValue)
-  return props.mode === 'month' ? value.format('YYYY年M月') : value.format('YYYY年M月D日')
+  if (props.mode === 'month' && typeof props.modelValue === 'string') {
+    if (!props.modelValue) return '选择账期'
+    return dayjs(`${props.modelValue}-01`).format('YYYY年M月')
+  }
+  const dates = asDates(props.modelValue)
+  if (!dates.length) return '选择日期'
+  const first = dayjs(dates[0])
+  const last = dayjs(dates[dates.length - 1])
+  if (dates.length === 1) return first.format('YYYY年M月D日')
+  if (first.isSame(last, 'year')) return `${first.format('YYYY年M月D日')}–${last.format('M月D日')}`
+  return `${first.format('YYYY年M月D日')}–${last.format('YYYY年M月D日')}`
 })
+
+const selectedSet = computed(() => new Set(asDates(props.modelValue)))
 
 const calendarDays = computed(() => {
   const start = cursor.value.startOf('month').startOf('week')
@@ -31,19 +56,37 @@ const calendarDays = computed(() => {
 })
 
 function show() {
-  cursor.value = dayjs(props.mode === 'month' ? `${props.modelValue || dayjs().format('YYYY-MM')}-01` : props.modelValue || undefined)
+  const key = props.mode === 'month' && typeof props.modelValue === 'string'
+    ? `${props.modelValue || dayjs().format('YYYY-MM')}-01`
+    : anchorDate(props.modelValue)
+  cursor.value = dayjs(key || undefined)
   open.value = true
 }
 
 function chooseDate(value: dayjs.Dayjs) {
-  emit('update:modelValue', value.format('YYYY-MM-DD'))
-  open.value = false
+  const key = value.format('YYYY-MM-DD')
+  if (!props.multiple) {
+    emit('update:modelValue', key)
+    open.value = false
+    return
+  }
+  const next = asDates(props.modelValue)
+  const index = next.indexOf(key)
+  if (index >= 0) next.splice(index, 1)
+  else next.push(key)
+  emit('update:modelValue', next.sort())
 }
 
 function chooseMonth(month: number) {
   const value = cursor.value.month(month)
   emit('update:modelValue', value.format('YYYY-MM'))
   open.value = false
+}
+
+function isSelected(day: dayjs.Dayjs) {
+  if (props.mode === 'month') return false
+  if (props.multiple) return selectedSet.value.has(day.format('YYYY-MM-DD'))
+  return day.format('YYYY-MM-DD') === props.modelValue
 }
 </script>
 
@@ -90,14 +133,17 @@ function chooseMonth(month: number) {
                   :class="{
                     muted: !day.isSame(cursor, 'month'),
                     today: day.isSame(dayjs(), 'day'),
-                    selected: day.format('YYYY-MM-DD') === modelValue,
+                    selected: isSelected(day),
                   }"
                   @click="chooseDate(day)"
                 >{{ day.date() }}</button>
               </div>
             </template>
 
-            <button class="picker-cancel" type="button" @click="open = false">取消</button>
+            <div class="picker-actions">
+              <button class="picker-cancel" type="button" @click="open = false">取消</button>
+              <button v-if="multiple" class="picker-done" type="button" @click="open = false">完成</button>
+            </div>
           </section>
         </div>
       </Transition>
@@ -136,7 +182,7 @@ function chooseMonth(month: number) {
 
 .picker-backdrop {
   position: fixed;
-  z-index: 1100;
+  z-index: 1300;
   inset: 0;
   display: grid;
   padding: 18px;
@@ -201,14 +247,29 @@ function chooseMonth(month: number) {
 .month-grid button.selected,
 .day-grid button.selected { color: #fff; background: var(--accent-gradient); box-shadow: 0 12px 20px -8px rgba(255,122,69,.7); }
 
-.picker-cancel {
-  width: 100%;
+.picker-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
   margin-top: 14px;
+}
+.picker-actions:has(.picker-done) { grid-template-columns: 1fr 1fr; }
+
+.picker-cancel,
+.picker-done {
+  width: 100%;
   padding: 11px;
-  color: var(--muted);
   border: 0;
   border-radius: 13px;
+  font-weight: 700;
+}
+.picker-cancel {
+  color: var(--muted);
   background: var(--bg);
+}
+.picker-done {
+  color: #fff;
+  background: var(--accent-gradient);
 }
 
 .picker-enter-active,

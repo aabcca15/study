@@ -2,17 +2,22 @@
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
-import { BILLING_MODE_LABEL, COURSE_TYPE_LABEL } from '@/domain/constants'
-import { money } from '@/services/billing'
+import { COURSE_TYPE_LABEL } from '@/domain/constants'
 import type { Course } from '@/domain/types'
 import { courseScheduleProgress } from '@/services/courseSchedule'
-import { getCourseBillingSummary, getCourseLifecycle } from '@/services/courseOverview'
+import {
+  getCourseAmountLabel,
+  getCourseBillingSummary,
+  getCourseLifecycle,
+  getCoursePricingLabel,
+} from '@/services/courseOverview'
 import CourseIcon from '@/components/CourseIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ChildProfilePicker from '@/components/ChildProfilePicker.vue'
 
 const store = useAppStore()
 const openMenuId = ref('')
+const deleting = ref<Course | null>(null)
 const activeChildIds = computed({
   get: () => store.child ? [store.child.id] : [],
   set: (ids: string[]) => {
@@ -25,11 +30,18 @@ const courseCards = computed(() => {
   const period = dayjs().format('YYYY-MM')
   const stateOrder = { active: 0, upcoming: 1, unscheduled: 2, ended: 3, completed: 4 }
   return store.allCourses
+    .filter((course) => course.source !== 'temporary')
     .map((course) => ({
       course,
       lifecycle: getCourseLifecycle(course, store.scheduleExceptions, today),
       progress: courseScheduleProgress(course, today, store.scheduleExceptions),
-      billing: getCourseBillingSummary(course, store.expenses, period),
+      billing: getCourseBillingSummary(
+        course,
+        store.expenses,
+        period,
+        store.charges,
+        store.snapshot.occurrenceRecords ?? [],
+      ),
     }))
     .sort((a, b) => stateOrder[a.lifecycle.key] - stateOrder[b.lifecycle.key])
 })
@@ -43,6 +55,26 @@ function toggleCompletion(course: Course) {
   else store.archiveCourse(course.id)
   openMenuId.value = ''
 }
+
+function requestDelete(course: Course) {
+  deleting.value = course
+  openMenuId.value = ''
+}
+
+function confirmDelete() {
+  if (!deleting.value) return
+  store.removeCourse(deleting.value.id)
+  deleting.value = null
+}
+
+const deletingSharedNames = computed(() => {
+  const course = deleting.value
+  if (!course) return []
+  const ids = course.childIds?.length ? course.childIds : [course.childId]
+  return store.snapshot.children
+    .filter((child) => ids.includes(child.id) && child.id !== store.child?.id)
+    .map((child) => child.name)
+})
 
 </script>
 
@@ -86,10 +118,11 @@ function toggleCompletion(course: Course) {
               </button>
               <div v-if="openMenuId === card.course.id" class="course-menu">
                 <router-link :to="{ path: `/courses/edit/${card.course.id}`, query: { returnTo: '/courses' } }">编辑课程</router-link>
-                <router-link to="/bills">{{ card.billing.key === 'open' ? '去支付' : '查看账单' }}</router-link>
+                <router-link :to="`/courses/${card.course.id}/bills`">{{ card.billing.key === 'open' ? '去支付' : '查看账单' }}</router-link>
                 <button type="button" @click="toggleCompletion(card.course)">
                   {{ card.course.archived ? '恢复课程' : '标记已结课' }}
                 </button>
+                <button class="danger" type="button" @click="requestDelete(card.course)">删除课程</button>
               </div>
             </div>
           </div>
@@ -104,17 +137,17 @@ function toggleCompletion(course: Course) {
         </div>
         <div class="course-foot">
           <div class="foot-copy">
-            <span>{{ BILLING_MODE_LABEL[card.course.billingMode] }}</span>
+            <span>{{ getCoursePricingLabel(card.course) }}</span>
             <small
               v-if="card.billing.key !== 'free'"
               class="billing-state"
               :class="`is-${card.billing.key}`"
             >{{ card.billing.label }}</small>
           </div>
-          <router-link v-if="card.billing.key === 'open'" class="foot-pay" to="/bills">
+          <router-link v-if="card.billing.key === 'open'" class="foot-pay" :to="`/courses/${card.course.id}/bills`">
             去支付
           </router-link>
-          <strong v-else>{{ card.course.billingMode === 'free' ? '免费' : money(card.course.amount) }}</strong>
+          <strong v-else>{{ getCourseAmountLabel(card.course) }}</strong>
         </div>
       </article>
       <router-link
@@ -131,6 +164,26 @@ function toggleCompletion(course: Course) {
     </section>
 
     <p v-if="!store.allCourses.length" class="empty">还没有课程，先把学校上课时间和兴趣班加上。</p>
+
+    <Transition name="fade">
+      <div v-if="deleting" class="overlay" @click.self="deleting = null">
+        <section class="confirm-dialog">
+          <div class="confirm-icon">!</div>
+          <h2>删除这门课程？</h2>
+          <p>
+            “{{ deleting.title }}”会从课程档案、今日和日历中移除。
+            已支付账单会保留为历史支出，未支付账单和待结算费用会一起删除。
+            <template v-if="deletingSharedNames.length">
+              这门课还关联了{{ deletingSharedNames.join('、') }}，删除后他们也看不到。
+            </template>
+          </p>
+          <div>
+            <button type="button" @click="deleting = null">再想想</button>
+            <button class="danger" type="button" @click="confirmDelete">确认删除</button>
+          </div>
+        </section>
+      </div>
+    </Transition>
   </main>
 </template>
 
@@ -170,11 +223,11 @@ function toggleCompletion(course: Course) {
   flex-direction: column;
   margin-top: 10px;
   padding: 14px 15px;
-  color: #1f2430;
+  color: var(--ink);
   border: 0;
   border-radius: 6px 22px 22px 22px;
   background:
-    linear-gradient(150deg, color-mix(in srgb, var(--course-color) 14%, #fff) 0%, #fff 58%),
+    linear-gradient(150deg, color-mix(in srgb, var(--course-color) 16%, var(--mix-base)) 0%, var(--mix-base) 58%),
     var(--paper);
   box-shadow:
     0 2px 5px rgba(25,31,58,.04),
@@ -191,24 +244,24 @@ function toggleCompletion(course: Course) {
 .course-inactive {
   --course-accent: #7d8391;
   --course-deep: #6c7280;
-  color: #6f7480;
-  background: linear-gradient(150deg, #f4f5f8 0%, #fbfbfd 62%);
+  color: var(--muted);
+  background: linear-gradient(150deg, var(--surface-2) 0%, var(--paper) 62%);
   box-shadow: 0 2px 5px rgba(25,31,58,.03), 0 14px 28px -18px rgba(25,31,58,.45), inset 0 1px 0 rgba(255,255,255,.85);
 }
 
 .course-inactive::before {
-  background: #eceef3;
+  background: var(--track);
 }
 
 .course-inactive .course-icon,
 .course-inactive .course-type {
-  color: #777c88;
-  background: #eceef3;
+  color: var(--muted);
+  background: var(--track);
   box-shadow: none;
 }
 
 .course-inactive .course-progress > span {
-  background: #e4e6ec;
+  background: var(--track);
 }
 
 .course-inactive .course-progress > span i {
@@ -317,7 +370,7 @@ function toggleCompletion(course: Course) {
 
 .edit-course:hover {
   color: var(--course-accent);
-  background: color-mix(in srgb, var(--course-color) 12%, #fff);
+  background: color-mix(in srgb, var(--course-color) 14%, var(--mix-base));
 }
 
 .edit-course svg {
@@ -335,7 +388,7 @@ function toggleCompletion(course: Course) {
   top: 36px;
   right: 0;
   display: grid;
-  width: 108px;
+  width: 116px;
   overflow: hidden;
   padding: 5px;
   border: 0;
@@ -362,6 +415,14 @@ function toggleCompletion(course: Course) {
   background: var(--accent-soft);
 }
 
+.course-menu button.danger {
+  color: #ed5d6e;
+}
+
+.course-menu button.danger:hover {
+  background: #fff1f3;
+}
+
 .course-body {
   display: grid;
   flex: 1 1 auto;
@@ -376,7 +437,7 @@ function toggleCompletion(course: Course) {
   padding: 3px 8px;
   color: var(--course-deep);
   border-radius: 7px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--course-color) 20%, #fff) 0%, color-mix(in srgb, var(--course-color) 10%, #fff) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--course-color) 22%, var(--mix-base)) 0%, color-mix(in srgb, var(--course-color) 12%, var(--mix-base)) 100%);
   font-size: 9px;
   font-weight: 700;
 }
@@ -401,7 +462,7 @@ function toggleCompletion(course: Course) {
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--course-color) 12%, #eceef4);
+  background: color-mix(in srgb, var(--course-color) 14%, var(--track));
   box-shadow: inset 0 1px 2px rgba(25,31,58,.06);
 }
 
@@ -476,7 +537,7 @@ function toggleCompletion(course: Course) {
   color: var(--muted);
   border: 1.5px dashed color-mix(in srgb, var(--accent) 30%, var(--line));
   border-radius: 22px;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--accent-soft) 62%, #fff) 0%, var(--paper) 70%);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent-soft) 62%, var(--mix-base)) 0%, var(--paper) 70%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
   text-align: center;
 }
@@ -506,6 +567,76 @@ function toggleCompletion(course: Course) {
 
 .add-course-card strong { color: var(--ink); font-size: 14px; }
 .add-course-card span { font-size: 10px; }
+
+.overlay {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(30, 24, 45, .34);
+  backdrop-filter: blur(7px);
+}
+
+.confirm-dialog {
+  width: min(100%, 330px);
+  padding: 25px 20px 18px;
+  text-align: center;
+  border-radius: 27px;
+  background: var(--paper);
+  box-shadow: var(--elev-lg);
+  animation: dialog-in .3s cubic-bezier(.2, .85, .25, 1) both;
+}
+
+.confirm-icon {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 14px;
+  place-items: center;
+  color: #f05b6d;
+  border-radius: 17px;
+  background: color-mix(in srgb, #f05b6d 14%, var(--paper));
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.confirm-dialog h2 { font-size: 20px; }
+.confirm-dialog p {
+  margin: 10px 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.confirm-dialog > div:last-child {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.confirm-dialog button {
+  padding: 12px 8px;
+  color: var(--ink);
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-weight: 650;
+}
+.confirm-dialog button.danger {
+  color: #fff;
+  background: #ed5d6e;
+}
+
+.fade-enter-active,
+.fade-leave-active { transition: opacity .25s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: scale(.88); }
+  to { opacity: 1; transform: scale(1); }
+}
 
 @media (max-width: 360px) {
   .course-grid {

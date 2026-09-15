@@ -11,6 +11,7 @@ const props = defineProps<{
   modelValue: string
   options: SelectOption[]
   ariaLabel?: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -25,7 +26,7 @@ function choose(value: string) {
 
 <template>
   <div class="app-select">
-    <button class="select-trigger" type="button" :aria-label="ariaLabel" :aria-expanded="open" @click="open = !open">
+    <button class="select-trigger" type="button" :aria-label="ariaLabel" :aria-expanded="open" :disabled="disabled" @click="open = !open">
       <span>{{ selected?.label ?? '请选择' }}</span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
     </button>
@@ -66,6 +67,7 @@ function choose(value: string) {
 .select-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-trigger svg { width: 18px; fill: none; stroke: var(--muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform .2s ease; }
 .select-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+.select-trigger:disabled { cursor: not-allowed; opacity: .62; }
 .select-popover {
   position: absolute;
   z-index: 40;

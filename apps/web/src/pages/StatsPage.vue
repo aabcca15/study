@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
-import { money } from '@/services/billing'
+import { groupByCategory, money } from '@/services/billing'
+import { CATEGORY_LABEL } from '@/domain/constants'
 import {
   calculateLearningStatistics,
   type StatisticsGranularity,
@@ -12,13 +14,15 @@ import TrendChart from '@/components/TrendChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useAppStore()
-const granularity = ref<StatisticsGranularity>('year')
+const router = useRouter()
+const granularity = ref<StatisticsGranularity>('month')
 const anchor = ref(dayjs())
 const chartColors = ['#FF7A45', '#FF5F79', '#FFB347', '#39C6A4', '#5D9CFF', '#B46AF4']
 const reportList = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 let dragStartX = 0
 let dragScrollLeft = 0
+let dragMoved = false
 
 const stats = computed(() =>
   calculateLearningStatistics(
@@ -27,43 +31,35 @@ const stats = computed(() =>
     store.overviewScheduleExceptions,
     anchor.value,
     granularity.value,
+    store.overviewCharges,
+    store.snapshot.occurrenceRecords ?? [],
+    store.overviewPayments,
   ),
 )
 
 const scopeLabel = computed(() =>
   granularity.value === 'year' ? `${anchor.value.year()} 年` : anchor.value.format('YYYY 年 M 月'),
 )
-const scopeCaption = computed(() => granularity.value === 'year' ? '年度总支出' : '月度总支出')
-const completionRate = computed(() =>
-  stats.value.scheduledCount
-    ? Math.round((stats.value.completedCount / stats.value.scheduledCount) * 100)
-    : 0,
-)
+const periodTotalLabel = computed(() => granularity.value === 'year' ? '本年总金额' : '本月总金额')
+const periodDonutLabel = computed(() => granularity.value === 'year' ? '本年' : '本月')
 const courseTrend = computed(() =>
   stats.value.trend.map((item) => ({ label: item.label, value: item.courseHours })),
 )
 const expenseTrend = computed(() =>
   stats.value.trend.map((item) => ({ label: item.label, value: item.expense })),
 )
-const feeBreakdown = computed(() => {
-  const items = stats.value.courseStats
-    .filter((item) => item.expense > 0)
-    .map((item, index) => ({
-      id: item.course.id,
-      label: item.course.title,
-      amount: item.expense,
-      color: chartColors[index % chartColors.length],
-    }))
-  if (stats.value.unassignedExpense > 0) {
-    items.push({
-      id: 'unassigned',
-      label: '其他支出',
-      amount: stats.value.unassignedExpense,
-      color: '#a6adbc',
-    })
-  }
-  return items
+const periodBills = computed(() => {
+  const start = (granularity.value === 'year' ? anchor.value.startOf('year') : anchor.value.startOf('month')).format('YYYY-MM-DD')
+  const end = (granularity.value === 'year' ? anchor.value.endOf('year') : anchor.value.endOf('month')).format('YYYY-MM-DD')
+  return store.overviewExpenses.filter((item) => item.status !== 'void' && item.dueDate >= start && item.dueDate <= end)
 })
+const feeBreakdown = computed(() =>
+  groupByCategory(periodBills.value).map((item, index) => ({
+    category: item.category,
+    amount: item.amount,
+    color: chartColors[index % chartColors.length],
+  })),
+)
 
 function mixWithWhite(hex: string, ratio = .2) {
   const value = hex.replace('#', '')
@@ -73,11 +69,11 @@ function mixWithWhite(hex: string, ratio = .2) {
 }
 
 const donutBackground = computed(() => {
-  if (!stats.value.totalExpense || !feeBreakdown.value.length) return 'var(--line)'
+  if (!stats.value.periodTotal || !feeBreakdown.value.length) return 'var(--line)'
   let cursor = 0
   const slices = feeBreakdown.value.flatMap((item) => {
     const start = cursor
-    cursor += (item.amount / stats.value.totalExpense) * 100
+    cursor += (item.amount / stats.value.periodTotal) * 100
     return [
       `${mixWithWhite(item.color)} ${start}%`,
       `${item.color} ${cursor}%`,
@@ -108,6 +104,7 @@ function formatTrendHours(hours: number) {
 }
 
 function startReportDrag(event: PointerEvent) {
+  dragMoved = false
   if (event.pointerType === 'touch' || !reportList.value) return
   dragging.value = true
   dragStartX = event.clientX
@@ -117,29 +114,35 @@ function startReportDrag(event: PointerEvent) {
 
 function moveReportDrag(event: PointerEvent) {
   if (!dragging.value || !reportList.value) return
+  if (Math.abs(event.clientX - dragStartX) > 8) dragMoved = true
   reportList.value.scrollLeft = dragScrollLeft - (event.clientX - dragStartX)
 }
 
 function stopReportDrag() {
   dragging.value = false
 }
+
+function openCourseBills(courseId: string) {
+  if (dragMoved) return
+  router.push({ path: `/courses/${courseId}/bills`, query: { returnTo: '/stats' } })
+}
 </script>
 
 <template>
   <main class="page stats-page">
-    <PageHeader eyebrow="学习数据" title="统计报告">
+    <PageHeader eyebrow="账单数据" title="课程统计">
       <template #actions>
       <div class="scope-switch" aria-label="统计维度">
-        <button
-          type="button"
-          :class="{ active: granularity === 'year' }"
-          @click="setGranularity('year')"
-        >年度</button>
         <button
           type="button"
           :class="{ active: granularity === 'month' }"
           @click="setGranularity('month')"
         >月度</button>
+        <button
+          type="button"
+          :class="{ active: granularity === 'year' }"
+          @click="setGranularity('year')"
+        >年度</button>
       </div>
       </template>
     </PageHeader>
@@ -150,23 +153,40 @@ function stopReportDrag() {
       <button type="button" aria-label="下一周期" @click="shiftScope(1)">›</button>
     </div>
 
-    <section class="total-card">
-      <div class="total-head">
-        <div>
-          <span>{{ scopeCaption }}</span>
-          <strong>{{ money(stats.totalExpense) }}</strong>
+    <section class="stats card">
+      <div class="mini">
+        <p class="muted">{{ periodTotalLabel }}</p>
+        <strong>{{ money(stats.periodTotal) }}</strong>
+      </div>
+      <div class="mini">
+        <p class="muted">已支付</p>
+        <strong class="status-paid">{{ money(stats.periodPaid) }}</strong>
+      </div>
+      <div class="mini">
+        <p class="muted">未支付</p>
+        <strong class="status-unpaid">{{ money(stats.periodUnpaid) }}</strong>
+      </div>
+    </section>
+
+    <section class="card cats">
+      <h2>按类型</h2>
+      <div v-if="feeBreakdown.length" class="fee-content">
+        <div class="donut" :key="`${granularity}-${scopeLabel}`">
+          <i class="donut-ring" :style="{ background: donutBackground }" />
+          <div>
+            <small>{{ periodDonutLabel }}</small>
+            <strong>{{ money(stats.periodTotal) }}</strong>
+          </div>
         </div>
-        <div class="total-orbit"><i /><i /><i /></div>
+        <div class="fee-legend">
+          <div v-for="item in feeBreakdown" :key="item.category">
+            <i :style="{ background: item.color, color: item.color }" />
+            <span>{{ CATEGORY_LABEL[item.category] }}</span>
+            <strong>{{ money(item.amount) }}</strong>
+          </div>
+        </div>
       </div>
-      <div class="total-metrics">
-        <div><span>已支付</span><b>{{ money(stats.paidExpense) }}</b></div>
-        <div><span>待支付</span><b>{{ money(stats.openExpense) }}</b></div>
-        <div><span>完成率</span><b>{{ completionRate }}%</b></div>
-      </div>
-      <div class="bill-actions">
-        <router-link to="/bills">账单明细</router-link>
-        <router-link to="/bills/edit">＋ 记一笔</router-link>
-      </div>
+      <p v-else class="empty-report">当前周期还没有账单。</p>
     </section>
 
     <section class="quick-metrics">
@@ -207,6 +227,9 @@ function stopReportDrag() {
             '--course-color': item.course.color,
             '--course-progress': `${item.completion}%`,
           }"
+          role="link"
+          :aria-label="`查看${item.course.title}课程账单`"
+          @click="openCourseBills(item.course.id)"
         >
           <header>
             <span class="course-report-icon"><CourseIcon :name="item.course.icon" /></span>
@@ -217,10 +240,11 @@ function stopReportDrag() {
             <div class="progress-ring"><b>{{ item.completion }}%</b></div>
           </header>
           <div class="course-values">
-            <div><small>总课时</small><strong>{{ formatMinutes(item.scheduledMinutes) }}</strong></div>
-            <div><small>已完成</small><strong>{{ formatMinutes(item.completedMinutes) }}</strong></div>
-            <div><small>课程费用</small><strong>{{ money(item.expense) }}</strong></div>
+            <div><small>总费用</small><strong>{{ money(item.totalFee) }}</strong></div>
+            <div><small>已支付</small><strong class="status-paid">{{ money(item.paidFee) }}</strong></div>
+            <div><small>未支付</small><strong class="status-unpaid">{{ money(item.unpaidFee) }}</strong></div>
           </div>
+          <p v-if="item.packageLabel" class="package-line">{{ item.packageLabel }}</p>
         </article>
       </div>
       <p v-else class="empty-report">当前周期暂无课程安排。</p>
@@ -235,32 +259,14 @@ function stopReportDrag() {
         :value-formatter="formatTrendHours"
       />
       <TrendChart
-        title="费用趋势"
-        :caption="granularity === 'year' ? '各月课程支出' : '按账单日期统计'"
+        title="支付趋势"
+        :caption="granularity === 'year' ? '按实际支付月份统计' : '按实际支付日期统计'"
         :points="expenseTrend"
         color="#FF5F79"
         :value-formatter="money"
       />
     </section>
 
-    <section class="fee-card">
-      <div class="section-head">
-        <div><p>费用结构</p><h2>课程支出占比</h2></div>
-      </div>
-      <div v-if="feeBreakdown.length" class="fee-content">
-        <div class="donut" :style="{ background: donutBackground }">
-          <div><small>总支出</small><strong>{{ money(stats.totalExpense) }}</strong></div>
-        </div>
-        <div class="fee-legend">
-          <div v-for="item in feeBreakdown" :key="item.id">
-            <i :style="{ background: item.color, color: item.color }" />
-            <span>{{ item.label }}</span>
-            <strong>{{ money(item.amount) }}</strong>
-          </div>
-        </div>
-      </div>
-      <p v-else class="empty-report">当前周期暂无费用记录。</p>
-    </section>
   </main>
 </template>
 
@@ -336,6 +342,34 @@ function stopReportDrag() {
   font-size: 13px;
 }
 
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin-bottom: 14px;
+}
+
+.mini { min-width: 0; padding: 2px 8px; text-align: center; border-left: 1px solid var(--line); }
+.mini:first-child { padding-left: 0; border-left: 0; }
+.mini:last-child { padding-right: 0; }
+.mini p { margin-bottom: 5px; font-size: 10px; }
+.mini strong {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cats {
+  margin-bottom: 14px;
+}
+
+.cats h2 {
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
 .total-card {
   position: relative;
   margin-bottom: 12px;
@@ -386,7 +420,7 @@ function stopReportDrag() {
 
 .total-metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-top: 20px;
 }
@@ -557,6 +591,7 @@ function stopReportDrag() {
 }
 
 .course-report {
+  cursor: pointer;
   --course-deep: color-mix(in srgb, var(--course-color) 76%, #2a2350);
   flex: 0 0 calc(100% - 52px);
   min-width: 0;
@@ -564,7 +599,7 @@ function stopReportDrag() {
   border: 0;
   border-radius: 23px;
   background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--course-color) 13%, #fff) 0%, color-mix(in srgb, var(--course-color) 4%, #fff) 46%, #fff 78%),
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--course-color) 16%, var(--mix-base)) 0%, color-mix(in srgb, var(--course-color) 6%, var(--mix-base)) 46%, var(--mix-base) 78%),
     var(--paper);
   box-shadow:
     0 2px 5px rgba(25,31,58,.04),
@@ -622,7 +657,7 @@ function stopReportDrag() {
     from 210deg,
     var(--course-deep) 0deg,
     var(--course-color) var(--course-progress),
-    color-mix(in srgb, var(--course-color) 14%, #e9ebf2) var(--course-progress)
+    color-mix(in srgb, var(--course-color) 16%, var(--track)) var(--course-progress)
   );
   box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--course-color) 72%, transparent);
 }
@@ -632,8 +667,8 @@ function stopReportDrag() {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: inset 0 1px 3px rgba(25,31,58,.08);
+  background: var(--mix-base);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--ink) 8%, transparent);
   content: "";
 }
 
@@ -689,6 +724,14 @@ function stopReportDrag() {
   white-space: nowrap;
 }
 
+.package-line {
+  margin: 10px 0 0;
+  color: color-mix(in srgb, var(--course-color) 55%, var(--ink));
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .trend-grid {
   display: grid;
   gap: 12px;
@@ -710,18 +753,27 @@ function stopReportDrag() {
 }
 
 .donut {
+  position: relative;
   display: grid;
   width: 132px;
   height: 132px;
   padding: 17px;
   place-items: center;
   border-radius: 50%;
+}
+
+.donut-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   box-shadow:
     0 16px 28px -16px rgba(255, 122, 69, .42),
-    inset 0 1px 0 rgba(255,255,255,.5);
+    inset 0 1px 0 rgba(255,255,255,.35);
 }
 
 .donut > div {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: 100%;
   height: 100%;
@@ -729,7 +781,7 @@ function stopReportDrag() {
   text-align: center;
   border-radius: 50%;
   background: var(--paper);
-  box-shadow: inset 0 2px 8px rgba(25,31,58,.08);
+  box-shadow: inset 0 2px 8px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .donut small,

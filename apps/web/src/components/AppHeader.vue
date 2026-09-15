@@ -19,16 +19,34 @@ const { isDark, toggleTheme } = useTheme()
         <button
           class="theme-toggle"
           type="button"
+          :class="{ 'is-dark': isDark }"
           :aria-label="isDark ? '切换到白天模式' : '切换到夜间模式'"
           :aria-pressed="isDark"
           @click="toggleTheme"
         >
-          <svg v-if="!isDark" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z" />
+          <svg class="theme-glyph" viewBox="0 0 24 24" aria-hidden="true">
+            <defs>
+              <mask id="theme-moon-mask" maskUnits="userSpaceOnUse">
+                <rect width="24" height="24" fill="#fff" />
+                <circle class="moon-cut" cx="12" cy="12" r="5.4" fill="#000" />
+              </mask>
+            </defs>
+            <g class="rays">
+              <path d="M12 1.8v2.5" />
+              <path d="M12 19.7v2.5" />
+              <path d="M1.8 12h2.5" />
+              <path d="M19.7 12h2.5" />
+              <path d="M4.7 4.7l1.8 1.8" />
+              <path d="M17.5 17.5l1.8 1.8" />
+              <path d="M19.3 4.7l-1.8 1.8" />
+              <path d="M6.5 17.5l-1.8 1.8" />
+            </g>
+            <circle class="orb" cx="12" cy="12" r="5.15" mask="url(#theme-moon-mask)" />
+            <g class="stars">
+              <path class="spark a" d="M5.6 7.1 6.1 8.4 7.5 8.8 6.1 9.2 5.6 10.5 5.1 9.2 3.7 8.8 5.1 8.4Z" />
+              <path class="spark b" d="M18.8 15.8 19.15 16.7 20.1 17 19.15 17.3 18.8 18.2 18.45 17.3 17.5 17 18.45 16.7Z" />
+              <circle class="spark c" cx="18.8" cy="7.4" r=".7" />
+            </g>
           </svg>
         </button>
       </div>
@@ -45,46 +63,17 @@ const { isDark, toggleTheme } = useTheme()
   border: 0;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.96),
-    inset 0 -1px 0 rgba(255,255,255,.5),
-    0 1px 2px rgba(25,31,58,.05),
-    0 14px 26px -20px rgba(25,31,58,.45);
+  box-shadow: var(--header-edge);
 }
 
-:global(html[data-theme="dark"]) .app-brand-header {
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.2),
-    inset 0 -1px 0 rgba(255,255,255,.08),
-    0 1px 2px rgba(0,0,0,.4),
-    0 16px 30px -20px rgba(0,0,0,.8);
-}
-
-/* 底边的折射高光，让玻璃与内容有一条水光分界 */
 .app-brand-header::after {
   position: absolute;
   right: 0;
   bottom: -1px;
   left: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,.85) 22%,
-    rgba(255,255,255,.85) 78%,
-    rgba(255,255,255,0) 100%
-  );
+  background: var(--header-hairline);
   content: "";
-}
-
-:global(html[data-theme="dark"]) .app-brand-header::after {
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,.24) 22%,
-    rgba(255,255,255,.24) 78%,
-    rgba(255,255,255,0) 100%
-  );
 }
 
 .app-brand-inner {
@@ -159,29 +148,118 @@ const { isDark, toggleTheme } = useTheme()
   color: var(--ink);
   border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--paper) 62%, transparent);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.7),
-    inset 0 1px 0 rgba(255,255,255,.95),
-    var(--elev-sm);
-  backdrop-filter: blur(10px) saturate(160%);
+  background: transparent;
+  box-shadow: none;
+  transition:
+    color .45s ease,
+    transform .22s cubic-bezier(.2,.8,.2,1);
 }
 
-:global(html[data-theme="dark"]) .theme-toggle {
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.16),
-    inset 0 1px 0 rgba(255,255,255,.24),
-    var(--elev-sm);
+.theme-toggle.is-dark {
+  color: var(--ink);
 }
 
-.theme-toggle svg {
-  width: 19px;
-  height: 19px;
+.theme-toggle:active {
+  transform: scale(.9) rotate(-14deg);
+}
+
+.theme-glyph {
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+}
+
+.orb {
+  fill: currentColor;
+  transform-origin: 12px 12px;
+  transition: transform .55s cubic-bezier(.2,.8,.2,1);
+}
+
+.moon-cut {
+  transform-origin: 12px 12px;
+  transition: transform .55s cubic-bezier(.2,.8,.2,1);
+  transform: translate(9px, -10px);
+}
+
+.theme-toggle.is-dark .orb {
+  transform: rotate(-20deg) scale(1.08);
+}
+
+.theme-toggle.is-dark .moon-cut {
+  transform: translate(4.2px, -3.2px);
+}
+
+.rays {
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
-  stroke-linejoin: round;
   stroke-width: 1.7;
+  transform-origin: 12px 12px;
+  transform: scale(1) rotate(0deg);
+  opacity: 1;
+  transition:
+    opacity .32s ease,
+    transform .55s cubic-bezier(.2,.8,.2,1);
+}
+
+.theme-toggle.is-dark .rays {
+  opacity: 0;
+  transform: scale(.18) rotate(90deg);
+}
+
+.stars {
+  fill: currentColor;
+  opacity: 0;
+  transform-origin: 12px 12px;
+  transform: scale(.35) rotate(-20deg);
+  transition:
+    opacity .35s .08s ease,
+    transform .55s cubic-bezier(.2,.8,.2,1);
+}
+
+.theme-toggle.is-dark .stars {
+  opacity: 1;
+  transform: scale(1) rotate(0);
+}
+
+.spark.a,
+.spark.b,
+.spark.c {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.theme-toggle.is-dark .spark.a {
+  animation: spark-twinkle 1.8s .15s ease-in-out infinite;
+}
+
+.theme-toggle.is-dark .spark.b {
+  animation: spark-twinkle 2.1s .4s ease-in-out infinite;
+}
+
+.theme-toggle.is-dark .spark.c {
+  animation: spark-twinkle 1.6s .7s ease-in-out infinite;
+}
+
+@keyframes spark-twinkle {
+  0%, 100% { opacity: .55; transform: scale(.88); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle,
+  .orb,
+  .moon-cut,
+  .rays,
+  .stars {
+    transition: none;
+  }
+
+  .theme-toggle.is-dark .spark.a,
+  .theme-toggle.is-dark .spark.b,
+  .theme-toggle.is-dark .spark.c {
+    animation: none;
+  }
 }
 
 @media (max-width: 360px) {

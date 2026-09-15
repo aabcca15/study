@@ -1,6 +1,10 @@
 :root {
   --bg: #f3f4fb;
   --paper: #ffffff;
+  --mix-base: #ffffff;
+  --surface-2: #f4f6fb;
+  --field-bg: #ffffff;
+  --track: #eceef4;
   --ink: #1b2030;
   --muted: #8b93a5;
   --line: #eef0f7;
@@ -8,6 +12,8 @@
   --accent-text: #e85b2a;
   --accent-soft: #fff0e8;
   --accent-gradient: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+  --paid-soft: color-mix(in srgb, #2f9d70 14%, #fff);
+  --unpaid-soft: color-mix(in srgb, #c45a2a 14%, #fff);
   --elev-sm: 0 1px 2px rgba(25,31,58,.04), 0 6px 16px -8px rgba(25,31,58,.12);
   --elev-md: 0 2px 5px rgba(25,31,58,.04), 0 16px 34px -14px rgba(25,31,58,.18);
   --elev-lg: 0 4px 10px rgba(25,31,58,.05), 0 30px 58px -22px rgba(25,31,58,.24);
@@ -22,6 +28,18 @@
     inset 0 0 0 1px rgba(255,255,255,.6),
     inset 0 -12px 20px -14px rgba(118,138,178,.3);
   --glass-blur: blur(26px) saturate(185%) brightness(1.04);
+  --header-edge:
+    inset 0 1px 0 rgba(255,255,255,.96),
+    inset 0 -1px 0 rgba(255,255,255,.5),
+    0 1px 2px rgba(25,31,58,.05),
+    0 14px 26px -20px rgba(25,31,58,.45);
+  --header-hairline: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,.85) 22%,
+    rgba(255,255,255,.85) 78%,
+    rgba(255,255,255,0) 100%
+  );
   --sage: #3d6b5a;
   --navy: #3b5b8a;
   --rose: #8a4d6e;
@@ -32,10 +50,39 @@
   --shadow: var(--elev-md);
   --radius: 22px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --scrollbar-size: 5px;
+  --scrollbar-thumb: rgba(60, 60, 67, .28);
+  --scrollbar-thumb-hover: rgba(60, 60, 67, .4);
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 html,
@@ -139,7 +186,7 @@ h1 {
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 12px;
-  background: #f0ecfb;
+  background: var(--surface-2);
 }
 
 .chip.dot::before {
@@ -205,7 +252,7 @@ h1 {
 .field textarea {
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--field-bg);
   border-radius: 14px;
   padding: 11px 12px;
   outline: none;
@@ -226,7 +273,7 @@ h1 {
 
 .weekdays button {
   border: 0;
-  background: #fff;
+  background: var(--paper);
   border-radius: 12px;
   padding: 8px 0;
   box-shadow: var(--elev-sm), var(--glow-top);
@@ -511,12 +558,29 @@ h1 {
 .course-progress > span i,
 .progress-track i {
   transform-origin: left center;
-  animation: progress-grow .72s cubic-bezier(.22,.8,.24,1) both;
+  animation: progress-grow .84s cubic-bezier(.22,.8,.24,1) both;
 }
 
-.progress-ring {
+.progress-ring,
+.overview-ring {
   transform-origin: center;
-  animation: progress-ring-grow .62s cubic-bezier(.22,.8,.24,1) both;
+  animation: progress-ring-grow .72s cubic-bezier(.22,.8,.24,1) both;
+}
+
+.donut-ring {
+  transform-origin: center;
+  animation: donut-spin-in .92s cubic-bezier(.18,.82,.2,1) both;
+}
+
+.icon-grow svg,
+.course-icon svg,
+.course-report-icon svg,
+.metric-icon svg,
+.hero-icon svg,
+.overview-card header i svg {
+  stroke-dasharray: 72;
+  stroke-dashoffset: 72;
+  animation: icon-grow .7s .06s cubic-bezier(.22,.8,.24,1) forwards;
 }
 
 @keyframes progress-grow {
@@ -525,16 +589,35 @@ h1 {
 }
 
 @keyframes progress-ring-grow {
-  from { opacity: 0; transform: scale(.72) rotate(-28deg); }
+  from { opacity: 0; transform: scale(.72) rotate(-110deg); }
   to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes donut-spin-in {
+  from { opacity: 0; transform: rotate(-170deg) scale(.78); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+@keyframes icon-grow {
+  to { stroke-dashoffset: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .course-progress > span i,
   .progress-track i,
-  .progress-ring {
+  .progress-ring,
+  .overview-ring,
+  .donut-ring,
+  .icon-grow svg,
+  .course-icon svg,
+  .course-report-icon svg,
+  .metric-icon svg,
+  .hero-icon svg,
+  .overview-card header i svg {
     animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
   }
 }
 
@@ -549,31 +632,47 @@ textarea {
 }
 
 html[data-theme="dark"] {
-  --bg: #0f1117;
-  --paper: #171a22;
-  --ink: #eceef4;
-  --muted: #8d94a5;
-  --line: #262a34;
+  --bg: #10131b;
+  --paper: #1c2230;
+  --mix-base: #1c2230;
+  --surface-2: #262d3d;
+  --field-bg: #161b26;
+  --track: #2a3142;
+  --ink: #f3f5fa;
+  --muted: #9aa3b8;
+  --line: #2d3546;
   --accent: #ff946b;
-  --accent-text: #ffad89;
-  --accent-soft: #35251f;
+  --accent-text: #ffb08d;
+  --accent-soft: #3a2720;
   --accent-gradient: linear-gradient(135deg, #ffb45c 0%, #ff7a45 52%, #e95331 100%);
-  --elev-sm: 0 1px 2px rgba(0,0,0,.3), 0 8px 18px -10px rgba(0,0,0,.65);
-  --elev-md: 0 2px 6px rgba(0,0,0,.34), 0 20px 38px -16px rgba(0,0,0,.75);
-  --elev-lg: 0 4px 12px rgba(0,0,0,.38), 0 34px 60px -22px rgba(0,0,0,.85);
-  --glow-top: inset 0 1px 0 rgba(255,255,255,.05);
+  --elev-sm: 0 1px 2px rgba(0,0,0,.28), 0 8px 18px -10px rgba(0,0,0,.55);
+  --elev-md: 0 2px 6px rgba(0,0,0,.3), 0 20px 38px -16px rgba(0,0,0,.62);
+  --elev-lg: 0 4px 12px rgba(0,0,0,.34), 0 34px 60px -22px rgba(0,0,0,.72);
+  --glow-top: inset 0 1px 0 rgba(255,255,255,.08);
   --glass-bg:
-    radial-gradient(130% 150% at 14% -14%, rgba(255,255,255,.16) 0%, rgba(255,255,255,.07) 40%, rgba(255,255,255,.03) 100%),
-    linear-gradient(172deg, rgba(38,44,58,.68) 0%, rgba(22,26,34,.5) 52%, rgba(30,36,48,.66) 100%);
+    radial-gradient(130% 150% at 14% -14%, rgba(255,255,255,.12) 0%, rgba(255,255,255,.05) 40%, rgba(255,255,255,.02) 100%),
+    linear-gradient(172deg, rgba(42,50,68,.72) 0%, rgba(24,28,38,.56) 52%, rgba(32,38,52,.7) 100%);
   --glass-edge:
-    inset 0 1px 0 rgba(255,255,255,.22),
-    inset 0 0 0 1px rgba(255,255,255,.1),
-    inset 0 -12px 20px -14px rgba(0,0,0,.5);
-  --glass-blur: blur(26px) saturate(170%) brightness(1.12);
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 0 0 1px rgba(255,255,255,.08),
+    inset 0 -12px 20px -14px rgba(0,0,0,.45);
+  --glass-blur: blur(26px) saturate(165%) brightness(1.08);
+  --header-edge: var(--glass-edge);
+  --header-hairline: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,.08) 22%,
+    rgba(255,255,255,.08) 78%,
+    rgba(255,255,255,0) 100%
+  );
   --shadow: var(--elev-md);
-  --paid: #79d2aa;
+  --paid: #7ed6b0;
   --unpaid: #ff9d76;
   --pending: #ffd66d;
+  --paid-soft: color-mix(in srgb, #7ed6b0 18%, var(--paper));
+  --unpaid-soft: color-mix(in srgb, #ff9d76 18%, var(--paper));
+  --scrollbar-thumb: rgba(235, 235, 245, .28);
+  --scrollbar-thumb-hover: rgba(235, 235, 245, .44);
 }
 
 html[data-theme="dark"] body {
@@ -625,13 +724,13 @@ html[data-theme="dark"] .course-type {
 html[data-theme="dark"] .lesson-actions button,
 html[data-theme="dark"] .edit-course {
   border-color: var(--line);
-  background: #1d212a;
+  background: transparent;
 }
 
 html[data-theme="dark"] .progress-track,
 html[data-theme="dark"] .course-progress > span {
-  background: #262a34;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.4);
+  background: var(--track);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.35);
 }
 
 html[data-theme="dark"] .overview-ring::after,
@@ -646,7 +745,7 @@ html[data-theme="dark"] .field textarea,
 html[data-theme="dark"] .time-range input {
   color: var(--ink);
   border-color: var(--line);
-  background: #1d212a;
+  background: var(--field-bg);
 }
 
 html[data-theme="dark"] .app-header h1,
@@ -658,11 +757,10 @@ html[data-theme="dark"] .cal h2 {
 }
 
 html[data-theme="dark"] .header-actions button,
-html[data-theme="dark"] .header-actions a,
-html[data-theme="dark"] .week-toolbar button {
-  color: #dfe3ec;
-  background: #1d212a;
-  box-shadow: 0 9px 22px rgba(0,0,0,.22);
+html[data-theme="dark"] .header-actions a {
+  color: var(--ink);
+  background: var(--surface-2);
+  box-shadow: var(--elev-sm);
 }
 
 html[data-theme="dark"] .date-strip button strong {
@@ -684,10 +782,12 @@ html[data-theme="dark"] .bill-row,
 html[data-theme="dark"] .empty-state,
 html[data-theme="dark"] .preset-list > button,
 html[data-theme="dark"] .slot-list button,
-html[data-theme="dark"] .icon-options button {
+html[data-theme="dark"] .icon-options button,
+html[data-theme="dark"] .confirm-dialog,
+html[data-theme="dark"] .week-picker {
   color: var(--ink);
   border-color: var(--line);
-  background: #1d212a;
+  background: var(--paper);
 }
 
 html[data-theme="dark"] .preset-list > button.selected,
@@ -700,7 +800,7 @@ html[data-theme="dark"] .icon-options button.active {
 html[data-theme="dark"] .btn.ghost {
   color: var(--ink);
   border-color: var(--line);
-  background: #1d212a;
+  background: var(--surface-2);
 }
 
 html[data-theme="dark"] .tabbar,
@@ -738,9 +838,13 @@ html[data-theme="dark"] .tabbar a.active {
   color: #ffb08d;
 }
 
-html[data-theme="dark"] .day,
 html[data-theme="dark"] .weekdays button {
   color: var(--ink);
   border-color: var(--line);
-  background: #1d212a;
+  background: var(--surface-2);
+}
+
+html[data-theme="dark"] .confirm-actions button {
+  color: var(--ink);
+  background: var(--surface-2);
 }

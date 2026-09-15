@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { COURSE_TYPE_LABEL } from '@/domain/constants'
 import type { DayOccurrence } from '@/domain/types'
 import CourseIcon from '@/components/CourseIcon.vue'
+import { useAppStore } from '@/stores/app'
+import { courseCardFee } from '@/services/charges'
 
 const props = defineProps<{
   item: DayOccurrence
@@ -10,6 +12,8 @@ const props = defineProps<{
   progress: { completed: number; total: number; percent: number }
 }>()
 defineEmits<{ edit: [item: DayOccurrence] }>()
+
+const store = useAppStore()
 
 const cardStyle = computed(() => ({
   '--card-tint': props.item.course.color,
@@ -35,6 +39,20 @@ const durationLabel = computed(() => {
 const timeRange = computed(
   () => `${startTime.value}–${endTime.value}`,
 )
+
+const feeExpense = computed(() => {
+  const course = props.item.course
+  if (course.billingPolicy?.pricingMode === 'prepaid' || course.billingMode === 'term') {
+    return store.snapshot.expenses.find((item) =>
+      item.courseId === course.id
+      && item.status !== 'void'
+      && (item.source === 'course_upfront' || item.billingMode === 'term'),
+    )
+  }
+  return store.findOccurrenceExpense(course.id, props.item.date)
+})
+
+const fee = computed(() => courseCardFee(props.item.course, feeExpense.value))
 </script>
 
 <template>
@@ -46,24 +64,32 @@ const timeRange = computed(
       <i><CourseIcon :name="item.course.icon ?? 'generic'" /></i>
     </div>
     <div class="lesson-main">
-      <span class="lesson-type">{{ COURSE_TYPE_LABEL[item.course.type] }}</span>
-      <h3>{{ item.course.title }}</h3>
-      <p>
-        <span>{{ item.course.teacher || '老师待定' }}</span>
-        <i />
-        <span>{{ item.course.location || '地点待定' }}</span>
-      </p>
-      <div class="lesson-period">
-        <strong>{{ durationLabel }}</strong>
-        <span>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="8" />
-            <path d="M12 8v4l3 2" />
-          </svg>
-          {{ timeRange }}
+      <div class="lesson-copy">
+        <span class="lesson-type">{{ COURSE_TYPE_LABEL[item.course.type] }}</span>
+        <h3>{{ item.course.title }}</h3>
+        <p>
+          <span>{{ item.course.teacher || '老师待定' }}</span>
+          <i />
+          <span>{{ item.course.location || '地点待定' }}</span>
+        </p>
+        <div class="lesson-period">
+          <strong>{{ durationLabel }}</strong>
+          <span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 8v4l3 2" />
+            </svg>
+            {{ timeRange }}
+          </span>
+        </div>
+        <small v-if="item.exception">{{ item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}</small>
+      </div>
+      <div class="fee-row">
+        <strong>{{ fee.label }}</strong>
+        <span v-if="fee.paid !== undefined" class="pay-pill" :class="fee.paid ? 'paid' : 'unpaid'">
+          {{ fee.paid ? '已支付' : '未支付' }}
         </span>
       </div>
-      <small v-if="item.exception">{{ item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}</small>
     </div>
     <div class="lesson-actions">
       <button class="edit" type="button" aria-label="编辑本次课程" @click="$emit('edit', item)">
@@ -89,7 +115,7 @@ const timeRange = computed(
   --card-tint: #7b61ff;
   --lesson-color: var(--card-tint);
   --lesson-deep: color-mix(in srgb, var(--card-tint) 76%, #2a2350);
-  --card-ink: #1f2430;
+  --card-ink: var(--ink);
   position: relative;
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr) 32px;
@@ -100,7 +126,7 @@ const timeRange = computed(
   padding: 14px;
   overflow: hidden;
   background:
-    linear-gradient(150deg, color-mix(in srgb, var(--card-tint) 10%, #fff) 0%, #fff 55%),
+    linear-gradient(150deg, color-mix(in srgb, var(--card-tint) 12%, var(--mix-base)) 0%, var(--mix-base) 55%),
     var(--paper);
   border: 0;
   border-radius: 22px;
@@ -142,11 +168,19 @@ const timeRange = computed(
 }
 
 .lesson-main {
+  display: grid;
   grid-row: 1;
   grid-column: 2;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: center;
   min-width: 0;
   align-self: start;
   padding-top: 2px;
+}
+
+.lesson-copy {
+  min-width: 0;
 }
 
 .lesson-type {
@@ -154,7 +188,7 @@ const timeRange = computed(
   padding: 3px 8px;
   color: var(--lesson-deep);
   border-radius: 7px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--card-tint) 20%, #fff) 0%, color-mix(in srgb, var(--card-tint) 10%, #fff) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--card-tint) 22%, var(--mix-base)) 0%, color-mix(in srgb, var(--card-tint) 12%, var(--mix-base)) 100%);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -196,11 +230,47 @@ const timeRange = computed(
 }
 
 .lesson-main small {
-  display: inline-block;
+  display: block;
   margin-top: 6px;
   color: var(--lesson-color);
   font-size: 10px;
   font-weight: 650;
+}
+
+.fee-row {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  align-self: center;
+  gap: 6px;
+  text-align: right;
+}
+
+.fee-row strong {
+  color: var(--card-ink);
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -.03em;
+  white-space: nowrap;
+}
+
+.pay-pill {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.pay-pill.paid {
+  color: var(--paid);
+  background: var(--paid-soft);
+}
+
+.pay-pill.unpaid {
+  color: var(--unpaid);
+  background: var(--unpaid-soft);
 }
 
 .lesson-period {
@@ -261,7 +331,7 @@ const timeRange = computed(
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--card-tint) 12%, #eceef4);
+  background: color-mix(in srgb, var(--card-tint) 14%, var(--track));
   box-shadow: inset 0 1px 2px rgba(25,31,58,.06);
 }
 
@@ -297,7 +367,7 @@ const timeRange = computed(
 
 .lesson-actions button:hover {
   color: var(--lesson-color);
-  background: color-mix(in srgb, var(--card-tint) 12%, #fff);
+  background: color-mix(in srgb, var(--card-tint) 14%, var(--mix-base));
 }
 
 .lesson-actions button:active {

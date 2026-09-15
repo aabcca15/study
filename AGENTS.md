@@ -5,7 +5,7 @@
 ## 现在改哪里
 
 - **H5 UI / 路由 / Pinia / localStorage**：`apps/web/`，技术栈保持 Vue3 + Vite + TS + Pinia + Vue Router。
-- **业务规则与未来接口**：`.cursor/skills/myhome-backend-contracts/`，尤其是 `backend-contracts.md`。
+- **业务规则、页面地图、账号与未来接口**：`.cursor/skills/myhome-backend-contracts/`（`SKILL.md` 入口，`product-map.md` / `backend-contracts.md` / `account-model.md` / `gaps-and-backlog.md`）。
 - **产品与口径说明**：`docs/prd/`、`docs/domain/`、`docs/design/`、`docs/architecture.md`。
 
 不要把级联删除、共享课、统计口径只写在页面组件里；Store 保持业务语义，契约保持与 `apps/web/src/domain/types.ts`、`apps/web/src/stores/app.ts` 一致。
