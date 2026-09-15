@@ -36,5 +36,5 @@ npm run preview
 ## 给后续前后端 / 小程序
 
 - Web 与小程序只共用 **HTTP API 和领域模型**，不共用 Vue 组件。
-- 改孩子、课程、排课、账单、统计、账号等业务时，同步 `.cursor/skills/myhome-backend-contracts/`（含页面地图、接口契约、账号模型、待办缺口）。
+- 改孩子、课程、排课、账单、统计、账号等业务时，同步 `.cursor/skills/myhome-backend-contracts/`（`SKILL.md` 入口：能力地图、页面、账号、数据与接口、规则、计费、缺口）。
 - AI 开发入口见 [AGENTS.md](AGENTS.md)。

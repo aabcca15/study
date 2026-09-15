@@ -8,7 +8,7 @@
 - 本地业务入口：`apps/web/src/stores/app.ts`
 - 迁移原则：保持现有 ID；日期使用 `YYYY-MM-DD`，时间使用 `HH:mm`；金额 API 使用整数分 `amountMinor`，本地 `myhome.v1` 仍是元，接入时 `Math.round(amount * 100)`。
 
-账号、家庭、登录见 [account-model.md](account-model.md)。页面与作用域见 [product-map.md](product-map.md)。课程计价、课次费用、账单、支付与统计的目标模型见 [billing-model-v2.md](billing-model-v2.md)。已知缺口见 [gaps-and-backlog.md](gaps-and-backlog.md)。
+能力与页面/组件领域见 [capability-map.md](capability-map.md)。表结构、资源接口与导入见 [data-and-api.md](data-and-api.md)。账号、家庭、登录见 [account-model.md](account-model.md)。页面交互见 [product-map.md](product-map.md)。课程计价、课次费用、账单、支付与统计的目标模型见 [billing-model-v2.md](billing-model-v2.md)。已知缺口见 [gaps-and-backlog.md](gaps-and-backlog.md)。
 
 ## 实体与关系
 

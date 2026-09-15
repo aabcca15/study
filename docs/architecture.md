@@ -20,7 +20,7 @@ apps/miniprogram/      微信小程序（占位）
 server/                Node.js API（占位）
 packages/domain/       共用领域模型（占位，尚未从 web 抽出）
 docs/                  PRD / 设计 / 口径
-.cursor/skills/        AI 后端契约
+.cursor/skills/        AI 契约（能力地图、账号、数据与接口、规则）
 ```
 
 ## 分层

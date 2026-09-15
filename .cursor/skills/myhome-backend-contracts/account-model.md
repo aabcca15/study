@@ -2,6 +2,8 @@
 
 当前 H5 **没有账号**。`AppSnapshot.session` 只表示本机上次选中的孩子和写死的家长视图。后端第一期必须先引入「家庭」作为租户，再谈登录。
 
+能力切片见 [capability-map.md](capability-map.md)#6-账号与多端未做。建表与导入见 [data-and-api.md](data-and-api.md)。
+
 ## 建议对象
 
 ```text

@@ -2,6 +2,8 @@
 
 对照代码梳理。改交互前先确认「页面实际做什么」和「数据从哪来」，避免把家庭口径和孩子口径混在一个页面里。
 
+能力总表、组件领域、后端切片见 [capability-map.md](capability-map.md)。表与 API 见 [data-and-api.md](data-and-api.md)。
+
 ## 导航
 
 底栏 `TabBar.vue`：今日 `/`、日历 `/calendar`、中间 ＋、课程 `/courses`、统计 `/stats`。顶栏主题按钮是本地 UI 状态（`myhome.theme`），太阳与月亮变形过渡，不改变业务作用域。
@@ -100,7 +102,9 @@
 
 - `useHomeDate`：周偏移与选中日
 - `useQuickAdd`：快捷菜单、待打开预设弹层
-- `useTheme`：明暗
+- `useTheme`：明暗（`myhome.theme`）
 - 统计粒度与锚点日期
-- 账单筛选账期/状态
 - 底栏 indicator 动画、弹层开合
+- 导航 `returnTo` / `backTo`（客户端 `replace`，避免账单 ↔ 支出详情死循环）
+
+组件哪些能写 Store、哪些只能展示，见 [capability-map.md](capability-map.md)#组件领域范围。
