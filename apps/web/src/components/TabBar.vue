@@ -89,6 +89,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  closeQuickAdd()
   resizeObserver?.disconnect()
   if (indicatorRef.value) gsap.killTweensOf(indicatorRef.value)
 })
@@ -137,11 +138,11 @@ onBeforeUnmount(() => {
         <span class="accent">＋</span>
         <div><strong>快速新增安排</strong><small>选择日期、已有课程或临时安排</small></div>
       </button>
-      <router-link :to="{ path: '/courses/edit', query: { returnTo: route.fullPath } }">
+      <router-link :to="{ path: '/courses/edit', query: { returnTo: route.fullPath } }" @click="closeQuickAdd()">
         <span class="amber">✦</span>
         <div><strong>新增课程</strong><small>建立新的课程预设</small></div>
       </router-link>
-      <router-link :to="{ path: '/bills/edit', query: { returnTo: route.fullPath } }">
+      <router-link :to="{ path: '/bills/edit', query: { returnTo: route.fullPath } }" @click="closeQuickAdd()">
         <span class="teal">¥</span>
         <div><strong>记一笔账单</strong><small>登记一次课程费用</small></div>
       </router-link>
