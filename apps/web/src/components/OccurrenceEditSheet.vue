@@ -2,6 +2,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { DayOccurrence } from '@/domain/types'
 import { useAppStore } from '@/stores/app'
+import AppTimeSelect from '@/components/AppTimeSelect.vue'
+import AppPaySwitch from '@/components/AppPaySwitch.vue'
 import {
   durationMinutes,
   expectedUsageCharge,
@@ -9,6 +11,16 @@ import {
   resolveOccurrenceAttendance,
 } from '@/services/charges'
 import { hasCoursePackage, packageUnitOf } from '@/services/packages'
+import {
+  busyIntervalsForDates,
+  courseParticipantIds,
+  endTimeOptions,
+  ensureTimeOption,
+  minutesBetween,
+  nextAvailableEndTime,
+  scheduleConflictMessage,
+  startTimeOptions,
+} from '@/services/schedule'
 
 const props = defineProps<{
   item: DayOccurrence | null
@@ -21,6 +33,7 @@ const emit = defineEmits<{
 
 const store = useAppStore()
 const minutesTouched = ref(false)
+const timeError = ref('')
 const form = reactive({
   startTime: '',
   endTime: '',
@@ -57,6 +70,7 @@ watch(
     )
     const expense = store.findOccurrenceExpense(item.course.id, item.date)
     const expected = expectedUsageCharge(item.course, startTime, endTime, record?.actualMinutes).amount
+    timeError.value = ''
     Object.assign(form, {
       startTime,
       endTime,
@@ -88,7 +102,36 @@ const showMinutesField = computed(() => {
     || (hasCoursePackage(props.item.course) && packageUnitOf(props.item.course) === 'minute')
 })
 
-function applySessionEdits() {
+const busyIntervals = computed(() => {
+  if (!props.item) return []
+  return busyIntervalsForDates(
+    store.overviewCourses,
+    [props.item.date],
+    store.overviewScheduleExceptions,
+    props.item.course.id,
+    courseParticipantIds(props.item.course),
+  )
+})
+
+const startOptions = computed(() =>
+  ensureTimeOption(startTimeOptions(busyIntervals.value), form.startTime),
+)
+const endOptions = computed(() =>
+  ensureTimeOption(endTimeOptions(busyIntervals.value, form.startTime), form.endTime),
+)
+
+function setStartTime(start: string) {
+  const duration = minutesBetween(form.startTime, form.endTime)
+  form.startTime = start
+  form.endTime = nextAvailableEndTime(
+    busyIntervals.value,
+    start,
+    duration > 0 ? duration : 60,
+  ) || form.endTime
+  timeError.value = ''
+}
+
+async function applySessionEdits() {
   if (!props.item) return
   const item = props.item
   const location = item.exception?.location ?? item.course.location
@@ -97,7 +140,7 @@ function applySessionEdits() {
   const unchanged = form.startTime === (item.exception?.startTime ?? item.course.recurrence.startTime)
     && form.endTime === (item.exception?.endTime ?? item.course.recurrence.endTime)
   if (unchanged && !item.exception) return
-  store.upsertScheduleException({
+  await store.upsertScheduleException({
     courseId: item.course.id,
     date: item.date,
     status: item.exception?.status === 'added' ? 'added' : 'rescheduled',
@@ -109,17 +152,31 @@ function applySessionEdits() {
   })
 }
 
-function save() {
+async function save() {
   if (!props.item) return
-  applySessionEdits()
+  if (!form.startTime || !form.endTime || form.endTime <= form.startTime) {
+    timeError.value = '结束时间要晚于开始时间'
+    return
+  }
+  const [conflict] = store.findCourseScheduleConflicts(
+    [{ date: props.item.date, startTime: form.startTime, endTime: form.endTime }],
+    props.item.course.id,
+    courseParticipantIds(props.item.course),
+  )
+  if (conflict) {
+    timeError.value = scheduleConflictMessage(conflict)
+    return
+  }
+  timeError.value = ''
+  await applySessionEdits()
   if (attendance() === 'completed') {
-    store.setOccurrenceAttendance(props.item.course.id, props.item.date, 'completed', {
+    await store.setOccurrenceAttendance(props.item.course.id, props.item.date, 'completed', {
       billable: currentRecord()?.billable ?? true,
       actualMinutes: Number(form.actualMinutes) > 0 ? Number(form.actualMinutes) : scheduledMinutes(),
     })
   }
   if (!paidLocked.value) {
-    store.upsertOccurrenceExpense(props.item.course.id, props.item.date, {
+    await store.upsertOccurrenceExpense(props.item.course.id, props.item.date, {
       amount: Number(form.amount) || 0,
       paid: form.paid,
     })
@@ -147,13 +204,23 @@ function requestCancel() {
             <div class="time-fields">
               <div class="field">
                 <label>开始时间</label>
-                <input v-model="form.startTime" type="time" />
+                <AppTimeSelect
+                  :model-value="form.startTime"
+                  :options="startOptions"
+                  aria-label="选择开始时间"
+                  @update:model-value="setStartTime"
+                />
               </div>
               <div class="field">
                 <label>结束时间</label>
-                <input v-model="form.endTime" type="time" />
+                <AppTimeSelect
+                  v-model="form.endTime"
+                  :options="endOptions"
+                  aria-label="选择结束时间"
+                />
               </div>
             </div>
+            <p v-if="timeError" class="time-error">{{ timeError }}</p>
             <div v-if="showMinutesField" class="field">
               <label>实际时长（分钟）</label>
               <input
@@ -173,17 +240,7 @@ function requestCancel() {
             </div>
             <div class="switch-row">
               <span>是否已支付</span>
-              <button
-                class="pay-switch"
-                type="button"
-                role="switch"
-                :aria-checked="form.paid"
-                :disabled="paidLocked"
-                :aria-label="form.paid ? '已支付' : '未支付'"
-                @click="form.paid = paidLocked ? true : !form.paid"
-              >
-                <i />
-              </button>
+              <AppPaySwitch v-model="form.paid" :disabled="paidLocked" />
             </div>
           </div>
           <div class="sheet-footer">
@@ -284,32 +341,12 @@ function requestCancel() {
   min-height: 42px;
 }
 .switch-row > span { color: var(--muted); font-size: 12px; }
-.pay-switch {
-  position: relative;
-  width: 48px;
-  height: 30px;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: #e6e1ee;
-  transition: background-color .2s ease;
-}
-.pay-switch[aria-checked="true"] { background: #2f9d70; }
-.pay-switch i {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(28, 22, 48, .2);
-  transition: transform .2s ease;
-}
-.pay-switch[aria-checked="true"] i { transform: translateX(18px); }
-.pay-switch:disabled { opacity: .55; }
 .time-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.time-error {
+  margin: -4px 0 12px;
+  color: #c2483c;
+  font-size: 12px;
+}
 .sheet-footer {
   display: grid;
   gap: 10px;

@@ -21,7 +21,7 @@ const deleting = ref<Course | null>(null)
 const activeChildIds = computed({
   get: () => store.child ? [store.child.id] : [],
   set: (ids: string[]) => {
-    if (ids[0]) store.selectChild(ids[0])
+    if (ids[0]) void store.selectChild(ids[0])
   },
 })
 
@@ -41,6 +41,7 @@ const courseCards = computed(() => {
         period,
         store.charges,
         store.snapshot.occurrenceRecords ?? [],
+        store.scheduleExceptions,
       ),
     }))
     .sort((a, b) => stateOrder[a.lifecycle.key] - stateOrder[b.lifecycle.key])
@@ -50,9 +51,9 @@ function toggleMenu(courseId: string) {
   openMenuId.value = openMenuId.value === courseId ? '' : courseId
 }
 
-function toggleCompletion(course: Course) {
-  if (course.archived) store.restoreCourse(course.id)
-  else store.archiveCourse(course.id)
+async function toggleCompletion(course: Course) {
+  if (course.archived) await store.restoreCourse(course.id)
+  else await store.archiveCourse(course.id)
   openMenuId.value = ''
 }
 
@@ -61,9 +62,9 @@ function requestDelete(course: Course) {
   openMenuId.value = ''
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (!deleting.value) return
-  store.removeCourse(deleting.value.id)
+  await store.removeCourse(deleting.value.id)
   deleting.value = null
 }
 
@@ -144,10 +145,12 @@ const deletingSharedNames = computed(() => {
               :class="`is-${card.billing.key}`"
             >{{ card.billing.label }}</small>
           </div>
-          <router-link v-if="card.billing.key === 'open'" class="foot-pay" :to="`/courses/${card.course.id}/bills`">
-            去支付
-          </router-link>
-          <strong v-else>{{ getCourseAmountLabel(card.course) }}</strong>
+          <div class="foot-amount">
+            <strong>{{ getCourseAmountLabel(card.course) }}</strong>
+            <router-link v-if="card.billing.key === 'open'" class="foot-pay" :to="`/courses/${card.course.id}/bills`">
+              去支付
+            </router-link>
+          </div>
         </div>
       </article>
       <router-link
@@ -500,19 +503,24 @@ const deletingSharedNames = computed(() => {
 }
 
 .billing-state {
-  overflow: hidden;
   color: var(--muted);
   font-size: 9px;
   font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .billing-state.is-open { color: var(--unpaid); }
 .billing-state.is-settled { color: var(--paid); }
 
-.foot-pay {
+.foot-amount {
+  display: grid;
   flex: 0 0 auto;
+  justify-items: end;
+  gap: 4px;
+}
+
+.foot-pay {
   padding: 5px 9px;
   color: #fff;
   border-radius: 999px;
@@ -524,7 +532,6 @@ const deletingSharedNames = computed(() => {
 }
 
 .course-foot strong {
-  flex: 0 0 auto;
   font-size: 13px;
 }
 

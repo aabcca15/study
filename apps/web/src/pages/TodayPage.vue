@@ -10,6 +10,7 @@ import type { DayOccurrence } from '@/domain/types'
 import { occurrencesOnDate } from '@/services/schedule'
 import { useHomeDate } from '@/composables/useHomeDate'
 import { useQuickAdd } from '@/composables/useQuickAdd'
+import { useViewRefresh } from '@/composables/useViewRefresh'
 import { courseScheduleProgress } from '@/services/courseSchedule'
 import {
   sumUnbilledCharges,
@@ -38,6 +39,11 @@ const weekRange = computed(() => {
     ? `${start.format('M月D日')}–${end.format('D日')}`
     : `${start.format('M月D日')}–${end.format('M月D日')}`
 })
+
+useViewRefresh(() => ({
+  from: weekDays.value[0].format('YYYY-MM-DD'),
+  to: weekDays.value[6].format('YYYY-MM-DD'),
+}))
 
 function dateCourseColors(date: string) {
   const colors = occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions)
@@ -110,13 +116,13 @@ function requestCancelFromEdit(item: DayOccurrence) {
   editing.value = null
 }
 
-function confirmCancel() {
+async function confirmCancel() {
   if (!cancelling.value) return
   const item = cancelling.value
   if (item.exception?.status === 'added') {
-    store.dropOccurrenceSlot(item.course.id, item.date)
+    await store.dropOccurrenceSlot(item.course.id, item.date)
   } else {
-    store.upsertScheduleException({
+    await store.upsertScheduleException({
       courseId: item.course.id,
       date: item.date,
       status: 'cancelled',
@@ -130,7 +136,7 @@ function confirmCancel() {
   }, 4500)
 }
 
-function undoCancel() {
+async function undoCancel() {
   const item = recentlyCancelled.value
   if (!item) return
   const slot = {
@@ -139,7 +145,7 @@ function undoCancel() {
     endTime: item.exception?.endTime ?? item.course.recurrence.endTime,
   }
   if (item.exception?.status === 'added') {
-    store.upsertScheduleException({
+    await store.upsertScheduleException({
       courseId: item.course.id,
       date: item.date,
       status: 'added',
@@ -150,7 +156,7 @@ function undoCancel() {
       note: item.exception.note,
     })
   } else {
-    store.restoreOccurrenceSlot(item.course.id, slot)
+    await store.restoreOccurrenceSlot(item.course.id, slot)
   }
   recentlyCancelled.value = null
   window.clearTimeout(toastTimer)

@@ -53,9 +53,9 @@ function childActionLabel(childId: string, childName: string) {
   return `${props.modelValue.includes(childId) ? '取消选择' : '选择'}${childName}`
 }
 
-function addChild() {
+async function addChild() {
   error.value = ''
-  const id = store.addChild(newChildName.value, newChildAvatar.value)
+  const id = await store.addChild(newChildName.value, newChildAvatar.value)
   if (!id) {
     error.value = '请先填写孩子名字'
     return
@@ -65,27 +65,24 @@ function addChild() {
   newChildAvatar.value = DEFAULT_CHILD_AVATAR.key
 }
 
-function setChildAvatar(childId: string, avatarKey: ChildAvatarKey) {
-  store.updateChild({ id: childId, avatarKey })
+async function setChildAvatar(childId: string, avatarKey: ChildAvatarKey) {
+  await store.updateChild({ id: childId, avatarKey })
   editingAvatarId.value = ''
 }
 
-function saveName(childId: string) {
-  store.updateChild({ id: childId, name: names[childId] ?? '' })
+async function saveName(childId: string) {
+  await store.updateChild({ id: childId, name: names[childId] ?? '' })
   const child = store.snapshot.children.find((item) => item.id === childId)
   if (child) names[childId] = child.name
 }
 
-function removeChild(childId: string, childName: string) {
+async function removeChild(childId: string, childName: string) {
   error.value = ''
   if (!window.confirm(`确定删除“${childName}”吗？相关独享课程、账单和目标也会删除。`)) return
-  const result = store.removeChild(childId)
-  if (result === 'last-child') {
-    error.value = '至少需要保留一个孩子'
-    return
-  }
-  if (result === 'not-found') {
-    error.value = '该孩子已不存在'
+  try {
+    await store.removeChild(childId)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '删除失败'
     return
   }
   const next = props.modelValue.filter((id) => id !== childId)

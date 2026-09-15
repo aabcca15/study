@@ -5,5 +5,9 @@ dist
 *.local
 .env
 .env.*
+!.env.example
 *.log
 dev.log
+server/prisma/dev.db
+server/prisma/dev.db-journal
+server/prisma/*.db

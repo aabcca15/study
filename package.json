@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "workspaces": [
     "apps/web",
+    "server",
     "packages/*"
   ],
   "scripts": {
     "dev": "npm run dev -w @myhome/web",
+    "dev:server": "npm run start:dev -w @myhome/server",
     "build": "npm run build -w @myhome/web",
     "preview": "npm run preview -w @myhome/web"
   }

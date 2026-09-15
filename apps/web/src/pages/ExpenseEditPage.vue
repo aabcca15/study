@@ -7,6 +7,7 @@ import type { ExpenseCategory } from '@/domain/types'
 import { CATEGORY_LABEL } from '@/domain/constants'
 import { money } from '@/services/billing'
 import AppDatePicker from '@/components/AppDatePicker.vue'
+import AppPaySwitch from '@/components/AppPaySwitch.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useAppStore()
@@ -63,6 +64,7 @@ const refundableAmount = computed(() => {
   return Math.max(0, Math.round((paid - refundedTotal.value) * 100) / 100)
 })
 const isPaid = computed(() => existing.value?.status === 'paid')
+const paying = ref(false)
 const refundForm = reactive({
   amount: 0,
   note: '',
@@ -72,7 +74,7 @@ function goBack() {
   router.replace(billsListLocation())
 }
 
-function keep() {
+async function keep() {
   if (isEdit.value) {
     goBack()
     return
@@ -85,7 +87,7 @@ function keep() {
     feedback.value = '先选择账单日期。'
     return
   }
-  store.upsertExpense({
+  await store.upsertExpense({
     title: createForm.title.trim(),
     category: createForm.category,
     billingMode: 'session',
@@ -110,9 +112,9 @@ function requestRemove() {
   confirmRemove.value = true
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (!id.value) return
-  const result = store.removeExpense(id.value)
+  const result = await store.removeExpense(id.value)
   confirmRemove.value = false
   if (result === 'paid-immutable') {
     feedback.value = '已支付账单不能删除；如需退回资金，请记录退款。'
@@ -121,14 +123,19 @@ function confirmDelete() {
   goBack()
 }
 
-function markPaid() {
-  if (!id.value) return
-  store.setExpenseStatus(id.value, 'paid')
+async function togglePaid() {
+  if (!id.value || isPaid.value || paying.value) return
+  paying.value = true
+  try {
+    await store.setExpenseStatus(id.value, 'paid')
+  } finally {
+    paying.value = false
+  }
 }
 
-function refund() {
+async function refund() {
   if (!id.value) return
-  const result = store.refundExpense(id.value, refundForm.amount, refundForm.note)
+  const result = await store.refundExpense(id.value, refundForm.amount, refundForm.note)
   if (!result.ok) {
     feedback.value = result.reason === 'invalid-amount'
       ? `退款金额应大于 0，且不超过 ${money(result.remaining)}。`
@@ -159,16 +166,17 @@ function refund() {
             <dt>金额</dt>
             <dd>{{ money(existing.amount) }}</dd>
           </div>
-          <div>
-            <dt>支付</dt>
+          <div class="pay-fact">
+            <dt>是否已支付</dt>
             <dd>
-              <span class="status-pill" :class="isPaid ? 'paid' : 'unpaid'">
-                {{ isPaid ? '已支付' : '未支付' }}
-              </span>
+              <AppPaySwitch
+                :model-value="isPaid"
+                :disabled="isPaid || paying"
+                @update:model-value="togglePaid"
+              />
             </dd>
           </div>
         </dl>
-        <button v-if="!isPaid" class="mark-paid" type="button" @click="markPaid">标记已支付</button>
       </section>
 
       <section v-if="isPaid" class="form-card">
@@ -299,35 +307,9 @@ function refund() {
 .facts > div:last-of-type { padding-bottom: 0; border-bottom: 0; }
 .facts dt { color: var(--muted); font-size: 13px; }
 .facts dd { margin: 0; font-size: 15px; font-weight: 700; }
-.status-pill {
-  display: inline-flex;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 750;
-}
-.status-pill.paid {
-  color: var(--paid);
-  background: var(--paid-soft);
-}
-.status-pill.unpaid {
-  color: var(--unpaid);
-  background: var(--unpaid-soft);
-}
-.mark-paid,
-.pay-toggle {
-  width: 100%;
-  min-height: 44px;
-  margin-top: 16px;
-  color: var(--accent-text);
-  border: 0;
-  border-radius: 14px;
-  background: var(--accent-soft);
-  font-weight: 750;
-}
-.pay-toggle.on {
-  color: var(--paid);
-  background: var(--paid-soft);
+.facts .pay-fact dd {
+  display: flex;
+  justify-content: flex-end;
 }
 .section-head { margin-bottom: 16px; }
 .section-head h2 { font-size: 16px; }

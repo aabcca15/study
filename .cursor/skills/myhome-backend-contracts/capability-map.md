@@ -4,19 +4,19 @@
 
 ## 产品一句话
 
-家长在家庭维度跟踪孩子的课表、课次变动和课程费用。当前只有 H5 家长端，数据在本机 `localStorage` 键 `myhome.v1`。
+家长在家庭维度跟踪孩子的课表、课次变动和课程费用。当前只有 H5 家长端。数据由 `server/` NestJS 接口持久化，前端不再把 `myhome.v1` 当数据源。
 
 ## 当前实现边界
 
 | 已落地 | 未落地 |
 |---|---|
-| 多孩档案、共享课、排课与例外、临时安排 | 登录 / 家庭租户 / 多设备 |
+| 多孩档案、共享课、排课与例外、临时安排、账号密码登录 | 短信/微信登录、多家长邀请、孩子端 |
 | 课次编辑、取消、确认已上（本地） | 孩子端登录与授权 |
 | 计费规则、Charge、账单、支付/退款 | 真实支付渠道 |
 | 本周账单、课程账单、家庭统计 | 目标页、年级编辑 |
-| 明暗主题、底栏导航 | 小程序、Node API |
+| 明暗主题、底栏导航、账号密码登录 | 短信/微信登录、小程序、拆表 |
 
-整份 `AppSnapshot` 等价于**一个家庭**。`SessionState.role` / `childId` 只是本机会话，不是账号。
+整份 `AppSnapshot` 等价于**一个家庭**。`SessionState.childId` 只是默认孩子偏好；授权看 JWT 里的 FamilyMember。
 
 ## 能力清单
 
@@ -58,10 +58,10 @@
 | 按日 / 按范围展开课次 | 已落地 | 查询派生 | `GET /schedule` 服务端展开 | `schedule.ts` | 今日、日历 |
 | 家庭混排、共享课不重复 | 已落地 | Family | 查询层去重 | `overviewCourses` | 今日、日历 |
 | 时间冲突（按孩子隔离） | 已落地 | 查询 | 同孩子重叠拒绝；不同孩子可同时 | `findScheduleConflicts` | 加课、建课、临时安排 |
-| 占用时段置灰 | 已落地 | 查询 | `GET /schedule/busy?childId=` | `busyIntervalsOnDate` | `AppTimeSelect` / 加课弹层 |
+| 占用时段置灰 | 已落地 | 查询 | `GET /schedule/busy?childId=` | `busyIntervalsForDates` | 课程编辑、加课、课次改时间 |
 | 已有课加到某天 | 已落地 | `ScheduleException.added` | 自然键 `courseId+date` | `addPresetOccurrence` | `AddOccurrenceSheet` |
 | 临时安排 | 已落地 | Course+可选 Expense | 课程+账单同一事务 | `createQuickArrangement` | 同上 / 底栏 |
-| 改本次时间 / 金额 / 支付 | 部分 | 例外 + 账单 | 改时间也要冲突校验 | `upsertScheduleException` `upsertOccurrenceExpense` | `OccurrenceEditSheet` |
+| 改本次时间 / 金额 / 支付 | 已落地 | 例外 + 账单 | 改时间走同一冲突校验并置灰 | `upsertScheduleException` `upsertOccurrenceExpense` | `OccurrenceEditSheet` |
 | 取消本次 / 短时恢复 | 已落地 | 例外 | 删 `cancelled` 即恢复 | `dropOccurrenceSlot` `restoreOccurrenceSlot` | 今日/日历 toast |
 | 确认已上 / 未上 | 部分 | `OccurrenceRecord` | 统计最终以确认为准 | `setOccurrenceAttendance` | 课次编辑；统计仍按日期推断 |
 
@@ -104,9 +104,9 @@
 
 完成课次过渡期 = 日期 ≤ 今天，无签到。接入后以 `OccurrenceRecord` 为准。
 
-### 6. 账号与多端（未做）
+### 6. 账号与多端
 
-见 [account-model.md](account-model.md)。一期先家庭租户 + 家长登录，再谈孩子端、小程序绑账号。
+见 [account-model.md](account-model.md)。一期已落地家庭租户 + 账号密码登录。未做：孩子端、短信/微信、多家长邀请、小程序绑账号。
 
 ### 7. 目标（未做）
 
@@ -126,6 +126,8 @@
 | `/stats` | `StatsPage` | 家庭账单数据 / 课程统计 | `overview*` | 统计 |
 | `/bills` | `BillsPage` | 本周全家正式账单 | `overviewExpenses` × 当前周 | `?from=today`→今日；默认统计 |
 | `/bills/edit/:id?` | `ExpenseEditPage` | 记一笔或账单详情（支付/退款/删未付） | 当前孩子 | 无 |
+| `/login` | `LoginPage` | 账号密码登录 | 无家庭数据 | 无 |
+| `/register` | `RegisterPage` | 注册账号并创建家庭 | 创建 Family | 无 |
 
 导航壳：`App.vue` + `AppHeader`（主题，本地 `myhome.theme`）+ `TabBar`（＋菜单：快速安排 / 新增课程 / 记一笔）。
 
@@ -138,7 +140,7 @@
 | `AppHeader` | 品牌、主题切换 |
 | `TabBar` | 四 tab、快捷菜单、高亮（含 `returnTo` / `from=today`） |
 | `PageHeader` | 标题、返回（`returnTo` 优先，`replace`） |
-| `AppDatePicker` `AppTimeSelect` `AppSelect` | 输入控件；占用置灰由调用方传入 intervals |
+| `AppDatePicker` `AppTimeSelect` `AppSelect` `AppPaySwitch` | 输入控件；`AppTimeSelect` 为底部时/分选择器，占用置灰由调用方传入 options；支付开关只做开关样式 |
 | `CourseIcon` `ChildAvatar` | 展示 |
 | `TrendChart` | 折线展示 |
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
@@ -12,6 +12,7 @@ import {
 import CourseIcon from '@/components/CourseIcon.vue'
 import TrendChart from '@/components/TrendChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { useViewRefresh } from '@/composables/useViewRefresh'
 
 const store = useAppStore()
 const router = useRouter()
@@ -23,6 +24,15 @@ const dragging = ref(false)
 let dragStartX = 0
 let dragScrollLeft = 0
 let dragMoved = false
+
+useViewRefresh(() => {
+  const start = granularity.value === 'year' ? anchor.value.startOf('year') : anchor.value.startOf('month')
+  const end = granularity.value === 'year' ? anchor.value.endOf('year') : anchor.value.endOf('month')
+  return {
+    from: start.format('YYYY-MM-DD'),
+    to: end.format('YYYY-MM-DD'),
+  }
+})
 
 const stats = computed(() =>
   calculateLearningStatistics(
@@ -92,6 +102,16 @@ function setGranularity(value: StatisticsGranularity) {
   granularity.value = value
   anchor.value = dayjs()
 }
+
+watch(
+  [granularity, anchor],
+  () => {
+    const start = granularity.value === 'year' ? anchor.value.startOf('year') : anchor.value.startOf('month')
+    const end = granularity.value === 'year' ? anchor.value.endOf('year') : anchor.value.endOf('month')
+    void store.refreshRange(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'))
+  },
+  { immediate: true },
+)
 
 function formatMinutes(minutes: number) {
   if (minutes < 60) return `${minutes}min`

@@ -56,9 +56,9 @@
 
 ### 时间冲突只拦快速新增
 
-- 状态：部分已处理
-- **现状**：创建/保存课程、从预设加到某天、临时安排都走 `findScheduleConflicts`，且只与同一孩子（课程 `childIds`）的课次比时间。不同孩子允许同一时间上课。编辑本次时间仍未校验。
-- **建议**：课次改时间也复用同一函数，并继续按孩子隔离。
+- 状态：已处理
+- **现状**：创建/保存课程、批量/逐日改时间、从预设加到某天、临时安排、课次改时间都走 `findScheduleConflicts` / `busyIntervalsForDates`，只与同一孩子的课次比时间。时间选择器置灰冲突时段。
+- **建议**：保持按孩子隔离；服务端接入独立排课表后继续用同一判定。
 
 ### 快速新增的孩子归属
 
@@ -114,14 +114,26 @@
 
 ## 账号与同步
 
-- 无登录、无多设备、无冲突合并。整份 JSON 存在 `localStorage`，清站点即丢。
-- 见 [account-model.md](account-model.md)。上后端前不要在 H5 做假登录页。
+- 状态：部分已处理
+- 现状：H5 已接 NestJS，账号+密码注册/登录，家庭数据在服务端 SQLite。前端 token 在 `myhome.tokens`。
+- 未做：短信/微信登录、多家长邀请、孩子端、从旧 `myhome.v1` 导入、刷新令牌。
+- 见 [account-model.md](account-model.md)。
 
 ## 代码卫生（低优先级）
 
-- `apps/web/src/counter.ts`：Vite 模板残留，可删。
+- 状态：部分已处理
+- 已删除 Vite 模板残留 `counter.ts` / `style.css`，以及未使用的旧 `CourseCard.vue`。
+- `apps/web/src/data/storage.ts` 仍保留给未来 `myhome.v1` 导入，当前 H5 不再读写。
 - `restoreDemo` 无入口。
 - `ScheduleException.childId` 与「例外按课程生效」重复，共享课改期对所有孩子生效；后端以 `courseId+date` 唯一，`childId` 仅冗余。
+
+## 一期数据通路（2026-09 复查）
+
+- 状态：已处理（snapshot 一期）
+- **现状**：业务增删改查都走 `/api`。Token 在 `myhome.tokens`；主题在 `myhome.theme`。前端不再读写 `myhome.v1`。Store 写操作一律 `mutate → 语义接口 → 服务端返回整份 snapshot`。
+- **覆盖**：孩子、课程、排课例外、加课/临时安排、课次费用/出勤、账单支付/退款/删除、一次性课费、出账。目标 `addGoalProgress` 仍是空实现（无页面）。
+- **未拆表**：家庭数据仍在 Family.`snapshotJson`。契约里的独立 `/analytics` `/schedule/busy` 尚未单独暴露；冲突与统计仍在服务端 workspace / 前端派生，但写入已在服务端执行。
+- **已优化**：同家庭写操作串行，避免并发覆盖；快照未变化不写库；相同账期跳过重复出账；H5 合并重复 snapshot 请求，切日不再整包重拉。
 
 ## 记录模板
 

@@ -10,14 +10,14 @@
 [微信小程序] --/
 ```
 
-当前实现：仅 H5（`apps/web/`），Pinia + `localStorage`（`myhome.v1`）模拟持久化。契约已按服务端语义书写，接入时以服务端结果为准。
+当前实现：H5（`apps/web/`）+ NestJS API（`server/`，本地 SQLite）。Pinia 从 `GET /api/families/current/snapshot` 水合，写操作走语义接口。主题仍用本地 `myhome.theme`。
 
 ## 目录
 
 ```text
 apps/web/              H5（现有）
 apps/miniprogram/      微信小程序（占位）
-server/                Node.js API（占位）
+server/                NestJS API（一期 Prisma + SQLite）
 packages/domain/       共用领域模型（占位，尚未从 web 抽出）
 docs/                  PRD / 设计 / 口径
 .cursor/skills/        AI 契约（能力地图、账号、数据与接口、规则）
@@ -26,7 +26,7 @@ docs/                  PRD / 设计 / 口径
 ## 分层
 
 1. **表现层**：H5（`apps/web/`）、小程序（未来 `apps/miniprogram/`）。
-2. **应用服务**：现为 `apps/web/src/stores` 与 `apps/web/src/services`；未来为 `server/`。
+2. **应用服务**：`server/src`（认证、家庭 Workspace）；H5 Store 只做请求与展示态。
 3. **领域规则**：类型暂在 `apps/web/src/domain/`；事务与 API 形状在 skills 契约中；稳定后抽到 `packages/domain/`。
 4. **文档**：`docs/` 描述产品与口径，不替代契约中的接口细节。
 

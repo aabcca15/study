@@ -4,7 +4,8 @@
 
 ## 现在改哪里
 
-- **H5 UI / 路由 / Pinia / localStorage**：`apps/web/`，技术栈保持 Vue3 + Vite + TS + Pinia + Vue Router。
+- **H5 UI / 路由 / Pinia**：`apps/web/`，技术栈保持 Vue3 + Vite + TS + Pinia + Vue Router。业务数据走 `/api`，不要再写 `myhome.v1`。
+- **NestJS API**：`server/`，本地 SQLite，`npm run dev:server`。
 - **业务规则、能力地图、账号与接口**：`.cursor/skills/myhome-backend-contracts/`（`SKILL.md` 入口；`capability-map.md` / `product-map.md` / `account-model.md` / `data-and-api.md` / `backend-contracts.md` / `billing-model-v2.md` / `gaps-and-backlog.md`）。
 - **产品与口径说明**：`docs/prd/`、`docs/domain/`、`docs/design/`、`docs/architecture.md`。
 

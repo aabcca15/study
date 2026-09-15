@@ -152,6 +152,42 @@ export function busyIntervalsOnDate(
     .sort((a, b) => a.start.localeCompare(b.start))
 }
 
+/** 多日占用合并：同一孩子在任一选中日期冲突的时段都会置灰。 */
+export function busyIntervalsForDates(
+  courses: Course[],
+  dates: string[],
+  exceptions: ScheduleException[] = [],
+  exceptCourseId?: string,
+  childIds?: string[],
+): BusyInterval[] {
+  const scoped = childIds?.length ? coursesForParticipants(courses, childIds) : courses
+  const uniqueDates = [...new Set(dates.filter(Boolean))]
+  const seen = new Set<string>()
+  const intervals: BusyInterval[] = []
+  for (const date of uniqueDates) {
+    for (const item of occurrencesOnDate(scoped, date, exceptions)) {
+      if (item.course.id === exceptCourseId) continue
+      const interval = {
+        start: item.course.recurrence.startTime,
+        end: item.course.recurrence.endTime,
+        title: item.course.title,
+      }
+      const key = `${interval.start}-${interval.end}-${interval.title}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      intervals.push(interval)
+    }
+  }
+  return intervals.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end))
+}
+
+/** 把当前已填时间补进候选，避免自定义时间点从选择器里消失。 */
+export function ensureTimeOption(options: TimeSlotOption[], value: string): TimeSlotOption[] {
+  if (!value || options.some((option) => option.value === value)) return options
+  return [...options, { value, label: value, disabled: false }]
+    .sort((a, b) => a.value.localeCompare(b.value))
+}
+
 /** 返回与 [start, end) 重叠的第一个已有安排。 */
 export function findBusyConflict(intervals: BusyInterval[], start: string, end: string) {
   if (!start || !end || end <= start) return undefined

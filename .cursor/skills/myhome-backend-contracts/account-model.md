@@ -1,17 +1,18 @@
-# 账号与家庭模型（后期后端）
+# 账号与家庭模型
 
-当前 H5 **没有账号**。`AppSnapshot.session` 只表示本机上次选中的孩子和写死的家长视图。后端第一期必须先引入「家庭」作为租户，再谈登录。
+H5 第一期已落地：**账号 + 密码** 注册/登录，JWT 访问家庭数据。`AppSnapshot.session.childId` 仍只表示默认孩子偏好，不参与鉴权。
 
-能力切片见 [capability-map.md](capability-map.md)#6-账号与多端未做。建表与导入见 [data-and-api.md](data-and-api.md)。
+能力切片见 [capability-map.md](capability-map.md)#6-账号。建表与导入见 [data-and-api.md](data-and-api.md)。
 
 ## 建议对象
 
 ```text
-Account（登录账号，手机号 / 微信 openid）
+Account（登录账号，一期 username + passwordHash）
   └── FamilyMember（账号在某家庭中的身份）
         ├── role: parent | child
         └── childProfileId?   仅孩子身份绑定档案
 Family（租户）
+  ├── snapshotJson       一期先存整份 AppSnapshot，语义接口内部变异
   ├── ChildProfile[]     孩子档案，不是登录账号
   ├── Course[]
   ├── Expense[]
@@ -26,15 +27,15 @@ Family（租户）
 
 ## 登录渠道
 
-1. **一期 H5**：验证码登录（手机号）即可；JWT 或 session cookie，payload 含 `accountId`、`familyId`、`role`。
-2. **小程序**：微信 `openid` / `unionid` 绑定到同一 Account。同一人 H5 与小程序应能合并账号（手机号或 unionid）。
-3. **孩子端**：家长生成邀请码或一次性链接，孩子微信登录后绑定档案。在绑定完成前，孩子请求一律 `403`。
+1. **一期 H5（已落地）**：账号 + 密码。用户名 3–32 位字母数字下划线，密码至少 6 位。JWT payload 含 `sub=accountId`、`familyId`、`role`。注册时创建 Family + FamilyMember(parent) + 默认孩子「Uday」。
+2. **后期小程序**：微信 `openid` / `unionid` 绑定到同一 Account。
+3. **孩子端**：家长生成邀请码或一次性链接，孩子登录后绑定档案。在绑定完成前，孩子请求一律 `403`。
 
 服务端 **不得信任** 客户端传入的 `role`、`familyId`、`childId`。每次用令牌里的成员关系做授权。
 
 ## 与现有 Session 的映射
 
-| 本地 `myhome.v1` | 后端 |
+| 原本地 `myhome.v1` | 后端 |
 |---|---|
 | 无 | `Account` + `Family` + `FamilyMember(parent)` |
 | `children[]` | `ChildProfile`，`familyId` 外键 |
@@ -57,19 +58,17 @@ Family（租户）
 `403 SCOPE_FORBIDDEN`：孩子带 `scope=family` 或其他 `childId`。  
 `403 FAMILY_MISMATCH`：资源不属于令牌中的家庭。
 
-## 建议认证 API
+## 已落地认证 API
 
-- `POST /api/auth/sms/send` `{ phone }` 限流。
-- `POST /api/auth/sms/verify` `{ phone, code }` → tokens。
-- `POST /api/auth/wechat` `{ code }` 小程序登录。
-- `POST /api/auth/refresh`
-- `POST /api/families` 创建家庭（首个家长）。
-- `GET /api/families/current` 当前家庭摘要 + 成员 + 孩子列表。
-- `POST /api/families/invites` 邀请家长或生成孩子绑定码。
-- `POST /api/families/join` `{ inviteCode }`
-- `PATCH /api/me/preferences` `{ defaultChildId }` 对应今日外的「当前孩子」。
+- `POST /api/auth/register` `{ username, password, name? }` → tokens。
+- `POST /api/auth/login` `{ username, password }` → tokens。
+- `GET /api/families/current` 当前家庭摘要 + 孩子列表。
+- `GET /api/families/current/snapshot` 水合 H5 Store。
+- `POST /api/me/current-child` `{ childId }` 默认孩子偏好。
 
-错误码建议：`401 UNAUTHENTICATED`、`429 SMS_RATE_LIMITED`、`409 PHONE_TAKEN`、`404 INVITE_NOT_FOUND`、`410 INVITE_EXPIRED`。
+错误码：`401 UNAUTHENTICATED`、`401 INVALID_CREDENTIALS`、`409 USERNAME_TAKEN`。
+
+后期再补：短信/微信登录、refresh、家庭邀请、`POST /api/families/import`。
 
 ## 金额、时区、审计
 

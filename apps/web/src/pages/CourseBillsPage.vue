@@ -17,17 +17,18 @@ const router = useRouter()
 const courseId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const course = computed(() => store.snapshot.courses.find((item) => item.id === courseId.value))
 
-watch(course, (item) => {
-  if (courseId.value && !item) {
+watch(courseId, async (id) => {
+  if (!id) return
+  const item = store.snapshot.courses.find((course) => course.id === id)
+  if (!item) {
     router.replace('/courses')
     return
   }
-  if (!item) return
-  const months = new Set(
-    effectiveCourseSlots(item, store.snapshot.scheduleExceptions).map((slot) => slot.date.slice(0, 7)),
-  )
-  months.add(dayjs().format('YYYY-MM'))
-  for (const period of months) store.generateBillingStatements(period)
+  const dates = effectiveCourseSlots(item, store.snapshot.scheduleExceptions).map((slot) => slot.date)
+  dates.push(dayjs().format('YYYY-MM-DD'))
+  dates.sort()
+  await store.refreshRange(dates[0], dates[dates.length - 1])
+  if (!store.snapshot.courses.some((course) => course.id === id)) router.replace('/courses')
 }, { immediate: true })
 
 const ledger = computed(() => {

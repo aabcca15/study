@@ -5,10 +5,10 @@ import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
 import AppDatePicker from '@/components/AppDatePicker.vue'
 import AppTimeSelect from '@/components/AppTimeSelect.vue'
+import AppPaySwitch from '@/components/AppPaySwitch.vue'
 import {
-  busyIntervalsOnDate,
+  busyIntervalsForDates,
   courseParticipantIds,
-  coursesForParticipants,
   endTimeOptions,
   findBusyConflict,
   minutesBetween,
@@ -49,8 +49,6 @@ const busyChildIds = computed(() => {
   if (selected) return courseParticipantIds(selected)
   return store.child ? [store.child.id] : []
 })
-const scopedCourses = computed(() => coursesForParticipants(store.overviewCourses, busyChildIds.value))
-
 function courseScheduledOnAllDates(courseId: string) {
   if (!sortedDates.value.length) return false
   return sortedDates.value.every((day) =>
@@ -59,19 +57,15 @@ function courseScheduledOnAllDates(courseId: string) {
   )
 }
 
-const busyIntervals = computed(() => {
-  const seen = new Set<string>()
-  const intervals: { start: string; end: string; title: string }[] = []
-  for (const day of sortedDates.value.length ? sortedDates.value : [props.date]) {
-    for (const busy of busyIntervalsOnDate(scopedCourses.value, day, store.overviewScheduleExceptions)) {
-      const key = `${busy.start}-${busy.end}-${busy.title}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      intervals.push(busy)
-    }
-  }
-  return intervals
-})
+const busyIntervals = computed(() =>
+  busyIntervalsForDates(
+    store.overviewCourses,
+    sortedDates.value.length ? sortedDates.value : [props.date],
+    store.overviewScheduleExceptions,
+    undefined,
+    busyChildIds.value,
+  ),
+)
 const startOptions = computed(() => startTimeOptions(busyIntervals.value))
 const endOptions = computed(() => endTimeOptions(busyIntervals.value, quickForm.startTime))
 const conflict = computed(() =>
@@ -92,7 +86,13 @@ const formError = computed(() => {
 const PREFERRED_START = '09:00'
 
 function pickDefaultTimes(date: string) {
-  const intervals = busyIntervalsOnDate(scopedCourses.value, date, store.overviewScheduleExceptions)
+  const intervals = busyIntervalsForDates(
+    store.overviewCourses,
+    [date],
+    store.overviewScheduleExceptions,
+    undefined,
+    busyChildIds.value,
+  )
   const free = startTimeOptions(intervals).filter((item) => !item.disabled)
   const start = free.find((item) => item.value >= PREFERRED_START)?.value
     ?? free[0]?.value
@@ -136,12 +136,14 @@ function close() {
   emit('update:open', false)
 }
 
-function submitPreset() {
+async function submitPreset() {
   if (!selectedCourseId.value || !sortedDates.value.length) return
   presetError.value = ''
-  const result = store.addPresetOccurrence(selectedCourseId.value, sortedDates.value)
+  const result = await store.addPresetOccurrence(selectedCourseId.value, sortedDates.value)
   if (!result.ok) {
-    if (result.reason === 'conflict') presetError.value = scheduleConflictMessage(result.conflict)
+    if (result.reason === 'conflict') {
+      presetError.value = result.conflict ? scheduleConflictMessage(result.conflict) : '该孩子此时已有其他课程'
+    }
     else if (result.reason === 'duplicate') presetError.value = '所选日期都已有这门课'
     return
   }
@@ -149,10 +151,10 @@ function submitPreset() {
   close()
 }
 
-function submitTemporary() {
+async function submitTemporary() {
   attemptedSubmit.value = true
   if (formError.value) return
-  const result = store.createQuickArrangement({
+  const result = await store.createQuickArrangement({
     dates: sortedDates.value,
     title: quickForm.title,
     startTime: quickForm.startTime,
@@ -257,16 +259,7 @@ function submitTemporary() {
             </div>
             <div class="switch-row">
               <span>是否已支付</span>
-              <button
-                class="pay-switch"
-                type="button"
-                role="switch"
-                :aria-checked="quickForm.paid"
-                :aria-label="quickForm.paid ? '已支付' : '未支付'"
-                @click="quickForm.paid = !quickForm.paid"
-              >
-                <i />
-              </button>
+              <AppPaySwitch v-model="quickForm.paid" />
             </div>
             <p v-if="attemptedSubmit && formError" class="quick-form-error">{{ formError }}</p>
             <button class="sheet-submit" type="submit">确认</button>
@@ -510,30 +503,6 @@ function submitTemporary() {
   min-height: 42px;
 }
 .switch-row > span { color: var(--muted); font-size: 12px; }
-.pay-switch {
-  position: relative;
-  width: 48px;
-  height: 30px;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--track);
-  transition: background-color .2s ease;
-}
-.pay-switch[aria-checked="true"] { background: #2f9d70; }
-.pay-switch i {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(28, 22, 48, .2);
-  transition: transform .2s ease;
-}
-.pay-switch[aria-checked="true"] i { transform: translateX(18px); }
 
 .busy-hint {
   display: grid;

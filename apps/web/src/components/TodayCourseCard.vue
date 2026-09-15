@@ -5,6 +5,8 @@ import type { DayOccurrence } from '@/domain/types'
 import CourseIcon from '@/components/CourseIcon.vue'
 import { useAppStore } from '@/stores/app'
 import { courseCardFee } from '@/services/charges'
+import { buildCourseBillLedger } from '@/services/courseBills'
+import { money } from '@/services/billing'
 
 const props = defineProps<{
   item: DayOccurrence
@@ -53,6 +55,18 @@ const feeExpense = computed(() => {
 })
 
 const fee = computed(() => courseCardFee(props.item.course, feeExpense.value))
+
+const courseTotals = computed(() => {
+  const course = props.item.course
+  if (course.billingPolicy?.pricingMode === 'free' || course.billingMode === 'free') return null
+  const ledger = buildCourseBillLedger(
+    course,
+    store.snapshot.expenses,
+    store.snapshot.scheduleExceptions,
+    store.snapshot.charges ?? [],
+  )
+  return ledger
+})
 </script>
 
 <template>
@@ -87,8 +101,11 @@ const fee = computed(() => courseCardFee(props.item.course, feeExpense.value))
       <div class="fee-row">
         <strong>{{ fee.label }}</strong>
         <span v-if="fee.paid !== undefined" class="pay-pill" :class="fee.paid ? 'paid' : 'unpaid'">
-          {{ fee.paid ? '已支付' : '未支付' }}
+          {{ fee.paid ? '本次已付' : '本次未付' }}
         </span>
+        <small v-if="courseTotals" class="fee-totals">
+          已付 {{ money(courseTotals.paid) }} · 未付 {{ money(courseTotals.unpaid) }}
+        </small>
       </div>
     </div>
     <div class="lesson-actions">
@@ -271,6 +288,16 @@ const fee = computed(() => courseCardFee(props.item.course, feeExpense.value))
 .pay-pill.unpaid {
   color: var(--unpaid);
   background: var(--unpaid-soft);
+}
+
+.fee-totals {
+  max-width: 118px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: right;
 }
 
 .lesson-period {

@@ -19,12 +19,20 @@ import type {
   PackageUnit,
 } from '@/domain/types'
 import { effectiveCourseSlots } from '@/services/courseSchedule'
-import { scheduleConflictMessage } from '@/services/schedule'
-import { endTimeOptions, startTimeOptions, type TimeSlotOption } from '@/services/schedule'
+import {
+  busyIntervalsForDates,
+  endTimeOptions,
+  ensureTimeOption,
+  minutesBetween,
+  nextAvailableEndTime,
+  scheduleConflictMessage,
+  startTimeOptions,
+} from '@/services/schedule'
 import CourseIcon from '@/components/CourseIcon.vue'
 import ChildProfilePicker from '@/components/ChildProfilePicker.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import AppTimeSelect from '@/components/AppTimeSelect.vue'
+import AppPaySwitch from '@/components/AppPaySwitch.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import dayjs from 'dayjs'
 
@@ -159,28 +167,6 @@ function compatibilityBillingMode(): BillingMode {
   return 'session'
 }
 
-function includeCurrentTime(options: TimeSlotOption[], value: string) {
-  if (!value || options.some((option) => option.value === value)) return options
-  return [...options, { value, label: value, disabled: false }]
-    .sort((a, b) => a.value.localeCompare(b.value))
-}
-
-const batchStartTimeOptions = computed(() =>
-  includeCurrentTime(startTimeOptions([]), batchStartTime.value),
-)
-const slotStartTimeOptions = computed(() =>
-  includeCurrentTime(startTimeOptions([]), editingSlot.value?.startTime ?? ''),
-)
-const batchEndTimeOptions = computed(() =>
-  includeCurrentTime(endTimeOptions([], batchStartTime.value), batchEndTime.value),
-)
-const slotEndTimeOptions = computed(() =>
-  includeCurrentTime(
-    endTimeOptions([], editingSlot.value?.startTime ?? ''),
-    editingSlot.value?.endTime ?? '',
-  ),
-)
-
 function selectCourseIcon(icon: CourseIconName) {
   const systemColors = new Set([
     ...COURSE_COLORS.map((color) => color.toUpperCase()),
@@ -206,6 +192,78 @@ const slots = ref<CourseDateSlot[]>(initialSlots())
 const isLegacySchedule = computed(
   () => Boolean(existing.value && existing.value.recurrence.freq !== 'dates'),
 )
+
+const batchBusyIntervals = computed(() =>
+  busyIntervalsForDates(
+    store.overviewCourses,
+    slots.value.map((slot) => slot.date),
+    store.overviewScheduleExceptions,
+    id.value || undefined,
+    form.childIds,
+  ),
+)
+
+const slotBusyIntervals = computed(() =>
+  busyIntervalsForDates(
+    store.overviewCourses,
+    editingSlot.value?.date ? [editingSlot.value.date] : [],
+    store.overviewScheduleExceptions,
+    id.value || undefined,
+    form.childIds,
+  ),
+)
+
+const batchStartTimeOptions = computed(() =>
+  ensureTimeOption(startTimeOptions(batchBusyIntervals.value), batchStartTime.value),
+)
+const slotStartTimeOptions = computed(() =>
+  ensureTimeOption(startTimeOptions(slotBusyIntervals.value), editingSlot.value?.startTime ?? ''),
+)
+const batchEndTimeOptions = computed(() =>
+  ensureTimeOption(endTimeOptions(batchBusyIntervals.value, batchStartTime.value), batchEndTime.value),
+)
+const slotEndTimeOptions = computed(() =>
+  ensureTimeOption(
+    endTimeOptions(slotBusyIntervals.value, editingSlot.value?.startTime ?? ''),
+    editingSlot.value?.endTime ?? '',
+  ),
+)
+
+const batchTimeHint = computed(() => {
+  if (!slots.value.length) return '先选择上课日期，再对照已有课程避开冲突时间。'
+  const start = batchStartTimeOptions.value.find((option) => option.value === batchStartTime.value)
+  if (start?.disabled) return start.caption || '开始时间已被占用'
+  const end = batchEndTimeOptions.value.find((option) => option.value === batchEndTime.value)
+  if (end?.disabled) return end.caption || '结束时间与已有课程冲突'
+  return '灰色时间已被所选孩子的其他课程占用。'
+})
+
+const batchTimeConflict = computed(() => {
+  const start = batchStartTimeOptions.value.find((option) => option.value === batchStartTime.value)
+  const end = batchEndTimeOptions.value.find((option) => option.value === batchEndTime.value)
+  return Boolean(start?.disabled || end?.disabled)
+})
+
+function setBatchStartTime(start: string) {
+  const duration = minutesBetween(batchStartTime.value, batchEndTime.value)
+  batchStartTime.value = start
+  batchEndTime.value = nextAvailableEndTime(
+    batchBusyIntervals.value,
+    start,
+    duration > 0 ? duration : 60,
+  ) || batchEndTime.value
+}
+
+function setSlotStartTime(start: string) {
+  if (!editingSlot.value) return
+  const duration = minutesBetween(editingSlot.value.startTime, editingSlot.value.endTime)
+  editingSlot.value.startTime = start
+  editingSlot.value.endTime = nextAvailableEndTime(
+    slotBusyIntervals.value,
+    start,
+    duration > 0 ? duration : 60,
+  ) || editingSlot.value.endTime
+}
 
 watch(id, () => {
   slots.value = initialSlots()
@@ -306,6 +364,10 @@ function applyBatchTime() {
     formError.value = '结束时间要晚于开始时间'
     return
   }
+  if (batchTimeConflict.value) {
+    formError.value = batchTimeHint.value
+    return
+  }
   formError.value = ''
   for (const slot of slots.value) {
     slot.startTime = batchStartTime.value
@@ -318,6 +380,14 @@ function saveSlotTime() {
   if (!editingSlot.value.startTime || !editingSlot.value.endTime
     || editingSlot.value.endTime <= editingSlot.value.startTime) {
     slotTimeError.value = '结束时间要晚于开始时间'
+    return
+  }
+  const start = slotStartTimeOptions.value.find((option) => option.value === editingSlot.value?.startTime)
+  const end = slotEndTimeOptions.value.find((option) => option.value === editingSlot.value?.endTime)
+  if (start?.disabled || end?.disabled) {
+    slotTimeError.value = start?.disabled
+      ? (start.caption || '开始时间已被占用')
+      : (end?.caption || '结束时间与已有课程冲突')
     return
   }
   slotTimeError.value = ''
@@ -334,7 +404,7 @@ function openSlot(slot: CourseDateSlot) {
   editingSlot.value = { ...slot }
 }
 
-function save() {
+async function save() {
   formError.value = ''
   if (!form.title.trim()) {
     formError.value = '请填写课程名称'
@@ -370,7 +440,9 @@ function save() {
     formError.value = scheduleConflictMessage(conflict)
     return
   }
-  const savedId = store.upsertCourse({
+  let savedId = ''
+  try {
+    savedId = await store.upsertCourse({
     id: id.value || undefined,
     childIds: [...form.childIds],
     title: form.title.trim(),
@@ -403,15 +475,19 @@ function save() {
     },
     note: form.note,
   })
-  store.syncCourseUpfrontExpense(savedId, form.paymentStatus)
-  store.clearScheduleExceptionsForCourse(savedId)
+    await store.syncCourseUpfrontExpense(savedId, form.paymentStatus)
+    await store.clearScheduleExceptionsForCourse(savedId)
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : '保存失败'
+    return
+  }
   router.push(returnTo.value)
 }
 
-function archive() {
+async function archive() {
   if (!id.value) return
-  if (existing.value?.archived) store.restoreCourse(id.value)
-  else store.archiveCourse(id.value)
+  if (existing.value?.archived) await store.restoreCourse(id.value)
+  else await store.archiveCourse(id.value)
   router.push(returnTo.value)
 }
 
@@ -513,16 +589,10 @@ onBeforeUnmount(stopDragging)
             </div>
             <div class="switch-row">
               <span>是否已支付</span>
-              <button
-                class="pay-switch"
-                type="button"
-                role="switch"
-                :aria-checked="form.paymentStatus === 'paid'"
-                :aria-label="form.paymentStatus === 'paid' ? '已支付' : '未支付'"
-                @click="form.paymentStatus = form.paymentStatus === 'paid' ? 'unpaid' : 'paid'"
-              >
-                <i />
-              </button>
+              <AppPaySwitch
+                :model-value="form.paymentStatus === 'paid'"
+                @update:model-value="form.paymentStatus = $event ? 'paid' : 'unpaid'"
+              />
             </div>
           </div>
 
@@ -585,10 +655,10 @@ onBeforeUnmount(stopDragging)
           <div class="time-field">
             <span>开始</span>
             <AppTimeSelect
-              v-model="batchStartTime"
+              :model-value="batchStartTime"
               :options="batchStartTimeOptions"
-              :show-legend="false"
               aria-label="选择批量开始时间"
+              @update:model-value="setBatchStartTime"
             />
           </div>
           <i>→</i>
@@ -597,12 +667,12 @@ onBeforeUnmount(stopDragging)
             <AppTimeSelect
               v-model="batchEndTime"
               :options="batchEndTimeOptions"
-              :show-legend="false"
               aria-label="选择批量结束时间"
             />
           </div>
         </div>
-        <button class="apply-time" type="button" :disabled="!slots.length" @click="applyBatchTime">
+        <p class="time-hint" :class="{ conflict: batchTimeConflict }">{{ batchTimeHint }}</p>
+        <button class="apply-time" type="button" :disabled="!slots.length || batchTimeConflict" @click="applyBatchTime">
           应用到已选 {{ slots.length }} 个日期
         </button>
       </section>
@@ -692,11 +762,10 @@ onBeforeUnmount(stopDragging)
             <div class="time-field">
               <span>开始</span>
               <AppTimeSelect
-                v-model="editingSlot.startTime"
+                :model-value="editingSlot.startTime"
                 :options="slotStartTimeOptions"
-                placement="top"
-                :show-legend="false"
                 aria-label="选择当天开始时间"
+                @update:model-value="setSlotStartTime"
               />
             </div>
             <i>→</i>
@@ -705,8 +774,6 @@ onBeforeUnmount(stopDragging)
               <AppTimeSelect
                 v-model="editingSlot.endTime"
                 :options="slotEndTimeOptions"
-                placement="top"
-                :show-legend="false"
                 aria-label="选择当天结束时间"
               />
             </div>
@@ -1198,30 +1265,6 @@ onBeforeUnmount(stopDragging)
   min-height: 42px;
 }
 .switch-row > span { color: var(--muted); font-size: 12px; }
-.pay-switch {
-  position: relative;
-  width: 48px;
-  height: 30px;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--track);
-  transition: background-color .2s ease;
-}
-.pay-switch[aria-checked="true"] { background: #2f9d70; }
-.pay-switch i {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(28, 22, 48, .2);
-  transition: transform .2s ease;
-}
-.pay-switch[aria-checked="true"] i { transform: translateX(18px); }
 
 .billing-summary {
   margin: 12px 1px 0;
@@ -1376,6 +1419,17 @@ onBeforeUnmount(stopDragging)
   color: #aaa3b4;
   text-align: center;
   font-style: normal;
+}
+
+.time-hint {
+  margin: 10px 2px 0;
+  color: var(--muted, #8e8799);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.time-hint.conflict {
+  color: #c2483c;
 }
 
 .apply-time {

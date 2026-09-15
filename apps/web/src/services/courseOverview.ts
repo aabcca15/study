@@ -1,8 +1,8 @@
 import dayjs from 'dayjs'
 import type { Charge, Course, Expense, OccurrenceRecord, ScheduleException } from '@/domain/types'
 import { effectiveCourseSlots } from '@/services/courseSchedule'
-import { sumUnbilledCharges } from '@/services/charges'
 import { getPackageBalance, packageCaption, packageUnitLabel } from '@/services/packages'
+import { buildCourseBillLedger } from '@/services/courseBills'
 
 export type CourseLifecycle = 'active' | 'upcoming' | 'unscheduled' | 'ended' | 'completed'
 
@@ -32,6 +32,8 @@ export interface CourseBillingSummary {
   key: CourseBillingState
   label: string
   openAmount: number
+  paidAmount: number
+  unitLabel: string
 }
 
 export function getCoursePricingLabel(course: Course) {
@@ -71,15 +73,15 @@ export function getCourseAmountLabel(course: Course) {
 export function getCourseBillingSummary(
   course: Course,
   expenses: Expense[],
-  period: string,
+  _period: string,
   charges: Charge[] = [],
   records: OccurrenceRecord[] = [],
+  exceptions: ScheduleException[] = [],
 ): CourseBillingSummary {
+  const unitLabel = getCourseAmountLabel(course)
   if (course.billingPolicy?.pricingMode === 'free' || course.billingMode === 'free') {
-    return { key: 'free', label: '无需缴费', openAmount: 0 }
+    return { key: 'free', label: '无需缴费', openAmount: 0, paidAmount: 0, unitLabel: '免费' }
   }
-
-  const unbilledAmount = sumUnbilledCharges(charges, (item) => item.courseId === course.id)
 
   if (!course.needsBillingReview && course.billingPolicy?.pricingMode === 'prepaid') {
     const upfront = expenses.find(
@@ -87,63 +89,29 @@ export function getCourseBillingSummary(
         && (item.source === 'course_upfront' || item.billingMode === 'term'),
     )
     const balance = getPackageBalance(course, records)
-    if (!upfront) return { key: 'unbilled', label: '待记录支付状态', openAmount: 0 }
-    if (upfront.status === 'paid') {
-      return {
-        key: 'settled',
-        label: balance ? packageCaption(balance, true) : '课程费已支付',
-        openAmount: 0,
-      }
+    const amount = upfront?.amount ?? course.amount
+    const paidAmount = upfront?.status === 'paid' ? amount : 0
+    const openAmount = upfront?.status === 'paid' ? 0 : amount
+    if (!upfront) {
+      return { key: 'unbilled', label: `已付 ¥0 · 未付 ¥${amount.toLocaleString('zh-CN')}`, openAmount: amount, paidAmount: 0, unitLabel }
     }
-    if (upfront.status === 'pending') return { key: 'pending', label: '待出账', openAmount: 0 }
     return {
-      key: 'open',
+      key: openAmount > 0 ? 'open' : 'settled',
       label: balance
-        ? packageCaption(balance, false)
-        : `待支付 ¥${upfront.amount.toLocaleString('zh-CN')}`,
-      openAmount: upfront.amount,
-    }
-  }
-
-  const bills = expenses.filter((item) => item.courseId === course.id && item.period === period)
-  const openAmount = bills
-    .filter((item) => item.status === 'unpaid')
-    .reduce((total, item) => total + item.amount, 0)
-
-  if (bills.some((item) => item.status === 'unpaid')) {
-    const accrued = unbilledAmount > 0
-      ? ` · 另待结算 ¥${unbilledAmount.toLocaleString('zh-CN')}`
-      : unbilledAmount < 0
-        ? ` · 待冲减 ¥${Math.abs(unbilledAmount).toLocaleString('zh-CN')}`
-        : ''
-    return {
-      key: 'open',
-      label: `${openAmount ? `待支付 ¥${openAmount.toLocaleString('zh-CN')}` : '待支付'}${accrued}`,
+        ? `${packageCaption(balance, upfront.status === 'paid')} · 已付 ¥${paidAmount.toLocaleString('zh-CN')} · 未付 ¥${openAmount.toLocaleString('zh-CN')}`
+        : `已付 ¥${paidAmount.toLocaleString('zh-CN')} · 未付 ¥${openAmount.toLocaleString('zh-CN')}`,
       openAmount,
+      paidAmount,
+      unitLabel,
     }
   }
-  if (bills.some((item) => item.status === 'pending')) {
-    return { key: 'pending', label: '待出账', openAmount: 0 }
+
+  const ledger = buildCourseBillLedger(course, expenses, exceptions, charges)
+  return {
+    key: ledger.unpaid > 0 ? 'open' : ledger.paid > 0 ? 'settled' : 'unbilled',
+    label: `已付 ¥${ledger.paid.toLocaleString('zh-CN')} · 未付 ¥${ledger.unpaid.toLocaleString('zh-CN')}`,
+    openAmount: ledger.unpaid,
+    paidAmount: ledger.paid,
+    unitLabel,
   }
-  if (unbilledAmount > 0) {
-    return { key: 'unbilled', label: `待结算 ¥${unbilledAmount.toLocaleString('zh-CN')}`, openAmount: unbilledAmount }
-  }
-  if (unbilledAmount < 0) {
-    return { key: 'unbilled', label: `待冲减 ¥${Math.abs(unbilledAmount).toLocaleString('zh-CN')}`, openAmount: unbilledAmount }
-  }
-  if (!bills.length) {
-    const cycle = course.needsBillingReview ? undefined : course.billingPolicy?.settlementCycle
-    const label = cycle === 'weekly'
-      ? '本周待结算'
-      : cycle === 'monthly'
-        ? '本月待结算'
-        : cycle === 'manual'
-          ? '待手动结算'
-          : '本期待出账'
-    return { key: 'unbilled', label, openAmount: 0 }
-  }
-  if (bills.every((item) => item.status === 'void')) {
-    return { key: 'settled', label: '本期无应付', openAmount: 0 }
-  }
-  return { key: 'settled', label: '本期已结清', openAmount: 0 }
 }

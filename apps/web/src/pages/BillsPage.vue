@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
@@ -8,6 +8,7 @@ import ExpenseCard from '@/components/ExpenseCard.vue'
 import { CATEGORY_LABEL } from '@/domain/constants'
 import { money, groupByCategory } from '@/services/billing'
 import PageHeader from '@/components/PageHeader.vue'
+import { useViewRefresh } from '@/composables/useViewRefresh'
 
 const store = useAppStore()
 const route = useRoute()
@@ -21,14 +22,10 @@ const weekStart = computed(() => {
 })
 const weekEnd = computed(() => weekStart.value.add(6, 'day'))
 
-watch(
-  [weekStart, weekEnd],
-  () => {
-    const months = new Set([weekStart.value.format('YYYY-MM'), weekEnd.value.format('YYYY-MM')])
-    for (const period of months) store.generateBillingStatements(period)
-  },
-  { immediate: true },
-)
+useViewRefresh(() => ({
+  from: weekStart.value.format('YYYY-MM-DD'),
+  to: weekEnd.value.format('YYYY-MM-DD'),
+}))
 
 const weekBills = computed(() => {
   const start = weekStart.value.format('YYYY-MM-DD')

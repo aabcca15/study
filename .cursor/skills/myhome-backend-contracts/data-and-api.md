@@ -7,7 +7,7 @@
 1. **家庭是租户**。所有业务表带 `familyId`；查询与缓存键必须含家庭（孩子端再含 `childProfileId`）。
 2. **服务端不信任** 请求体里的 `role`、`familyId`、任意 `childId`。以令牌中的 `FamilyMember` 授权。
 3. **页面过滤器 ≠ 权限**。`session.childId` 只是默认孩子偏好。
-4. **写操作用业务语义接口**，不要让客户端提交整份 snapshot。
+4. **写操作用业务语义接口**，不要让客户端提交整份 snapshot。一期服务端内部可用 Family.`snapshotJson` 保存 `AppSnapshot`，对外仍只暴露语义接口。
 5. **金额只用整数分** `amountMinor`。本地仍是元，接入层 `Math.round(amount * 100)`。
 6. **日期 `YYYY-MM-DD`、时间 `HH:mm`**，周期边界按家庭 `timezone`（默认 `Asia/Shanghai`）。
 7. **破坏性写带幂等键**（删孩子、出账、支付、退款、快速安排）。
@@ -101,6 +101,7 @@ AuditLog                        familyId, actorAccountId, action, payload
 | 方法 | 路径 | 用途 |
 |---|---|---|
 | GET | `/api/families/current` | 家庭、成员、孩子、时区 |
+| GET | `/api/families/current/snapshot` | 水合 H5；query `from` `to` 时按范围幂等补出账后返回最新快照 |
 | POST | `/api/families` | 首个家长建家庭 |
 | POST | `/api/families/import` | 导入本机快照 |
 | PATCH | `/api/me/preferences` | `{ defaultChildId }` |

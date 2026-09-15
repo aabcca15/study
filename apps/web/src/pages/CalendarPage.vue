@@ -10,6 +10,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import CourseScheduleList from '@/components/CourseScheduleList.vue'
 import AddOccurrenceSheet from '@/components/AddOccurrenceSheet.vue'
 import OccurrenceEditSheet from '@/components/OccurrenceEditSheet.vue'
+import { useViewRefresh } from '@/composables/useViewRefresh'
 
 const store = useAppStore()
 const cursor = ref(dayjs())
@@ -19,6 +20,11 @@ const editing = ref<DayOccurrence | null>(null)
 const cancelling = ref<DayOccurrence | null>(null)
 
 const monthStart = computed(() => cursor.value.startOf('month'))
+
+useViewRefresh(() => ({
+  from: monthStart.value.format('YYYY-MM-DD'),
+  to: monthStart.value.endOf('month').format('YYYY-MM-DD'),
+}))
 const grid = computed(() => {
   const start = monthStart.value.startOf('week')
   return Array.from({ length: 42 }, (_, i) => start.add(i, 'day'))
@@ -33,9 +39,21 @@ const monthOcc = computed(() =>
   ),
 )
 
+const colorsByDate = computed(() => {
+  const map = new Map<string, string[]>()
+  for (const item of monthOcc.value) {
+    const colors = map.get(item.date)
+    if (colors) {
+      if (!colors.includes(item.course.color) && colors.length < 3) colors.push(item.course.color)
+    } else {
+      map.set(item.date, [item.course.color])
+    }
+  }
+  return map
+})
+
 function dots(date: string) {
-  const colors = [...new Set(monthOcc.value.filter((o) => o.date === date).map((o) => o.course.color))]
-  return colors.slice(0, 3)
+  return colorsByDate.value.get(date) ?? []
 }
 
 const dayItems = computed(() =>
@@ -67,12 +85,12 @@ function requestCancel(item: DayOccurrence) {
   editing.value = null
 }
 
-function confirmCancel() {
+async function confirmCancel() {
   if (!cancelling.value) return
   const item = cancelling.value
-  if (item.exception?.status === 'added') store.dropOccurrenceSlot(item.course.id, item.date)
+  if (item.exception?.status === 'added') await store.dropOccurrenceSlot(item.course.id, item.date)
   else {
-    store.upsertScheduleException({
+    await store.upsertScheduleException({
       courseId: item.course.id,
       date: item.date,
       status: 'cancelled',

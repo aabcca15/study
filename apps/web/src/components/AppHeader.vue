@@ -1,7 +1,16 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
+import { useAppStore } from '@/stores/app'
 
 const { isDark, toggleTheme } = useTheme()
+const store = useAppStore()
+const router = useRouter()
+
+async function logout() {
+  store.logout()
+  await router.replace('/login')
+}
 </script>
 
 <template>
@@ -16,6 +25,7 @@ const { isDark, toggleTheme } = useTheme()
       </router-link>
 
       <div class="app-actions">
+        <button v-if="store.ready" class="logout" type="button" @click="logout">退出</button>
         <button
           class="theme-toggle"
           type="button"
@@ -137,6 +147,14 @@ const { isDark, toggleTheme } = useTheme()
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
+}
+
+.logout {
+  padding: 0 4px;
+  color: var(--muted);
+  border: 0;
+  background: transparent;
+  font-size: 13px;
 }
 
 .theme-toggle {
