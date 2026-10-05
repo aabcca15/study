@@ -5,68 +5,116 @@ const tabs = [
   { key: 'stats', text: '统计', icon: '/static/icons/bars-muted.png', iconOn: '/static/icons/bars-accent.png', url: '/pages/stats/index' },
 ]
 
+function appData() {
+  const app = getApp()
+  app.globalData = app.globalData || {}
+  return app.globalData
+}
+
+function routeIndex() {
+  const route = getCurrentPages().slice(-1)[0]?.route || ''
+  if (route.indexOf('calendar') >= 0) return 1
+  if (route.indexOf('courses') >= 0) return 2
+  if (route.indexOf('stats') >= 0) return 3
+  if (route.indexOf('today') >= 0) return 0
+  return -1
+}
+
+function resolveIndex() {
+  const data = appData()
+  const fresh = typeof data.tabIndex === 'number' && data.tabStamp && Date.now() - data.tabStamp < 800
+  if (fresh) return data.tabIndex
+  const fromRoute = routeIndex()
+  if (fromRoute >= 0) return fromRoute
+  return typeof data.tabIndex === 'number' ? data.tabIndex : 0
+}
+
+function place(index) {
+  const width = wx.getSystemInfoSync().windowWidth || 375
+  const bar = Math.min(width - 24, 432)
+  const pad = 8
+  const gap = 5
+  const center = 74
+  const extra = 36
+  const base = (bar - pad * 2 - center - gap * 4 - extra) / 4
+  const tabWidth = (slot) => (slot === index ? base + extra : base)
+  let left = pad
+  if (index === 1) left = pad + tabWidth(0) + gap
+  if (index === 2) left = pad + tabWidth(0) + gap + tabWidth(1) + gap + center + gap
+  if (index === 3) left = pad + tabWidth(0) + gap + tabWidth(1) + gap + center + gap + tabWidth(2) + gap
+  return `left:${left}px;top:${pad}px;width:${tabWidth(index)}px;height:50px;opacity:1;`
+}
+
 Component({
   data: {
     selected: 0,
     open: false,
     travel: false,
     jelly: false,
+    covered: false,
     indicator: 'opacity:0;',
     left: tabs.slice(0, 2),
     right: tabs.slice(2),
   },
   lifetimes: {
     ready() {
-      this.sync(false)
+      this.apply(resolveIndex(), false)
     },
   },
   pageLifetimes: {
     show() {
-      this.sync(true)
+      const next = resolveIndex()
+      if (next === this.data.selected) {
+        this.refine(next)
+        return
+      }
+      this.apply(next, false)
     },
   },
   methods: {
-    sync(animate) {
-      if (this._lockUntil && Date.now() < this._lockUntil) {
-        this.setData({ selected: this._lockIndex })
-        this.measure(this._lockIndex)
-        return
-      }
-      const pages = getCurrentPages()
-      const route = pages[pages.length - 1]?.route || ''
-      let selected = 0
-      if (route.includes('calendar')) selected = 1
-      else if (route.includes('courses')) selected = 2
-      else if (route.includes('stats')) selected = 3
-      const moved = selected !== this.data.selected
-      this.setData({ selected, travel: Boolean(animate && moved) }, () => this.measure(selected))
-      if (animate && moved) {
-        setTimeout(() => this.setData({ travel: false }), 240)
-      }
+    mark(index) {
+      const data = appData()
+      data.tabIndex = index
+      data.tabStamp = Date.now()
     },
-    measure(index) {
-      const selected = typeof index === 'number' ? index : this.data.selected
-      const run = () => {
+    apply(index, animate) {
+      if (this._travelTimer) clearTimeout(this._travelTimer)
+      this.setData({
+        selected: index,
+        open: false,
+        travel: Boolean(animate),
+        indicator: place(index),
+      })
+      if (animate) {
+        this._travelTimer = setTimeout(() => this.setData({ travel: false }), 240)
+      }
+      this.refine(index)
+    },
+    refine(index) {
+      if (this._refineTimer) clearTimeout(this._refineTimer)
+      this._refineTimer = setTimeout(() => {
+        if (this.data.selected !== index) return
         const query = this.createSelectorQuery()
         query.select('#glass-tabbar').boundingClientRect()
         query.selectAll('.tab').boundingClientRect()
         query.exec((res) => {
+          if (this.data.selected !== index) return
           const bar = res?.[0]
-          const tab = res?.[1]?.[selected]
+          const tab = res?.[1]?.[index]
           if (!bar?.width || !tab?.width) return
           this.setData({
             indicator: `left:${tab.left - bar.left}px;top:${tab.top - bar.top}px;width:${tab.width}px;height:${tab.height}px;opacity:1;`,
           })
         })
-      }
-      wx.nextTick(run)
-      setTimeout(run, 320)
+      }, 280)
     },
     bounce() {
       this.setData({ jelly: false })
       wx.nextTick(() => {
         this.setData({ jelly: true })
-        setTimeout(() => this.setData({ jelly: false }), 480)
+        setTimeout(() => {
+          if (this.data.jelly) this.setData({ jelly: false })
+        }, 480)
       })
     },
     onTab(event) {
@@ -74,16 +122,14 @@ Component({
       const tab = tabs[index]
       if (!tab) return
       const route = getCurrentPages().slice(-1)[0]?.route || ''
-      const same = index === this.data.selected && route.includes(tab.key)
+      const same = index === this.data.selected && route.indexOf(tab.key) >= 0
       if (same) {
         this.setData({ open: false })
         this.bounce()
         return
       }
-      this._lockIndex = index
-      this._lockUntil = Date.now() + 800
-      this.setData({ open: false, selected: index, travel: true, jelly: false }, () => this.measure(index))
-      setTimeout(() => this.setData({ travel: false }), 240)
+      this.mark(index)
+      this.apply(index, true)
       wx.switchTab({ url: tab.url })
     },
     toggle() {
@@ -96,10 +142,10 @@ Component({
       const kind = event.currentTarget.dataset.kind
       this.setData({ open: false })
       if (kind === 'add') {
-        const app = getApp()
-        app.globalData = app.globalData || {}
-        app.globalData.pendingAdd = true
-        this.setData({ selected: 0 })
+        const data = appData()
+        data.pendingAdd = true
+        this.mark(0)
+        this.apply(0, false)
         wx.switchTab({ url: '/pages/today/index' })
         return
       }

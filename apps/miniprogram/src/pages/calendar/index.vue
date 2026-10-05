@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
 import { occurrencesOnDate } from '@server-domain/schedule'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
+import { setTabCover } from '@/utils/nav'
 import { monthMatrix } from '@/utils/view'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -19,6 +21,14 @@ const cursor = ref(dayjs().format('YYYY-MM'))
 const addOpen = ref(false)
 const editing = ref<DayOccurrence | null>(null)
 const cancelled = ref<DayOccurrence | null>(null)
+
+watch([addOpen, editing], () => {
+  setTabCover(addOpen.value || Boolean(editing.value))
+})
+
+onShow(() => {
+  setTabCover(addOpen.value || Boolean(editing.value))
+})
 
 const cells = computed(() => monthMatrix(cursor.value))
 const items = computed(() =>

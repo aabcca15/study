@@ -1,8 +1,12 @@
 page {
-  background:
+  background-color: #f3f4fb;
+  background-image:
     radial-gradient(120% 70% at 12% -8%, rgba(255, 180, 92, 0.13) 0%, rgba(255, 180, 92, 0) 58%),
-    radial-gradient(100% 60% at 96% 4%, rgba(69, 205, 181, 0.1) 0%, rgba(69, 205, 181, 0) 62%),
-    #f3f4fb;
+    radial-gradient(100% 60% at 96% 4%, rgba(69, 205, 181, 0.1) 0%, rgba(69, 205, 181, 0) 62%);
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-size: 100% 100vh;
+  background-attachment: fixed;
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "SF Pro Text", sans-serif;
   font-size: 14px;
@@ -293,7 +297,7 @@ button::after {
 .mask {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: 10000;
   display: flex;
   align-items: flex-end;
   background: rgba(24, 28, 44, 0.28);

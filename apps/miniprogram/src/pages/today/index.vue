@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { WEEKDAY_SHORT } from '@server-domain/constants'
@@ -10,7 +10,7 @@ import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
-import { openTab } from '@/utils/nav'
+import { openTab, setTabCover } from '@/utils/nav'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
 import AppHeader from '@/components/AppHeader.vue'
@@ -29,7 +29,12 @@ onLoad((query) => {
   if (query?.add === '1') addOpen.value = true
 })
 
+watch([addOpen, editing], () => {
+  setTabCover(addOpen.value || Boolean(editing.value))
+})
+
 onShow(() => {
+  setTabCover(addOpen.value || Boolean(editing.value))
   const app = getApp() as { globalData?: { pendingAdd?: boolean } }
   if (app?.globalData?.pendingAdd) {
     app.globalData.pendingAdd = false
@@ -260,10 +265,13 @@ async function undoCancel() {
   justify-content: space-between;
   padding: 14px 15px;
   border-radius: 24px;
-  background: linear-gradient(150deg, #fff1ea 0%, #fff 62%);
-  box-shadow: var(--elev-md);
+  background: linear-gradient(150deg, #fff1ea 0%, #ffffff 62%);
+  box-shadow: 0 2px 5px rgba(25, 31, 58, 0.04), 0 18px 34px -16px rgba(255, 122, 69, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-.overview-card.is-bill { background: linear-gradient(150deg, #ffe8ee 0%, #fff 62%); }
+.overview-card.is-bill {
+  background: linear-gradient(150deg, #ffe8ee 0%, #ffffff 62%);
+  box-shadow: 0 2px 5px rgba(25, 31, 58, 0.04), 0 18px 34px -16px rgba(255, 95, 121, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
 .overview-head { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .overview-head text:nth-child(2) { flex: 1; }
 .mark {

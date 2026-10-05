@@ -1,3 +1,22 @@
+.tab-host {
+  position: fixed;
+  z-index: 900;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 0;
+  overflow: visible;
+}
+
+.tab-host.covered,
+.tab-host.covered .tabbar,
+.tab-host.covered .quick-menu,
+.tab-host.covered .quick-backdrop {
+  z-index: 1;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .tabbar {
   position: fixed;
   z-index: 900;

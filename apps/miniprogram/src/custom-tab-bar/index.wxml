@@ -1,3 +1,4 @@
+<view class="tab-host {{covered ? 'covered' : ''}}">
 <view class="quick-backdrop {{open ? 'show' : ''}}" bindtap="close" />
 <view class="quick-menu {{open ? 'show' : ''}}">
   <view class="quick-item" data-kind="add" bindtap="quick">
@@ -50,4 +51,5 @@
     <image class="ico" src="{{selected === index + 2 ? item.iconOn : item.icon}}" mode="aspectFit" />
     <text class="tab-label">{{item.text}}</text>
   </view>
+</view>
 </view>

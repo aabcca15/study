@@ -73,11 +73,24 @@ function participants(item: DayOccurrence) {
   return store.snapshot.children.filter((child) => assigned.includes(child.id))
 }
 
+function courseIcon(item: DayOccurrence) {
+  const live = store.snapshot.courses.find((course) => course.id === item.course.id)
+  return live?.icon || item.course.icon || 'generic'
+}
+
 function cardStyle(item: DayOccurrence) {
   const tint = item.course.color
   return {
     background: cardBackground(tint),
-    boxShadow: `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(tint, '#6d6780', 0.35)}, inset 0 1px 0 rgba(255,255,255,.9)`,
+    boxShadow: `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(tint, '#191f3a', 0.58)}, inset 0 1px 0 rgba(255,255,255,.9)`,
+  }
+}
+
+function tileStyle(item: DayOccurrence) {
+  const tint = item.course.color
+  return {
+    background: tileBackground(tint),
+    boxShadow: `0 10px 20px -10px ${mix(tint, '#191f3a', 0.3)}, inset 0 1px 0 rgba(255,255,255,.4)`,
   }
 }
 </script>
@@ -103,8 +116,8 @@ function cardStyle(item: DayOccurrence) {
         </view>
         <view class="lesson-card" :style="cardStyle(item)">
           <view class="lesson-row">
-            <view class="lesson-time" :style="{ background: tileBackground(item.course.color) }">
-              <AppIcon :name="item.course.icon || 'generic'" tone="white" :size="25" />
+            <view class="lesson-time" :style="tileStyle(item)">
+              <AppIcon :key="courseIcon(item)" :name="courseIcon(item)" tone="white" :size="26" />
             </view>
             <view class="lesson-main">
               <view class="lesson-copy">
@@ -203,8 +216,8 @@ function cardStyle(item: DayOccurrence) {
   flex: 1;
   min-width: 0;
   padding: 14px;
+  overflow: hidden;
   border-radius: 22px;
-  background: #fff;
 }
 .lesson-row { display: flex; gap: 10px; align-items: flex-start; }
 .lesson-time {

@@ -19,11 +19,11 @@ export function deepTone(hex: string) {
 }
 
 export function tileBackground(hex: string) {
-  return `linear-gradient(140deg, ${mix(hex, '#ffffff', 0.12)} 0%, ${deepTone(hex)} 100%)`
+  return `linear-gradient(150deg, ${mix(hex, '#ffffff', 0.12)} 0%, ${deepTone(hex)} 100%)`
 }
 
 export function cardBackground(hex: string) {
-  return `linear-gradient(150deg, ${mix(hex, '#ffffff', 0.84)} 0%, #ffffff 58%)`
+  return `linear-gradient(150deg, ${mix(hex, '#ffffff', 0.88)} 0%, #ffffff 55%)`
 }
 
 export function folderTab(hex: string) {
