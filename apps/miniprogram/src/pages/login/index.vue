@@ -5,7 +5,9 @@ import type { ChildAvatarKey } from '@server-domain/types'
 import { WECHAT_LOGIN_ENABLED } from '@/config'
 import { showCloudError } from '@/cloud/call'
 import { hasDevSession } from '@/cloud/local'
+import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { openTab } from '@/utils/nav'
 
 const store = useFamilyStore()
 const statusBar = uni.getSystemInfoSync().statusBarHeight || 20
@@ -16,7 +18,7 @@ const booting = ref(false)
 
 onShow(() => {
   if (store.ready) {
-    uni.reLaunch({ url: '/pages/today/index' })
+    openTab('/pages/today/index')
     return
   }
   if (booting.value) return
@@ -24,7 +26,7 @@ onShow(() => {
     if (!hasDevSession()) return
     booting.value = true
     store.login('小U', 'boy-blue').then(() => {
-      uni.reLaunch({ url: '/pages/today/index' })
+      openTab('/pages/today/index')
     }).catch((error) => {
       store.logout()
       booting.value = false
@@ -35,7 +37,7 @@ onShow(() => {
   if (!hasLocalSession()) return
   booting.value = true
   store.login('小U').then(() => {
-    uni.reLaunch({ url: '/pages/today/index' })
+    openTab('/pages/today/index')
   }).catch((error) => {
     store.logout()
     booting.value = false
@@ -48,7 +50,7 @@ async function submit() {
   submitting.value = true
   try {
     await store.login(childName.value.trim() || '小U', avatarKey.value)
-    uni.reLaunch({ url: '/pages/today/index' })
+    openTab('/pages/today/index')
   } catch (error) {
     showCloudError(error)
   } finally {
@@ -70,24 +72,11 @@ async function submit() {
       <text class="pick-title">选择小U</text>
       <view class="picks">
         <view class="pick" :class="{ on: avatarKey === 'boy-blue' }" @click="avatarKey = 'boy-blue'">
-          <view class="xiao boy">
-            <view class="hair" />
-            <view class="face">
-              <view class="eyes"><view /><view /></view>
-              <view class="mouth" />
-            </view>
-          </view>
+          <ChildAvatar avatar-key="boy-blue" :size="72" />
           <text>男孩</text>
         </view>
         <view class="pick" :class="{ on: avatarKey === 'girl-flower' }" @click="avatarKey = 'girl-flower'">
-          <view class="xiao girl">
-            <view class="bow" />
-            <view class="hair" />
-            <view class="face">
-              <view class="eyes"><view /><view /></view>
-              <view class="mouth" />
-            </view>
-          </view>
+          <ChildAvatar avatar-key="girl-flower" :size="72" />
           <text>女孩</text>
         </view>
       </view>

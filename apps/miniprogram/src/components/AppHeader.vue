@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useFamilyStore } from '@/stores/family'
+import { openTab } from '@/utils/nav'
 
 const store = useFamilyStore()
 const statusBar = uni.getSystemInfoSync().statusBarHeight || 20
@@ -13,7 +14,7 @@ function logout() {
 <template>
   <view class="app-brand-header" :style="{ paddingTop: statusBar + 'px' }">
     <view class="app-brand-inner">
-      <view class="brand" @click="uni.reLaunch({ url: '/pages/today/index' })">
+      <view class="brand" @click="openTab('/pages/today/index')">
         <text class="brand-mark">U</text>
         <view class="brand-copy">
           <text>Uday</text>

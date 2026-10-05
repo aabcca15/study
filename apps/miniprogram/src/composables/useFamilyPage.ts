@@ -5,13 +5,15 @@ import { hasLocalSession, useFamilyStore } from '@/stores/family'
 export function useFamilyPage(options: { refresh?: boolean } = {}) {
   const store = useFamilyStore()
   const refresh = options.refresh !== false
+  let hydrated = false
 
   onShow(() => {
     if (!store.ready) {
       uni.reLaunch({ url: '/pages/login/index' })
       return
     }
-    if (!refresh) return
+    if (!refresh || hydrated) return
+    hydrated = true
     store.refresh().catch((error) => showCloudError(error))
   })
 

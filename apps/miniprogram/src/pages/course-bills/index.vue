@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import dayjs from 'dayjs'
 import { onLoad } from '@dcloudio/uni-app'
+import { COURSE_TYPE_LABEL } from '@server-domain/constants'
 import { buildCourseBillLedger } from '@server-domain/courseBills'
 import { money } from '@server-domain/billing'
-import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { cardBackground, tileBackground } from '@/utils/color'
+import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
@@ -25,44 +28,73 @@ const ledger = computed(() => {
   )
 })
 
-async function markPaid(expenseId?: string) {
+function openBill(expenseId?: string) {
   if (!expenseId) return
-  try {
-    await store.setExpenseStatus(expenseId, 'paid')
-  } catch (error) {
-    showCloudError(error)
-  }
+  uni.navigateTo({ url: `/pages/expense-edit/index?id=${expenseId}` })
+}
+
+function subOf(day: { startTime?: string; endTime?: string; kind?: string }) {
+  if (day.startTime && day.endTime) return `${day.startTime}–${day.endTime}`
+  return day.kind === 'period' ? '结算账单' : '一次性账单'
 }
 </script>
 
 <template>
   <view class="page edit sub">
-    <PageHeader safe show-back title="课程账单" />
+    <PageHeader safe show-back title="课程账单" :caption="course ? COURSE_TYPE_LABEL[course.type] + ' · ' + course.title : ''" />
     <view v-if="!course" class="empty">课程不存在</view>
     <template v-else-if="ledger">
-      <view class="h1">{{ course.title }}</view>
-      <view class="card">
-        <view class="row"><text>合计</text><text>{{ money(ledger.total) }}</text></view>
-        <view class="row"><text>已支付</text><text class="pay-paid">{{ money(ledger.paid) }}</text></view>
-        <view class="row"><text>未支付</text><text class="pay-unpaid">{{ money(ledger.unpaid) }}</text></view>
+      <view class="hero" :style="{ background: cardBackground(course.color) }">
+        <view class="hero-icon" :style="{ background: tileBackground(course.color) }">
+          <AppIcon :name="course.icon || 'generic'" tone="white" :size="22" />
+        </view>
+        <view>
+          <text class="muted">{{ COURSE_TYPE_LABEL[course.type] }}</text>
+          <text class="hero-title">{{ course.title }}</text>
+        </view>
       </view>
-      <view v-for="day in ledger.days" :key="day.key" class="card">
-        <view class="row">
-          <text>{{ day.date }} {{ day.weekdayLabel }}</text>
+      <view class="card stats">
+        <view class="mini"><text class="muted">总金额</text><text class="strong">{{ money(ledger.total) }}</text></view>
+        <view class="mini"><text class="muted">已支付</text><text class="strong pay-paid">{{ money(ledger.paid) }}</text></view>
+        <view class="mini"><text class="muted">未支付</text><text class="strong pay-unpaid">{{ money(ledger.unpaid) }}</text></view>
+      </view>
+      <view class="list-title">
+        <text class="muted">按上课日</text>
+        <text class="h2">{{ ledger.days.length }} 次记录</text>
+      </view>
+      <view v-if="!ledger.days.length" class="empty">这门课还没有上课日期或账单。</view>
+      <view v-for="day in ledger.days" :key="day.key" class="day-row" @click="openBill(day.expenseId)">
+        <view class="day-copy">
+          <text class="day-title">{{ dayjs(day.date).format('M月D日') }} {{ day.weekdayLabel }}</text>
+          <text class="muted">{{ subOf(day) }}</text>
+        </view>
+        <view class="day-fee">
+          <text class="day-amount">{{ day.amountLabel }}</text>
           <text :class="day.payState === 'paid' ? 'pay-paid' : 'pay-unpaid'">{{ day.payLabel }}</text>
         </view>
-        <text class="muted">{{ day.startTime }}–{{ day.endTime }} · {{ day.amountLabel }}</text>
-        <button
-          v-if="day.payState === 'unpaid' && day.expenseId"
-          class="btn ghost"
-          style="margin-top: 16rpx"
-          @click="markPaid(day.expenseId)"
-        >标记已支付</button>
+        <text v-if="day.expenseId" class="arrow">›</text>
       </view>
     </template>
   </view>
 </template>
 
 <style scoped>
-.edit { padding-bottom: 48rpx; }
+.edit { padding-bottom: 48px; }
+.hero { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 14px 16px; border-radius: 22px; box-shadow: var(--elev-sm); }
+.hero-icon { display: flex; width: 46px; height: 46px; align-items: center; justify-content: center; border-radius: 15px; }
+.hero-title { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
+.stats { display: flex; }
+.mini { flex: 1; padding: 2px 8px; text-align: center; border-left: 1px solid var(--line); }
+.mini:first-child { border-left: 0; }
+.mini .muted, .strong { display: block; }
+.strong { margin-top: 5px; font-size: 15px; font-weight: 800; }
+.list-title { margin: 6px 0 11px; }
+.h2 { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
+.day-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 14px; border-radius: 18px; background: #fff; box-shadow: var(--elev-sm); }
+.day-copy { flex: 1; min-width: 0; }
+.day-title { display: block; font-weight: 750; }
+.day-fee { text-align: right; }
+.day-amount { display: block; font-weight: 750; }
+.arrow { color: #c5cad6; font-size: 18px; }
+.empty { display: block; padding: 24px 8px; color: var(--muted); text-align: center; }
 </style>

@@ -1,0 +1,55 @@
+<view class="quick-backdrop {{open ? 'show' : ''}}" bindtap="close" />
+<view class="quick-menu {{open ? 'show' : ''}}">
+  <view class="quick-item" data-kind="add" bindtap="quick">
+    <text class="quick-badge accent">＋</text>
+    <view>
+      <text class="title">快速新增安排</text>
+      <text class="desc">选择日期、已有课程或临时安排</text>
+    </view>
+  </view>
+  <view class="quick-item" data-kind="course" bindtap="quick">
+    <text class="quick-badge amber">✦</text>
+    <view>
+      <text class="title">新增课程</text>
+      <text class="desc">建立新的课程预设</text>
+    </view>
+  </view>
+  <view class="quick-item" data-kind="bill" bindtap="quick">
+    <text class="quick-badge teal">¥</text>
+    <view>
+      <text class="title">记一笔账单</text>
+      <text class="desc">登记一次课程费用</text>
+    </view>
+  </view>
+</view>
+
+<view id="glass-tabbar" class="tabbar">
+  <view class="indicator {{travel ? 'travel' : ''}}" style="{{indicator}}" />
+  <view
+    wx:for="{{left}}"
+    wx:key="key"
+    id="glass-tab-{{index}}"
+    class="tab {{selected === index ? 'active' : ''}}"
+    data-index="{{index}}"
+    bindtap="onTab"
+  >
+    <image class="ico" src="{{selected === index ? item.iconOn : item.icon}}" mode="aspectFit" />
+    <text class="tab-label">{{item.text}}</text>
+  </view>
+  <view class="tabbar-center">
+    <view class="tabbar-fab {{open ? 'open' : ''}}" bindtap="toggle">
+      <text class="fab-mark">＋</text>
+    </view>
+  </view>
+  <view
+    wx:for="{{right}}"
+    wx:key="key"
+    id="glass-tab-{{index + 2}}"
+    class="tab {{selected === index + 2 ? 'active' : ''}}"
+    data-index="{{index + 2}}"
+    bindtap="onTab"
+  >
+    <image class="ico" src="{{selected === index + 2 ? item.iconOn : item.icon}}" mode="aspectFit" />
+    <text class="tab-label">{{item.text}}</text>
+  </view>
+</view>

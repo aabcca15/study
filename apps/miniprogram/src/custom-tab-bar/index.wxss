@@ -1,0 +1,180 @@
+.tabbar {
+  position: fixed;
+  z-index: 900;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 432px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 30px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 18px 40px -18px rgba(25, 31, 58, 0.38);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+}
+
+.indicator {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(243, 248, 255, 0.96) 0%, rgba(255, 255, 255, 0.55) 48%, rgba(223, 234, 250, 0.82) 100%);
+  box-shadow: inset 0 1px 1px #fff, inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 10px 20px -12px rgba(40, 52, 88, 0.28);
+  pointer-events: none;
+  transition: left 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), top 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), width 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), height 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+
+.indicator.travel {
+  transform: scaleX(1.08) scaleY(0.9);
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  color: #8c93a3;
+}
+
+.tab.active {
+  color: #e85b2a;
+  font-weight: 700;
+}
+
+.ico {
+  width: 21px;
+  height: 21px;
+}
+
+.tab-label {
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 10px;
+  white-space: nowrap;
+  transition: max-width 0.28s ease, margin-left 0.28s ease, opacity 0.2s ease;
+}
+
+.tab.active .tab-label {
+  max-width: 42px;
+  margin-left: 6px;
+  opacity: 1;
+}
+
+.tabbar-center {
+  position: relative;
+  z-index: 1;
+  width: 74px;
+  display: flex;
+  justify-content: center;
+}
+
+.tabbar-fab {
+  display: flex;
+  width: 50px;
+  height: 50px;
+  margin-top: -28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.55), 0 0 0 8px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 14px 26px -8px rgba(255, 122, 69, 0.75);
+  transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tabbar-fab.open {
+  transform: rotate(135deg) scale(0.96);
+}
+
+.fab-mark {
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.quick-backdrop {
+  position: fixed;
+  z-index: 880;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(24, 28, 44, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s ease;
+}
+
+.quick-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.quick-menu {
+  position: fixed;
+  z-index: 950;
+  left: 50%;
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  width: 268px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 40px -18px rgba(25, 31, 58, 0.38);
+  backdrop-filter: blur(18px) saturate(160%);
+  opacity: 0;
+  transform: translateX(-50%) translateY(14px) scale(0.92);
+  pointer-events: none;
+  transition: opacity 0.24s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.quick-menu.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.quick-item {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 9px;
+  border-radius: 18px;
+  color: #243056;
+}
+
+.quick-badge {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.accent { background: linear-gradient(135deg, #ffb45c, #f15a36); }
+.amber { background: linear-gradient(140deg, #ffce6b, #f5a524); }
+.teal { background: linear-gradient(140deg, #58d8bd, #1fa98c); }
+
+.title, .desc { display: block; }
+.title { font-size: 13px; font-weight: 700; }
+.desc { margin-top: 3px; color: #8b93a5; font-size: 10px; }

@@ -13,6 +13,41 @@
   "globalStyle": {
     "navigationStyle": "custom",
     "backgroundColor": "#F3F4FB",
+    "backgroundColorTop": "#F3F4FB",
+    "backgroundColorBottom": "#F3F4FB",
     "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#8c93a3",
+    "selectedColor": "#e85b2a",
+    "backgroundColor": "#F3F4FB",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/today/index",
+        "text": "今日",
+        "iconPath": "static/icons/clock-muted.png",
+        "selectedIconPath": "static/icons/clock-accent.png"
+      },
+      {
+        "pagePath": "pages/calendar/index",
+        "text": "日历",
+        "iconPath": "static/icons/calendar-muted.png",
+        "selectedIconPath": "static/icons/calendar-accent.png"
+      },
+      {
+        "pagePath": "pages/courses/index",
+        "text": "课程",
+        "iconPath": "static/icons/book-muted.png",
+        "selectedIconPath": "static/icons/book-accent.png"
+      },
+      {
+        "pagePath": "pages/stats/index",
+        "text": "统计",
+        "iconPath": "static/icons/bars-muted.png",
+        "selectedIconPath": "static/icons/bars-accent.png"
+      }
+    ]
   }
 }

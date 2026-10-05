@@ -14,6 +14,7 @@ import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import DateField from '@/components/DateField.vue'
 import TimeField from '@/components/TimeField.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import SelectField from '@/components/SelectField.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -218,7 +219,18 @@ function pickIcon(icon: CourseIcon) {
     </view>
     <view class="field">
       <text class="field-label">图标</text>
-      <SelectField v-model="form.icon" :options="COURSE_ICON_OPTIONS" @update:model-value="onIcon" />
+      <view class="icon-options">
+        <view
+          v-for="option in COURSE_ICON_OPTIONS"
+          :key="option.value"
+          class="icon-option"
+          :class="{ on: form.icon === option.value }"
+          @click="pickIcon(option.value)"
+        >
+          <AppIcon :name="option.value" :tone="form.icon === option.value ? 'violet' : 'ink'" :size="21" />
+          <text>{{ option.label }}</text>
+        </view>
+      </view>
     </view>
     <view class="field">
       <text class="field-label">颜色</text>
@@ -289,5 +301,25 @@ function pickIcon(icon: CourseIcon) {
 }
 .swatch.on {
   box-shadow: 0 0 0 4rpx #fff, 0 0 0 8rpx #ff7a45;
+}
+.icon-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.icon-option {
+  display: flex;
+  width: calc(20% - 7px);
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 2px 7px;
+  border: 1px solid #e9e4f0;
+  border-radius: 14px;
+  background: #f7f6fb;
+  color: #81798d;
+  font-size: 10px;
+}
+.icon-option.on {
+  color: #7048df;
+  border-color: #8b64ee;
+  background: #f0eaff;
 }
 </style>

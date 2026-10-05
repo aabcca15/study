@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { openTab } from '@/utils/nav'
+
 defineProps<{
   eyebrow?: string
   title: string
@@ -12,7 +14,7 @@ const statusBar = uni.getSystemInfoSync().statusBarHeight || 20
 function back() {
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack()
-  else uni.reLaunch({ url: '/pages/today/index' })
+  else openTab('/pages/today/index')
 }
 </script>
 

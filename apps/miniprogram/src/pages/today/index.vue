@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { WEEKDAY_SHORT } from '@server-domain/constants'
 import { occurrencesOnDate } from '@server-domain/schedule'
 import { billsInDueRange, money } from '@server-domain/billing'
+import { sumUnbilledCharges } from '@server-domain/charges'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
+import { openTab } from '@/utils/nav'
 import { weekDates, weekLabel } from '@/utils/view'
-import TabBar from '@/components/TabBar.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import DayCourseList from '@/components/DayCourseList.vue'
 import AddSheet from '@/components/AddSheet.vue'
@@ -25,6 +27,17 @@ let undoTimer: ReturnType<typeof setTimeout> | undefined
 
 onLoad((query) => {
   if (query?.add === '1') addOpen.value = true
+})
+
+onShow(() => {
+  const app = getApp() as { globalData?: { pendingAdd?: boolean } }
+  if (app?.globalData?.pendingAdd) {
+    app.globalData.pendingAdd = false
+    addOpen.value = true
+  }
+  if (!ui.pendingAdd) return
+  ui.pendingAdd = false
+  addOpen.value = true
 })
 
 const days = computed(() => weekDates(ui.selectedDate))
@@ -44,6 +57,15 @@ const weekSettledPercent = computed(() => {
   return Math.round((paid / total) * 100)
 })
 const isThisWeek = computed(() => days.value[0] === weekDates(dayjs().format('YYYY-MM-DD'))[0])
+const weekUnbilled = computed(() => {
+  const start = days.value[0]
+  const end = days.value[6]
+  return sumUnbilledCharges(store.overviewCharges, (charge) => {
+    const record = store.snapshot.occurrenceRecords?.find((item) => item.id === charge.occurrenceId)
+    const date = record?.date ?? charge.occurrenceId.slice(charge.occurrenceId.lastIndexOf('_') + 1)
+    return date >= start && date <= end
+  })
+})
 const dayDonePercent = computed(() => {
   const total = items.value.length
   if (!total) return 0
@@ -112,9 +134,9 @@ async function undoCancel() {
     <view class="page today-page">
       <view class="week-picker">
         <view class="week-toolbar">
-          <button @click="shiftWeek(-1)">‹</button>
+          <button @click="shiftWeek(-1)"><AppIcon name="chevron-left" tone="muted" :size="18" /></button>
           <text>{{ isThisWeek ? '本周' : weekLabel(ui.selectedDate) }}</text>
-          <button @click="shiftWeek(1)">›</button>
+          <button @click="shiftWeek(1)"><AppIcon name="chevron-right" tone="muted" :size="18" /></button>
         </view>
         <view class="date-strip">
           <button
@@ -133,9 +155,9 @@ async function undoCancel() {
       </view>
 
       <view class="overview">
-        <view class="overview-card" @click="uni.reLaunch({ url: '/pages/calendar/index' })">
+        <view class="overview-card" @click="openTab('/pages/calendar/index')">
           <view class="overview-head">
-            <text class="mark">历</text>
+            <view class="mark"><AppIcon name="calendar" tone="white" :size="15" /></view>
             <text>{{ ui.selectedDate === dayjs().format('YYYY-MM-DD') ? '今日课程' : dayjs(ui.selectedDate).format('M月D日') + '课程' }}</text>
             <text class="more">›</text>
           </view>
@@ -151,14 +173,14 @@ async function undoCancel() {
         </view>
         <view class="overview-card is-bill" @click="uni.navigateTo({ url: '/pages/bills/index?from=today' })">
           <view class="overview-head">
-            <text class="mark">账</text>
+            <view class="mark bill"><AppIcon name="bill" tone="white" :size="15" /></view>
             <text>本周课程账单</text>
             <text class="more">›</text>
           </view>
           <view class="overview-body">
             <view>
               <text class="big">{{ money(weekOpen) }}</text>
-              <text class="muted">{{ weekBills.length }} 笔账单</text>
+              <text class="muted">{{ weekBills.length }} 笔账单{{ weekUnbilled ? ' · 待结算 ' + money(weekUnbilled) : '' }}</text>
             </view>
             <view class="overview-ring" :style="{ '--ring': weekSettledPercent + '%' }">
               <text>{{ weekSettledPercent }}%</text>
@@ -181,7 +203,6 @@ async function undoCancel() {
       <AddSheet :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
       <OccurrenceSheet :item="editing" @close="editing = null" @cancelled="rememberCancel" />
     </view>
-    <TabBar active="today" />
   </view>
 </template>
 
@@ -201,10 +222,12 @@ async function undoCancel() {
   margin-bottom: 5px;
 }
 .week-toolbar button {
+  display: flex;
   width: 32px;
   height: 32px;
-  color: var(--muted);
-  font-size: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
 }
 .week-toolbar text { color: var(--muted); font-size: 11px; font-weight: 650; }
 .date-strip { display: flex; gap: 4px; }
@@ -244,16 +267,16 @@ async function undoCancel() {
 .overview-head { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .overview-head text:nth-child(2) { flex: 1; }
 .mark {
+  display: flex;
   width: 24px;
   height: 24px;
+  align-items: center;
+  justify-content: center;
   border-radius: 9px;
-  color: #fff;
   background: linear-gradient(140deg, #ff9a62, #e95331);
-  text-align: center;
-  line-height: 24px;
-  font-size: 11px;
+  box-shadow: 0 6px 14px -6px rgba(255, 122, 69, 0.75), inset 0 1px 0 rgba(255,255,255,.45);
 }
-.is-bill .mark { background: linear-gradient(140deg, #ff8ea3, #d93d59); }
+.mark.bill { background: linear-gradient(140deg, #ff8ea3, #d93d59); box-shadow: 0 6px 14px -6px rgba(255, 95, 121, 0.75), inset 0 1px 0 rgba(255,255,255,.45); }
 .more { font-size: 15px; }
 .overview-body { display: flex; align-items: flex-end; justify-content: space-between; }
 .big { display: block; font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
@@ -264,11 +287,17 @@ async function undoCancel() {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: conic-gradient(#ff7a45 var(--ring), #f3e4dc var(--ring));
-  font-size: 10px;
-  font-weight: 700;
+  background: conic-gradient(from 210deg, #e95331 0deg, #ff7a45 var(--ring), #f6e4dc var(--ring));
+  box-shadow: 0 8px 16px -8px rgba(255, 122, 69, 0.7);
+  font-size: 9px;
+  font-weight: 800;
+  color: #e95331;
 }
-.is-bill .overview-ring { background: conic-gradient(#ff5f79 var(--ring), #f8e4e8 var(--ring)); }
+.is-bill .overview-ring {
+  background: conic-gradient(from 210deg, #d93d59 0deg, #ff5f79 var(--ring), #f8e4e8 var(--ring));
+  box-shadow: 0 8px 16px -8px rgba(255, 95, 121, 0.7);
+  color: #d93d59;
+}
 .overview-ring text {
   width: 33px;
   height: 33px;
@@ -276,5 +305,6 @@ async function undoCancel() {
   background: #fff;
   text-align: center;
   line-height: 33px;
+  box-shadow: inset 0 1px 3px rgba(25, 31, 58, 0.08);
 }
 </style>

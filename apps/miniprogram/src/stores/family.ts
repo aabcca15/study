@@ -84,7 +84,9 @@ export const useFamilyStore = defineStore('family', {
   actions: {
     async dispatch<T>(action: string, payload?: Record<string, unknown>) {
       const data = await callCloud<CloudMutation<T>>(action, payload)
-      this.snapshot = data.snapshot
+      if (JSON.stringify(data.snapshot) !== JSON.stringify(this.snapshot)) {
+        this.snapshot = data.snapshot
+      }
       this.ready = true
       return data.result
     },

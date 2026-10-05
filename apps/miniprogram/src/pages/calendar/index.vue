@@ -7,7 +7,6 @@ import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
 import { monthMatrix } from '@/utils/view'
-import TabBar from '@/components/TabBar.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import DayCourseList from '@/components/DayCourseList.vue'
@@ -118,7 +117,6 @@ async function undoCancel() {
       <AddSheet :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
       <OccurrenceSheet :item="editing" @close="editing = null" @cancelled="cancelled = $event" />
     </view>
-    <TabBar active="calendar" />
   </view>
 </template>
 
