@@ -1,0 +1,148 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import type { DayOccurrence } from '@server-domain/types'
+import { showCloudError } from '@/cloud/call'
+import { useFamilyStore } from '@/stores/family'
+import { occurrenceExpense } from '@/utils/view'
+import TimeField from './TimeField.vue'
+
+const props = defineProps<{
+  item: DayOccurrence | null
+}>()
+
+const emit = defineEmits<{
+  close: []
+  cancelled: [item: DayOccurrence]
+}>()
+
+const store = useFamilyStore()
+const startTime = ref('18:00')
+const endTime = ref('19:00')
+const amount = ref('0')
+const paid = ref(false)
+const saving = ref(false)
+
+const expense = computed(() =>
+  props.item ? occurrenceExpense(store.overviewExpenses, props.item.course, props.item.date) : undefined,
+)
+const locked = computed(() => expense.value?.status === 'paid')
+const free = computed(() => {
+  const course = props.item?.course
+  return course?.billingPolicy?.pricingMode === 'free' || course?.billingMode === 'free'
+})
+
+watch(() => props.item, (item) => {
+  if (!item) return
+  startTime.value = item.course.recurrence.startTime
+  endTime.value = item.course.recurrence.endTime
+  const bill = occurrenceExpense(store.overviewExpenses, item.course, item.date)
+  amount.value = String(bill?.amount ?? item.course.amount ?? 0)
+  paid.value = bill?.status === 'paid'
+}, { immediate: true })
+
+async function save() {
+  const item = props.item
+  if (!item || saving.value) return
+  if (endTime.value <= startTime.value) {
+    showCloudError(new Error('结束时间要晚于开始时间'))
+    return
+  }
+  saving.value = true
+  try {
+    const timeChanged = startTime.value !== item.course.recurrence.startTime || endTime.value !== item.course.recurrence.endTime
+    if (timeChanged) {
+      await store.upsertException({
+        courseId: item.course.id,
+        date: item.date,
+        status: item.exception?.status === 'added' ? 'added' : 'rescheduled',
+        startTime: startTime.value,
+        endTime: endTime.value,
+        title: item.course.title,
+        location: item.course.location,
+      })
+    }
+    if (!free.value && !locked.value) {
+      await store.saveOccurrenceExpense(item.course.id, item.date, Number(amount.value) || 0, paid.value)
+    }
+    emit('close')
+  } catch (error) {
+    showCloudError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function markAttendance(done: boolean) {
+  const item = props.item
+  if (!item) return
+  try {
+    await store.setAttendance(item.course.id, item.date, done ? 'completed' : 'scheduled', done)
+    uni.showToast({ icon: 'none', title: done ? '已确认上课' : '已标为未上' })
+  } catch (error) {
+    showCloudError(error)
+  }
+}
+
+function cancelOnce() {
+  const item = props.item
+  if (!item) return
+  uni.showModal({
+    title: '取消这次课',
+    content: '取消后可以从提示里撤销。',
+    success: async (res) => {
+      if (!res.confirm) return
+      const snapshot = JSON.parse(JSON.stringify(item)) as DayOccurrence
+      try {
+        if (item.exception?.status === 'added') await store.dropOccurrence(item.course.id, item.date)
+        else {
+          await store.upsertException({
+            courseId: item.course.id,
+            date: item.date,
+            status: 'cancelled',
+          })
+        }
+        emit('cancelled', snapshot)
+        emit('close')
+      } catch (error) {
+        showCloudError(error)
+      }
+    },
+  })
+}
+</script>
+
+<template>
+  <view v-if="item" class="mask" @click="emit('close')">
+    <view class="sheet" @click.stop>
+      <view class="sheet-head">
+        <text class="sheet-title">{{ item.course.title }}</text>
+        <text class="muted" @click="emit('close')">关闭</text>
+      </view>
+      <text class="muted">{{ item.date }}</text>
+      <view class="row" style="margin-top: 20rpx">
+        <view class="field" style="flex: 1">
+          <text class="field-label">开始</text>
+          <TimeField v-model="startTime" />
+        </view>
+        <view class="field" style="flex: 1">
+          <text class="field-label">结束</text>
+          <TimeField v-model="endTime" />
+        </view>
+      </view>
+      <view v-if="!free" class="field">
+        <text class="field-label">本次金额</text>
+        <input v-model="amount" type="digit" :disabled="locked" />
+      </view>
+      <view v-if="!free" class="row" style="margin-bottom: 20rpx">
+        <text>已支付</text>
+        <switch :checked="paid" :disabled="locked" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
+      </view>
+      <button class="btn block" :disabled="saving" @click="save">保存本次</button>
+      <view class="row" style="margin-top: 16rpx">
+        <button class="btn ghost" style="flex: 1" @click="markAttendance(true)">确认已上</button>
+        <button class="btn ghost" style="flex: 1" @click="markAttendance(false)">标为未上</button>
+      </view>
+      <button class="btn danger block" style="margin-top: 16rpx" @click="cancelOnce">取消这次课</button>
+    </view>
+  </view>
+</template>

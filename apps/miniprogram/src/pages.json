@@ -1,0 +1,20 @@
+{
+  "pages": [
+    { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/today/index", "style": { "navigationBarTitleText": "今日" } },
+    { "path": "pages/calendar/index", "style": { "navigationBarTitleText": "日历" } },
+    { "path": "pages/courses/index", "style": { "navigationBarTitleText": "课程" } },
+    { "path": "pages/stats/index", "style": { "navigationBarTitleText": "统计" } },
+    { "path": "pages/bills/index", "style": { "navigationBarTitleText": "本周账单" } },
+    { "path": "pages/course-edit/index", "style": { "navigationBarTitleText": "编辑课程" } },
+    { "path": "pages/course-bills/index", "style": { "navigationBarTitleText": "课程账单" } },
+    { "path": "pages/expense-edit/index", "style": { "navigationBarTitleText": "账单" } }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "小树成长",
+    "navigationBarBackgroundColor": "#F3F4FB",
+    "backgroundColor": "#F3F4FB",
+    "backgroundTextStyle": "dark"
+  }
+}

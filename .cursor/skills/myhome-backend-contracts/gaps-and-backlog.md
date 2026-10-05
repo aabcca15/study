@@ -119,6 +119,14 @@
 - 未做：短信/微信登录、多家长邀请、孩子端、从旧 `myhome.v1` 导入、刷新令牌。
 - 见 [account-model.md](account-model.md)。
 
+## 小程序与 H5 数据不互通
+
+- 状态：开放（当前产品选择）
+- 现状：H5 走 Nest/SQLite 账号密码。微信小程序走 `apps/miniprogram` 云函数和云数据库，用 openid 登录。两边复用 `server/src/domain` 与 `family-workspace`。
+- 问题：同一家长在网页和小程序看不到对方的家庭数据。
+- 建议：若以后要互通，让云函数改为调用 Nest，或做一次性导入。在那之前不要假设两端共库。
+- 相关代码：`apps/miniprogram/cloudfunctions/api/src/index.ts`
+
 ## 代码卫生（低优先级）
 
 - 状态：部分已处理

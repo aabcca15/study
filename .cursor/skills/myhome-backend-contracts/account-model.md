@@ -28,7 +28,7 @@ Family（租户）
 ## 登录渠道
 
 1. **一期 H5（已落地）**：账号 + 密码。用户名 3–32 位字母数字下划线，密码至少 6 位。JWT payload 含 `sub=accountId`、`familyId`、`role`。注册时创建 Family + FamilyMember(parent) + 默认孩子「Uday」。
-2. **后期小程序**：微信 `openid` / `unionid` 绑定到同一 Account。
+2. **微信小程序（已落地云开发）**：`apps/miniprogram` 用云函数 `getWXContext().OPENID` 登录，并按 openid 创建或进入家庭。不使用网页版用户名密码。数据在微信云数据库，不与 H5 的 SQLite 互通。授权仍然只认云函数解析出的家庭，不信客户端传入的 `familyId`。
 3. **孩子端**：家长生成邀请码或一次性链接，孩子登录后绑定档案。在绑定完成前，孩子请求一律 `403`。
 
 服务端 **不得信任** 客户端传入的 `role`、`familyId`、`childId`。每次用令牌里的成员关系做授权。
