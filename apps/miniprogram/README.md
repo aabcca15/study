@@ -31,7 +31,7 @@ scripts/build-cloud.mjs 把家庭工作区打进云函数
 6. 用微信开发者工具导入 **`apps/miniprogram`**（这一层同时包含小程序和 `cloudfunctions/`）。把 `project.config.json` 里的 `appid` 换成你的小程序 AppID。只执行过 `build:mp` 时，把 `miniprogramRoot` 改成 `dist/build/mp-weixin/`。
 7. 在开发者工具中上传并部署云函数 `api`（云端安装依赖）。
 
-云开发不能使用游客 AppID。未开通云环境时，页面可以编译，登录会失败。
+游客 AppID 不能使用云开发。本地模拟器请保持 `src/config.ts` 里的 `WECHAT_LOGIN_ENABLED = false`：第一次在登录页选择男孩或女孩并填写孩子名字（留空则为小U）后进入，之后会跳过登录页。数据写在本机。接上真实 AppID 和云环境后，把该开关改为 `true`。
 
 抖音端编译：`npm run dev:mp-toutiao --prefix apps/miniprogram`
 

@@ -8,17 +8,14 @@ import { courseScheduleProgress } from '@server-domain/courseSchedule'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import TabBar from '@/components/TabBar.vue'
-import SelectField from '@/components/SelectField.vue'
+import AppHeader from '@/components/AppHeader.vue'
+import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
 const editingChild = ref(false)
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
 const creating = ref(false)
-
-const childOptions = computed(() =>
-  store.snapshot.children.map((child) => ({ value: child.id, label: child.name })),
-)
 const cards = computed(() => {
   const today = dayjs().format('YYYY-MM-DD')
   const period = dayjs().format('YYYY-MM')
@@ -120,69 +117,126 @@ function more(course: Course) {
 </script>
 
 <template>
-  <view class="page">
-    <view class="h1">课程安排</view>
-    <text class="muted">管理 {{ store.child?.name || '孩子' }} 的排课和费用</text>
+  <view>
+    <AppHeader />
+    <view class="page courses-page">
+      <PageHeader title="课程安排" :caption="`管理 ${store.child?.name || '孩子'} 的排课、进度与费用`">
+        <template #actions>
+          <view class="faces">
+            <button
+              v-for="child in store.snapshot.children"
+              :key="child.id"
+              class="face"
+              :class="{ active: child.id === store.childId }"
+              :style="{ background: child.avatarColor || '#7b61ff' }"
+              @click="onChildChange(child.id)"
+            >{{ child.avatarLabel }}</button>
+          </view>
+        </template>
+      </PageHeader>
 
-    <view class="field" style="margin-top: 20rpx">
-      <text class="field-label">当前孩子</text>
-      <SelectField
-        :model-value="store.childId"
-        :options="childOptions"
-        @update:model-value="onChildChange"
-      />
-    </view>
-    <view class="row">
-      <button class="btn ghost" @click="startCreate">添加孩子</button>
-      <button class="btn ghost" @click="startRename">改资料</button>
-      <button class="btn ghost" @click="removeCurrent">删除</button>
-    </view>
+      <view class="child-actions">
+        <button @click="startCreate">添加孩子</button>
+        <button @click="startRename">改资料</button>
+        <button @click="removeCurrent">删除</button>
+      </view>
 
-    <view v-if="editingChild" class="card" style="margin-top: 20rpx">
-      <view class="field">
-        <text class="field-label">名字</text>
-        <input v-model="childName" maxlength="20" placeholder="孩子名字" />
+      <view v-if="editingChild" class="card">
+        <view class="field">
+          <text class="field-label">名字</text>
+          <input v-model="childName" maxlength="20" placeholder="孩子名字" />
+        </view>
+        <view class="chip-row">
+          <text
+            v-for="option in CHILD_AVATAR_OPTIONS"
+            :key="option.key"
+            class="chip"
+            :class="{ active: avatarKey === option.key }"
+            @click="avatarKey = option.key"
+          >{{ option.label }}</text>
+        </view>
+        <button class="btn block" style="margin-top: 16px" @click="saveChild">保存孩子</button>
       </view>
-      <view class="chip-row">
-        <text
-          v-for="option in CHILD_AVATAR_OPTIONS"
-          :key="option.key"
-          class="chip"
-          :class="{ active: avatarKey === option.key }"
-          @click="avatarKey = option.key"
-        >{{ option.label }}</text>
-      </view>
-      <button class="btn block" style="margin-top: 20rpx" @click="saveChild">保存孩子</button>
-    </view>
 
-    <view v-if="!cards.length" class="empty">还没有课程。点下方加号可以新增。</view>
-    <view v-for="card in cards" :key="card.course.id" class="card">
-      <view class="row">
-        <text class="title">{{ card.course.title }}</text>
-        <text class="chip">{{ card.lifecycle.label }}</text>
-      </view>
-      <text class="muted">{{ COURSE_TYPE_LABEL[card.course.type] }} · {{ getCourseAmountLabel(card.course) }}</text>
-      <text class="muted">进度 {{ card.progress.completed }}/{{ card.progress.total }} · {{ card.billing.label }}</text>
-      <view class="row" style="margin-top: 16rpx">
-        <button class="btn ghost" @click="uni.navigateTo({ url: `/pages/course-edit/index?id=${card.course.id}` })">编辑</button>
-        <button class="btn ghost" @click="uni.navigateTo({ url: `/pages/course-bills/index?id=${card.course.id}` })">账单</button>
-        <button class="btn ghost" @click="more(card.course)">更多</button>
+      <view class="course-grid">
+        <view
+          v-for="card in cards"
+          :key="card.course.id"
+          class="course"
+          :class="{ inactive: card.lifecycle.inactive }"
+          :style="{ '--course-color': card.course.color }"
+        >
+          <view class="tint" />
+          <view class="course-top">
+            <text class="badge">{{ card.lifecycle.label }}</text>
+            <button class="more" @click="more(card.course)">···</button>
+          </view>
+          <text class="type">{{ COURSE_TYPE_LABEL[card.course.type] }}</text>
+          <text class="name">{{ card.course.title }}</text>
+          <view class="bar"><view :style="{ width: card.progress.percent + '%' }" /></view>
+          <text class="meta">{{ card.progress.completed }}/{{ card.progress.total }} 课时 · {{ card.progress.percent }}%</text>
+          <view class="foot">
+            <text>{{ card.billing.label }}</text>
+            <text class="amount">{{ getCourseAmountLabel(card.course) }}</text>
+          </view>
+          <view class="links">
+            <text @click="uni.navigateTo({ url: `/pages/course-edit/index?id=${card.course.id}` })">编辑</text>
+            <text @click="uni.navigateTo({ url: `/pages/course-bills/index?id=${card.course.id}` })">账单</text>
+          </view>
+        </view>
+        <view class="course add" @click="uni.navigateTo({ url: '/pages/course-edit/index' })">
+          <text class="plus">＋</text>
+          <text class="name">新增课程</text>
+          <text class="meta">创建新的课程与排课计划</text>
+        </view>
       </view>
     </view>
-
-    <button class="link" @click="store.logout(); uni.reLaunch({ url: '/pages/login/index' })">退出登录</button>
     <TabBar active="courses" />
   </view>
 </template>
 
 <style scoped>
-.title {
-  font-size: 32rpx;
-  font-weight: 700;
+.courses-page { padding-top: 8px; }
+.faces { display: flex; flex-direction: row-reverse; }
+.face {
+  width: 32px;
+  height: 32px;
+  margin-left: -8px;
+  border: 3px solid var(--bg);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
 }
-.link {
-  margin-top: 12rpx;
-  color: #8b93a5;
-  background: transparent;
+.face.active { transform: scale(1.06); }
+.child-actions { display: flex; gap: 8px; margin: -8px 0 16px; }
+.child-actions button { color: var(--accent-text); font-size: 12px; font-weight: 700; }
+.course-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.course {
+  position: relative;
+  width: calc(50% - 6px);
+  min-height: 168px;
+  box-sizing: border-box;
+  padding: 14px;
+  overflow: hidden;
+  border-radius: 6px 22px 22px 22px;
+  background: #fff;
+  box-shadow: var(--elev-md);
 }
+.tint { position: absolute; inset: 0; background: var(--course-color); opacity: 0.14; }
+.course-top, .type, .name, .bar, .meta, .foot, .links { position: relative; }
+.course-top { display: flex; justify-content: space-between; align-items: center; }
+.badge { padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.8); font-size: 10px; }
+.more { color: var(--muted); font-size: 16px; letter-spacing: 1px; }
+.type { display: block; margin-top: 12px; color: var(--muted); font-size: 11px; }
+.name { display: block; margin: 4px 0 10px; font-size: 16px; font-weight: 800; }
+.bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,.7); overflow: hidden; }
+.bar view { height: 100%; background: var(--course-color); }
+.meta { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; }
+.foot { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; }
+.amount { font-weight: 750; }
+.links { display: flex; gap: 12px; margin-top: 8px; color: var(--accent-text); font-size: 12px; font-weight: 700; }
+.course.add { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; background: #fff; }
+.plus { font-size: 28px; color: var(--accent-text); }
+.course.inactive { opacity: 0.72; }
 </style>

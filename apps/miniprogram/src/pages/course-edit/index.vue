@@ -15,6 +15,7 @@ import { useFamilyPage } from '@/composables/useFamilyPage'
 import DateField from '@/components/DateField.vue'
 import TimeField from '@/components/TimeField.vue'
 import SelectField from '@/components/SelectField.vue'
+import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const courseId = ref('')
@@ -188,7 +189,8 @@ function pickIcon(icon: CourseIcon) {
 </script>
 
 <template>
-  <view class="page edit">
+  <view class="page edit sub">
+    <PageHeader safe show-back :title="courseId ? '编辑课程' : '新增课程'" />
     <view class="field">
       <text class="field-label">课程名称</text>
       <input v-model="form.title" maxlength="40" placeholder="例如：钢琴" />

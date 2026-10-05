@@ -9,6 +9,7 @@ import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import DateField from '@/components/DateField.vue'
 import SelectField from '@/components/SelectField.vue'
+import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const expenseId = ref('')
@@ -111,9 +112,9 @@ function remove() {
 </script>
 
 <template>
-  <view class="page edit">
+  <view class="page edit sub">
+    <PageHeader safe show-back :title="expenseId ? '账单详情' : '记一笔支出'" />
     <template v-if="!expenseId">
-      <view class="h1">记一笔</view>
       <text class="muted">记到当前孩子 {{ store.child?.name || '' }}，并直接记为已支付。</text>
       <view class="field">
         <text class="field-label">名称</text>

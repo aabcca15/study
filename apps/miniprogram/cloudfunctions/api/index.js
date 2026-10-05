@@ -318,7 +318,6 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 var import_wx_server_sdk = __toESM(require("wx-server-sdk"));
-var import_dayjs6 = __toESM(require_dayjs_min());
 
 // ../../server/src/domain/constants.ts
 var COURSE_ICON_COLORS = {
@@ -377,17 +376,182 @@ function createEmptyFamilySnapshot(name = "Uday", avatarKey) {
   };
 }
 
-// ../../server/src/domain/billing.ts
+// ../../server/src/workspace/family-actions.ts
 var import_dayjs = __toESM(require_dayjs_min());
+var FamilyActionError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+};
+function raiseObject(result) {
+  if (!result || typeof result !== "object" || !("ok" in result) || result.ok !== false) return result;
+  const reason = "reason" in result ? String(result.reason) : "";
+  if (reason === "conflict") throw new FamilyActionError("SCHEDULE_CONFLICT", "\u8BE5\u5B69\u5B50\u6B64\u65F6\u5DF2\u6709\u5176\u4ED6\u8BFE\u7A0B");
+  if (reason === "duplicate") throw new FamilyActionError("OCCURRENCE_DUPLICATE", "\u6240\u9009\u65E5\u671F\u90FD\u5DF2\u6709\u8FD9\u95E8\u8BFE");
+  if (reason === "invalid-amount") throw new FamilyActionError("REFUND_EXCEEDS_PAYMENT", "\u9000\u6B3E\u91D1\u989D\u5E94\u5927\u4E8E 0\uFF0C\u4E14\u4E0D\u8D85\u8FC7\u5269\u4F59\u53EF\u9000\u91D1\u989D");
+  if (reason === "not-paid" || reason === "payment-missing") throw new FamilyActionError("REFUND_NOT_ALLOWED", "\u5F53\u524D\u8D26\u5355\u65E0\u6CD5\u9000\u6B3E");
+  throw new FamilyActionError("INVALID_INPUT", "\u8BF7\u5B8C\u6574\u586B\u5199\u540E\u518D\u4FDD\u5B58");
+}
+function raiseCode(result, map) {
+  if (typeof result === "string" && map[result]) {
+    const [code, message] = map[result];
+    throw new FamilyActionError(code, message);
+  }
+  return result;
+}
+function billWindow(payload) {
+  const from = typeof payload.from === "string" ? payload.from : (0, import_dayjs.default)().startOf("month").format("YYYY-MM-DD");
+  const to = typeof payload.to === "string" ? payload.to : (0, import_dayjs.default)().endOf("month").format("YYYY-MM-DD");
+  return { from, to };
+}
+function ensureRange(workspace, from, to) {
+  var _a;
+  for (const course of workspace.snapshot.value.courses.filter((item) => !item.archived)) {
+    const dates = ((_a = course.recurrence.dates) == null ? void 0 : _a.map((slot) => slot.date)) ?? [];
+    if (dates.some((date) => date >= from && date <= to)) workspace.ensureCourseBilling(course);
+  }
+  workspace.ensureBillingForRange(from, to);
+}
+function applyFamilyAction(workspace, action, payload) {
+  var _a, _b, _c;
+  switch (action) {
+    case "snapshot": {
+      const { from, to } = billWindow(payload);
+      ensureRange(workspace, from, to);
+      return null;
+    }
+    case "addChild": {
+      const id = workspace.addChild(String(payload.name || ""), payload.avatarKey);
+      if (!id) throw new FamilyActionError("INVALID_CHILD_NAME", "\u8BF7\u5148\u586B\u5199\u5B69\u5B50\u540D\u5B57");
+      return id;
+    }
+    case "updateChild":
+      workspace.updateChild({
+        id: String(payload.id || ""),
+        name: typeof payload.name === "string" ? payload.name : void 0,
+        avatarKey: payload.avatarKey
+      });
+      return null;
+    case "removeChild":
+      return raiseCode(workspace.removeChild(String(payload.id || "")), {
+        "not-found": ["CHILD_NOT_FOUND", "\u8BE5\u5B69\u5B50\u5DF2\u4E0D\u5B58\u5728"],
+        "last-child": ["LAST_CHILD_NOT_DELETABLE", "\u81F3\u5C11\u9700\u8981\u4FDD\u7559\u4E00\u4E2A\u5B69\u5B50"]
+      });
+    case "selectChild": {
+      const childId = String(payload.childId || "");
+      if (!workspace.snapshot.value.children.some((item) => item.id === childId)) {
+        throw new FamilyActionError("CHILD_NOT_FOUND", "\u5B69\u5B50\u4E0D\u5B58\u5728");
+      }
+      workspace.selectChild(childId);
+      return childId;
+    }
+    case "saveCourse": {
+      const course = payload.course;
+      if (!((_a = course == null ? void 0 : course.title) == null ? void 0 : _a.trim()) || !((_c = (_b = course.recurrence) == null ? void 0 : _b.dates) == null ? void 0 : _c.length)) {
+        throw new FamilyActionError("INVALID_INPUT", "\u8BF7\u586B\u5199\u8BFE\u7A0B\u540D\u79F0\u5E76\u81F3\u5C11\u9009\u62E9\u4E00\u4E2A\u4E0A\u8BFE\u65E5\u671F");
+      }
+      const dates = course.recurrence.dates;
+      const [conflict] = workspace.findCourseScheduleConflicts(dates, course.id, course.childIds);
+      if (conflict) throw new FamilyActionError("SCHEDULE_CONFLICT", `\u4E0E\u300C${conflict.title}\u300D\u65F6\u95F4\u91CD\u53E0`);
+      const id = workspace.upsertCourse(course);
+      const paymentStatus = payload.paymentStatus === "paid" ? "paid" : "unpaid";
+      workspace.syncCourseUpfrontExpense(id, paymentStatus);
+      workspace.clearScheduleExceptionsForCourse(id);
+      return id;
+    }
+    case "archiveCourse":
+      return workspace.archiveCourse(String(payload.id || ""));
+    case "restoreCourse":
+      return workspace.restoreCourse(String(payload.id || ""));
+    case "removeCourse":
+      return raiseCode(workspace.removeCourse(String(payload.id || "")), {
+        "not-found": ["COURSE_NOT_FOUND", "\u8BFE\u7A0B\u4E0D\u5B58\u5728"]
+      });
+    case "addOccurrences":
+      return raiseObject(workspace.addPresetOccurrence(String(payload.courseId || ""), payload.dates));
+    case "quickArrangement":
+      return raiseObject(workspace.createQuickArrangement({
+        dates: payload.dates,
+        date: typeof payload.date === "string" ? payload.date : void 0,
+        title: String(payload.title || ""),
+        startTime: String(payload.startTime || ""),
+        endTime: String(payload.endTime || ""),
+        amount: Number(payload.amount) || 0,
+        expenseStatus: payload.expenseStatus === "paid" ? "paid" : "unpaid"
+      }));
+    case "upsertException":
+      return workspace.upsertScheduleException(payload);
+    case "restoreOccurrence":
+      return workspace.restoreOccurrenceSlot(String(payload.courseId || ""), {
+        date: String(payload.date || ""),
+        startTime: String(payload.startTime || ""),
+        endTime: String(payload.endTime || "")
+      });
+    case "dropOccurrence":
+      workspace.dropOccurrenceSlot(String(payload.courseId || ""), String(payload.date || ""));
+      return null;
+    case "attendance":
+      return workspace.setOccurrenceAttendance(
+        String(payload.courseId || ""),
+        String(payload.date || ""),
+        payload.status,
+        {
+          billable: Boolean(payload.billable),
+          actualMinutes: payload.actualMinutes == null ? void 0 : Number(payload.actualMinutes)
+        }
+      );
+    case "occurrenceExpense":
+      return raiseCode(
+        workspace.upsertOccurrenceExpense(String(payload.courseId || ""), String(payload.date || ""), {
+          amount: Number(payload.amount) || 0,
+          paid: Boolean(payload.paid)
+        }),
+        {
+          "not-found": ["COURSE_NOT_FOUND", "\u8BFE\u7A0B\u4E0D\u5B58\u5728"],
+          "paid-immutable": ["PAID_BILL_IMMUTABLE", "\u5DF2\u652F\u4ED8\u8D26\u5355\u4E0D\u80FD\u6539\u91D1\u989D"]
+        }
+      );
+    case "upsertExpense":
+      return workspace.upsertExpense(payload);
+    case "generateBills": {
+      const period = String(payload.period || "");
+      if (!/^\d{4}-\d{2}$/.test(period)) throw new FamilyActionError("INVALID_PERIOD", "\u8D26\u671F\u683C\u5F0F\u5E94\u4E3A YYYY-MM");
+      return workspace.generateBillingStatements(period);
+    }
+    case "setExpenseStatus":
+      return raiseCode(
+        workspace.setExpenseStatus(String(payload.id || ""), payload.status),
+        {
+          "not-found": ["BILL_NOT_FOUND", "\u8D26\u5355\u4E0D\u5B58\u5728"],
+          "paid-immutable": ["PAID_BILL_IMMUTABLE", "\u5DF2\u652F\u4ED8\u8D26\u5355\u4E0D\u80FD\u6539\u56DE\u672A\u652F\u4ED8"]
+        }
+      );
+    case "refund":
+      return raiseObject(
+        workspace.refundExpense(String(payload.id || ""), Number(payload.amount) || 0, String(payload.note || ""))
+      );
+    case "removeExpense":
+      return raiseCode(workspace.removeExpense(String(payload.id || "")), {
+        "not-found": ["BILL_NOT_FOUND", "\u8D26\u5355\u4E0D\u5B58\u5728"],
+        "paid-immutable": ["PAID_BILL_IMMUTABLE", "\u5DF2\u652F\u4ED8\u8D26\u5355\u4E0D\u80FD\u5220\u9664"]
+      });
+    default:
+      throw new FamilyActionError("UNKNOWN_ACTION", "\u4E0D\u652F\u6301\u7684\u64CD\u4F5C");
+  }
+}
+
+// ../../server/src/domain/billing.ts
+var import_dayjs2 = __toESM(require_dayjs_min());
 function currentPeriod() {
-  return (0, import_dayjs.default)().format("YYYY-MM");
+  return (0, import_dayjs2.default)().format("YYYY-MM");
 }
 
 // ../../server/src/domain/schedule.ts
-var import_dayjs2 = __toESM(require_dayjs_min());
+var import_dayjs3 = __toESM(require_dayjs_min());
 function occurrencesInRange(courses, start, end, exceptions = []) {
-  const startDay = (0, import_dayjs2.default)(start).startOf("day");
-  const endDay = (0, import_dayjs2.default)(end).endOf("day");
+  const startDay = (0, import_dayjs3.default)(start).startOf("day");
+  const endDay = (0, import_dayjs3.default)(end).endOf("day");
   const list = [];
   function addOccurrence(course, date, startTime, endTime) {
     const exception = exceptions.find((item) => item.courseId === course.id && item.date === date);
@@ -415,14 +579,14 @@ function occurrencesInRange(courses, start, end, exceptions = []) {
     if (course.archived) continue;
     if (course.recurrence.freq === "dates") {
       for (const slot of course.recurrence.dates ?? []) {
-        const slotDate = (0, import_dayjs2.default)(slot.date);
+        const slotDate = (0, import_dayjs3.default)(slot.date);
         if (slotDate.isBefore(startDay, "day") || slotDate.isAfter(endDay, "day")) continue;
         addOccurrence(course, slot.date, slot.startTime, slot.endTime);
       }
       continue;
     }
-    const recStart = (0, import_dayjs2.default)(course.recurrence.startDate);
-    const recEnd = course.recurrence.endDate ? (0, import_dayjs2.default)(course.recurrence.endDate) : null;
+    const recStart = (0, import_dayjs3.default)(course.recurrence.startDate);
+    const recEnd = course.recurrence.endDate ? (0, import_dayjs3.default)(course.recurrence.endDate) : null;
     let cursor = startDay.isAfter(recStart) ? startDay : recStart;
     while (!cursor.isAfter(endDay)) {
       const inWindow = !recEnd || !cursor.isAfter(recEnd);
@@ -441,7 +605,7 @@ function occurrencesInRange(courses, start, end, exceptions = []) {
   }
   for (const exception of exceptions) {
     if (exception.status !== "added") continue;
-    const date = (0, import_dayjs2.default)(exception.date);
+    const date = (0, import_dayjs3.default)(exception.date);
     if (date.isBefore(startDay, "day") || date.isAfter(endDay, "day")) continue;
     if (list.some((item) => item.id === `${exception.courseId}_${exception.date}`)) continue;
     const course = courses.find((item) => item.id === exception.courseId);
@@ -525,7 +689,7 @@ function minutesBetween(start, end) {
 }
 
 // ../../server/src/domain/courseSchedule.ts
-var import_dayjs3 = __toESM(require_dayjs_min());
+var import_dayjs4 = __toESM(require_dayjs_min());
 function sortedSlots(slots) {
   return [...slots].sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -545,7 +709,7 @@ function expandCourseToDates(course, exceptions = []) {
   if (course.recurrence.freq === "dates") {
     return sortedSlots((course.recurrence.dates ?? []).map((slot) => ({ ...slot })));
   }
-  const start = (0, import_dayjs3.default)().startOf("month");
+  const start = (0, import_dayjs4.default)().startOf("month");
   const end = start.add(11, "month").endOf("month");
   return occurrencesInRange(
     [{ ...course, recurrence: { ...course.recurrence } }],
@@ -588,7 +752,7 @@ function removeCourseSlot(course, date) {
 }
 
 // ../../server/src/domain/charges.ts
-var import_dayjs4 = __toESM(require_dayjs_min());
+var import_dayjs5 = __toESM(require_dayjs_min());
 function occurrenceIdFor(courseId, originDate) {
   return `occ_${courseId}_${originDate}`;
 }
@@ -638,7 +802,7 @@ function occurrenceDateFromCharge(charge, records) {
   return ((_a = records.find((record) => record.id === charge.occurrenceId)) == null ? void 0 : _a.date) ?? charge.occurrenceId.slice(charge.occurrenceId.lastIndexOf("_") + 1);
 }
 function mondayOf(date) {
-  const value = (0, import_dayjs4.default)(date);
+  const value = (0, import_dayjs5.default)(date);
   return value.subtract((value.day() + 6) % 7, "day").format("YYYY-MM-DD");
 }
 function chargeStatementKey(charge, course, records) {
@@ -652,10 +816,10 @@ function chargeStatementKey(charge, course, records) {
 function statementLabel(cycle, statementKey) {
   const value = statementKey.slice(statementKey.lastIndexOf(":") + 1);
   if (cycle === "weekly") {
-    const start = (0, import_dayjs4.default)(value);
+    const start = (0, import_dayjs5.default)(value);
     return `${start.format("M\u6708D\u65E5")}\u2013${start.add(6, "day").format("M\u6708D\u65E5")}`;
   }
-  return (0, import_dayjs4.default)(`${value}-01`).format("YYYY\u5E74M\u6708");
+  return (0, import_dayjs5.default)(`${value}-01`).format("YYYY\u5E74M\u6708");
 }
 function findChargeForOccurrence(charges, occurrenceId) {
   return charges.find((charge) => charge.occurrenceId === occurrenceId && charge.status !== "reversed");
@@ -666,7 +830,7 @@ function shouldAccrueUsage(course, status, billable) {
 }
 
 // ../../server/src/workspace/family-workspace.ts
-var import_dayjs5 = __toESM(require_dayjs_min());
+var import_dayjs6 = __toESM(require_dayjs_min());
 function computed(fn) {
   return { get value() {
     return fn();
@@ -742,7 +906,7 @@ function createFamilyWorkspace(initial) {
   const todayItems = computed(
     () => occurrencesOnDate(
       overviewCourses.value,
-      (0, import_dayjs5.default)().format("YYYY-MM-DD"),
+      (0, import_dayjs6.default)().format("YYYY-MM-DD"),
       overviewScheduleExceptions.value
     )
   );
@@ -1042,7 +1206,7 @@ function createFamilyWorkspace(initial) {
       status,
       billable,
       actualMinutes: options.actualMinutes ?? (existing == null ? void 0 : existing.actualMinutes),
-      confirmedAt: status === "scheduled" ? void 0 : (0, import_dayjs5.default)().format("YYYY-MM-DD")
+      confirmedAt: status === "scheduled" ? void 0 : (0, import_dayjs6.default)().format("YYYY-MM-DD")
     };
     if (existingIndex >= 0) snapshot.value.occurrenceRecords[existingIndex] = next;
     else snapshot.value.occurrenceRecords.push(next);
@@ -1130,7 +1294,7 @@ function createFamilyWorkspace(initial) {
       expenseId: expense.id,
       kind: "payment",
       amount: expense.amount,
-      paidAt: expense.paidAt ?? (0, import_dayjs5.default)().format("YYYY-MM-DD"),
+      paidAt: expense.paidAt ?? (0, import_dayjs6.default)().format("YYYY-MM-DD"),
       note: "\u8D26\u5355\u786E\u8BA4\u652F\u4ED8"
     });
   }
@@ -1153,9 +1317,9 @@ function createFamilyWorkspace(initial) {
   }
   function billDueDate(cycle, statementKey) {
     const value = statementKey.slice(statementKey.lastIndexOf(":") + 1);
-    if (cycle === "monthly") return (0, import_dayjs5.default)(`${value}-01`).add(1, "month").date(8).format("YYYY-MM-DD");
-    if (cycle === "weekly") return (0, import_dayjs5.default)(value).add(13, "day").format("YYYY-MM-DD");
-    return (0, import_dayjs5.default)().format("YYYY-MM-DD");
+    if (cycle === "monthly") return (0, import_dayjs6.default)(`${value}-01`).add(1, "month").date(8).format("YYYY-MM-DD");
+    if (cycle === "weekly") return (0, import_dayjs6.default)(value).add(13, "day").format("YYYY-MM-DD");
+    return (0, import_dayjs6.default)().format("YYYY-MM-DD");
   }
   function generateBillingStatements(period) {
     var _a, _b, _c, _d, _e, _f, _g;
@@ -1222,7 +1386,7 @@ function createFamilyWorkspace(initial) {
         charge.billedExpenseId = expenseId;
       }
     }
-    const periodStart = (0, import_dayjs5.default)(`${period}-01`);
+    const periodStart = (0, import_dayjs6.default)(`${period}-01`);
     const periodEnd = periodStart.endOf("month");
     for (const course of snapshot.value.courses.filter((item) => !item.archived)) {
       if (course.needsBillingReview || ((_e = course.billingPolicy) == null ? void 0 : _e.pricingMode) !== "fixed_period") continue;
@@ -1234,10 +1398,10 @@ function createFamilyWorkspace(initial) {
         )
       )] : cycle === "monthly" ? [period] : [];
       for (const value of keys) {
-        const rangeStart = cycle === "weekly" ? (0, import_dayjs5.default)(value) : periodStart;
+        const rangeStart = cycle === "weekly" ? (0, import_dayjs6.default)(value) : periodStart;
         const rangeEnd = cycle === "weekly" ? rangeStart.add(6, "day") : periodEnd;
-        if ((0, import_dayjs5.default)(course.recurrence.startDate).isAfter(rangeEnd, "day")) continue;
-        if (course.recurrence.endDate && (0, import_dayjs5.default)(course.recurrence.endDate).isBefore(rangeStart, "day")) continue;
+        if ((0, import_dayjs6.default)(course.recurrence.startDate).isAfter(rangeEnd, "day")) continue;
+        if (course.recurrence.endDate && (0, import_dayjs6.default)(course.recurrence.endDate).isBefore(rangeStart, "day")) continue;
         const statementKey = `${course.id}:fixed:${cycle}:${value}`;
         if (snapshot.value.expenses.some((expense) => expense.statementKey === statementKey)) continue;
         if (cycle === "monthly" && snapshot.value.expenses.some(
@@ -1280,8 +1444,8 @@ function createFamilyWorkspace(initial) {
   }
   function monthsOverlapping(from, to) {
     const months = [];
-    let cursor = (0, import_dayjs5.default)(from).startOf("month");
-    const end = (0, import_dayjs5.default)(to).startOf("month");
+    let cursor = (0, import_dayjs6.default)(from).startOf("month");
+    const end = (0, import_dayjs6.default)(to).startOf("month");
     if (!cursor.isValid() || !end.isValid()) return months;
     while (cursor.isBefore(end, "month") || cursor.isSame(end, "month")) {
       months.push(cursor.format("YYYY-MM"));
@@ -1360,7 +1524,7 @@ function createFamilyWorkspace(initial) {
       persist();
       return;
     }
-    const paidAt = status === "paid" ? (existing == null ? void 0 : existing.paidAt) ?? (0, import_dayjs5.default)().format("YYYY-MM-DD") : void 0;
+    const paidAt = status === "paid" ? (existing == null ? void 0 : existing.paidAt) ?? (0, import_dayjs6.default)().format("YYYY-MM-DD") : void 0;
     const amount = (existing == null ? void 0 : existing.status) === "paid" && status === "paid" ? existing.amount : Math.max(0, course.amount);
     const next = {
       id: (existing == null ? void 0 : existing.id) ?? createId("exp"),
@@ -1371,8 +1535,8 @@ function createFamilyWorkspace(initial) {
       category: course.type,
       billingMode: "term",
       amount,
-      period: (paidAt ?? (0, import_dayjs5.default)().format("YYYY-MM-DD")).slice(0, 7),
-      dueDate: paidAt ?? (0, import_dayjs5.default)().format("YYYY-MM-DD"),
+      period: (paidAt ?? (0, import_dayjs6.default)().format("YYYY-MM-DD")).slice(0, 7),
+      dueDate: paidAt ?? (0, import_dayjs6.default)().format("YYYY-MM-DD"),
       status,
       paidAt,
       note: (existing == null ? void 0 : existing.status) === "paid" && status === "paid" ? existing.note : "\u7531\u8BFE\u7A0B\u4E00\u6B21\u6027\u652F\u4ED8\u8BBE\u7F6E\u540C\u6B65"
@@ -1491,7 +1655,7 @@ function createFamilyWorkspace(initial) {
         period: startDate.slice(0, 7),
         dueDate: startDate,
         status: input.expenseStatus,
-        paidAt: input.expenseStatus === "paid" ? (0, import_dayjs5.default)().format("YYYY-MM-DD") : void 0,
+        paidAt: input.expenseStatus === "paid" ? (0, import_dayjs6.default)().format("YYYY-MM-DD") : void 0,
         note: "\u968F\u5FEB\u901F\u65B0\u589E\u5B89\u6392\u521B\u5EFA"
       });
       ensurePaymentForExpense(snapshot.value.expenses[snapshot.value.expenses.length - 1]);
@@ -1574,7 +1738,7 @@ function createFamilyWorkspace(initial) {
     }
     if (expense && input.paid && amount > 0) {
       expense.status = "paid";
-      expense.paidAt = (0, import_dayjs5.default)().format("YYYY-MM-DD");
+      expense.paidAt = (0, import_dayjs6.default)().format("YYYY-MM-DD");
       ensurePaymentForExpense(expense);
     }
     persist();
@@ -1585,7 +1749,7 @@ function createFamilyWorkspace(initial) {
     if (!item) return "not-found";
     if (item.status === "paid" && status !== "paid") return "paid-immutable";
     item.status = status;
-    item.paidAt = status === "paid" ? (0, import_dayjs5.default)().format("YYYY-MM-DD") : void 0;
+    item.paidAt = status === "paid" ? (0, import_dayjs6.default)().format("YYYY-MM-DD") : void 0;
     ensurePaymentForExpense(item);
     persist();
     return "updated";
@@ -1610,7 +1774,7 @@ function createFamilyWorkspace(initial) {
       expenseId: expense.id,
       kind: "refund",
       amount: value,
-      paidAt: (0, import_dayjs5.default)().format("YYYY-MM-DD"),
+      paidAt: (0, import_dayjs6.default)().format("YYYY-MM-DD"),
       refundOfPaymentId: payment.id,
       note: note.trim() || "\u8D26\u5355\u9000\u6B3E"
     };
@@ -1711,13 +1875,6 @@ import_wx_server_sdk.default.init({ env: import_wx_server_sdk.default.DYNAMIC_CU
 var db = import_wx_server_sdk.default.database();
 var users = () => db.collection("users");
 var families = () => db.collection("families");
-var ActionError = class extends Error {
-  code;
-  constructor(code, message) {
-    super(message);
-    this.code = code;
-  }
-};
 function fail(code, message) {
   return { ok: false, code, message };
 }
@@ -1733,7 +1890,7 @@ async function findUser(openid) {
 }
 async function requireUser(openid) {
   const user = await findUser(openid);
-  if (!user) throw new ActionError("UNAUTHENTICATED", "\u8BF7\u5148\u4F7F\u7528\u5FAE\u4FE1\u767B\u5F55");
+  if (!user) throw new FamilyActionError("UNAUTHENTICATED", "\u8BF7\u5148\u4F7F\u7528\u5FAE\u4FE1\u767B\u5F55");
   return user;
 }
 async function withFamily(familyId, apply) {
@@ -1741,7 +1898,7 @@ async function withFamily(familyId, apply) {
     const ref = transaction.collection("families").doc(familyId);
     const got = await ref.get();
     const raw = got.data;
-    if (!(raw == null ? void 0 : raw.snapshotJson)) throw new ActionError("FAMILY_MISMATCH", "\u5BB6\u5EAD\u4E0D\u5B58\u5728\u6216\u65E0\u6743\u8BBF\u95EE");
+    if (!(raw == null ? void 0 : raw.snapshotJson)) throw new FamilyActionError("FAMILY_MISMATCH", "\u5BB6\u5EAD\u4E0D\u5B58\u5728\u6216\u65E0\u6743\u8BBF\u95EE");
     const workspace = createFamilyWorkspace(JSON.parse(raw.snapshotJson));
     const result = await apply(workspace);
     const nextJson = JSON.stringify(workspace.snapshot.value);
@@ -1760,51 +1917,22 @@ async function withFamily(familyId, apply) {
     };
   });
 }
-function raiseObject(result) {
-  if (!result || typeof result !== "object" || !("ok" in result) || result.ok !== false) return result;
-  const reason = "reason" in result ? String(result.reason) : "";
-  if (reason === "conflict") throw new ActionError("SCHEDULE_CONFLICT", "\u8BE5\u5B69\u5B50\u6B64\u65F6\u5DF2\u6709\u5176\u4ED6\u8BFE\u7A0B");
-  if (reason === "duplicate") throw new ActionError("OCCURRENCE_DUPLICATE", "\u6240\u9009\u65E5\u671F\u90FD\u5DF2\u6709\u8FD9\u95E8\u8BFE");
-  if (reason === "invalid-amount") throw new ActionError("REFUND_EXCEEDS_PAYMENT", "\u9000\u6B3E\u91D1\u989D\u5E94\u5927\u4E8E 0\uFF0C\u4E14\u4E0D\u8D85\u8FC7\u5269\u4F59\u53EF\u9000\u91D1\u989D");
-  if (reason === "not-paid" || reason === "payment-missing") throw new ActionError("REFUND_NOT_ALLOWED", "\u5F53\u524D\u8D26\u5355\u65E0\u6CD5\u9000\u6B3E");
-  throw new ActionError("INVALID_INPUT", "\u8BF7\u5B8C\u6574\u586B\u5199\u540E\u518D\u4FDD\u5B58");
-}
-function raiseCode(result, map) {
-  if (typeof result === "string" && map[result]) {
-    const [code, message] = map[result];
-    throw new ActionError(code, message);
-  }
-  return result;
-}
-function billWindow(payload) {
-  const from = typeof payload.from === "string" ? payload.from : (0, import_dayjs6.default)().startOf("month").format("YYYY-MM-DD");
-  const to = typeof payload.to === "string" ? payload.to : (0, import_dayjs6.default)().endOf("month").format("YYYY-MM-DD");
-  return { from, to };
-}
-function ensureRange(workspace, from, to) {
-  var _a;
-  for (const course of workspace.snapshot.value.courses.filter((item) => !item.archived)) {
-    const dates = ((_a = course.recurrence.dates) == null ? void 0 : _a.map((slot) => slot.date)) ?? [];
-    if (dates.some((date) => date >= from && date <= to)) workspace.ensureCourseBilling(course);
-  }
-  workspace.ensureBillingForRange(from, to);
-}
 async function login(openid, unionid, payload) {
   var _a;
   const existing = await findUser(openid);
   if (existing) {
-    const { from, to } = billWindow({});
     const data = await withFamily(existing.familyId, (workspace) => {
-      ensureRange(workspace, from, to);
+      applyFamilyAction(workspace, "snapshot", {});
       return null;
     });
     return { openid, familyId: existing.familyId, snapshot: data.snapshot };
   }
-  const childName = String(payload.childName || "").trim().slice(0, 20);
-  const snapshot = createEmptyFamilySnapshot(childName || "\u5C0F\u6811");
+  const childName = String(payload.childName || "").trim().slice(0, 20) || "\u5C0FU";
+  const avatarKey = typeof payload.avatarKey === "string" ? payload.avatarKey : void 0;
+  const snapshot = createEmptyFamilySnapshot(childName, avatarKey);
   const created = await families().add({
     data: {
-      name: `${((_a = snapshot.children[0]) == null ? void 0 : _a.name) || "\u5C0F\u6811"}\u7684\u5BB6\u5EAD`,
+      name: `${((_a = snapshot.children[0]) == null ? void 0 : _a.name) || "\u5C0FU"}\u7684\u5BB6\u5EAD`,
       timezone: "Asia/Shanghai",
       ownerOpenid: openid,
       snapshotJson: JSON.stringify(snapshot),
@@ -1814,7 +1942,7 @@ async function login(openid, unionid, payload) {
     }
   });
   const familyId = String(created._id || created.id || "");
-  if (!familyId) throw new ActionError("CLOUD_ERROR", "\u521B\u5EFA\u5BB6\u5EAD\u5931\u8D25");
+  if (!familyId) throw new FamilyActionError("CLOUD_ERROR", "\u521B\u5EFA\u5BB6\u5EAD\u5931\u8D25");
   await users().add({
     data: {
       openid,
@@ -1827,143 +1955,7 @@ async function login(openid, unionid, payload) {
 }
 async function dispatch(openid, action, payload) {
   const user = await requireUser(openid);
-  const familyId = user.familyId;
-  switch (action) {
-    case "snapshot":
-      return withFamily(familyId, (workspace) => {
-        const { from, to } = billWindow(payload);
-        ensureRange(workspace, from, to);
-        return null;
-      });
-    case "addChild":
-      return withFamily(familyId, (workspace) => {
-        const id = workspace.addChild(String(payload.name || ""), payload.avatarKey);
-        if (!id) throw new ActionError("INVALID_CHILD_NAME", "\u8BF7\u5148\u586B\u5199\u5B69\u5B50\u540D\u5B57");
-        return id;
-      });
-    case "updateChild":
-      return withFamily(familyId, (workspace) => {
-        workspace.updateChild({
-          id: String(payload.id || ""),
-          name: typeof payload.name === "string" ? payload.name : void 0,
-          avatarKey: payload.avatarKey
-        });
-        return null;
-      });
-    case "removeChild":
-      return withFamily(familyId, (workspace) => raiseCode(workspace.removeChild(String(payload.id || "")), {
-        "not-found": ["CHILD_NOT_FOUND", "\u8BE5\u5B69\u5B50\u5DF2\u4E0D\u5B58\u5728"],
-        "last-child": ["LAST_CHILD_NOT_DELETABLE", "\u81F3\u5C11\u9700\u8981\u4FDD\u7559\u4E00\u4E2A\u5B69\u5B50"]
-      }));
-    case "selectChild":
-      return withFamily(familyId, (workspace) => {
-        const childId = String(payload.childId || "");
-        if (!workspace.snapshot.value.children.some((item) => item.id === childId)) {
-          throw new ActionError("CHILD_NOT_FOUND", "\u5B69\u5B50\u4E0D\u5B58\u5728");
-        }
-        workspace.selectChild(childId);
-        return childId;
-      });
-    case "saveCourse":
-      return withFamily(familyId, (workspace) => {
-        var _a, _b, _c;
-        const course = payload.course;
-        if (!((_a = course == null ? void 0 : course.title) == null ? void 0 : _a.trim()) || !((_c = (_b = course.recurrence) == null ? void 0 : _b.dates) == null ? void 0 : _c.length)) {
-          throw new ActionError("INVALID_INPUT", "\u8BF7\u586B\u5199\u8BFE\u7A0B\u540D\u79F0\u5E76\u81F3\u5C11\u9009\u62E9\u4E00\u4E2A\u4E0A\u8BFE\u65E5\u671F");
-        }
-        const dates = course.recurrence.dates;
-        const [conflict] = workspace.findCourseScheduleConflicts(dates, course.id, course.childIds);
-        if (conflict) throw new ActionError("SCHEDULE_CONFLICT", `\u4E0E\u300C${conflict.title}\u300D\u65F6\u95F4\u91CD\u53E0`);
-        const id = workspace.upsertCourse(course);
-        const paymentStatus = payload.paymentStatus === "paid" ? "paid" : "unpaid";
-        workspace.syncCourseUpfrontExpense(id, paymentStatus);
-        workspace.clearScheduleExceptionsForCourse(id);
-        return id;
-      });
-    case "archiveCourse":
-      return withFamily(familyId, (workspace) => workspace.archiveCourse(String(payload.id || "")));
-    case "restoreCourse":
-      return withFamily(familyId, (workspace) => workspace.restoreCourse(String(payload.id || "")));
-    case "removeCourse":
-      return withFamily(familyId, (workspace) => raiseCode(workspace.removeCourse(String(payload.id || "")), {
-        "not-found": ["COURSE_NOT_FOUND", "\u8BFE\u7A0B\u4E0D\u5B58\u5728"]
-      }));
-    case "addOccurrences":
-      return withFamily(familyId, (workspace) => raiseObject(
-        workspace.addPresetOccurrence(String(payload.courseId || ""), payload.dates)
-      ));
-    case "quickArrangement":
-      return withFamily(familyId, (workspace) => raiseObject(workspace.createQuickArrangement({
-        dates: payload.dates,
-        date: typeof payload.date === "string" ? payload.date : void 0,
-        title: String(payload.title || ""),
-        startTime: String(payload.startTime || ""),
-        endTime: String(payload.endTime || ""),
-        amount: Number(payload.amount) || 0,
-        expenseStatus: payload.expenseStatus === "paid" ? "paid" : "unpaid"
-      })));
-    case "upsertException":
-      return withFamily(familyId, (workspace) => workspace.upsertScheduleException(payload));
-    case "restoreOccurrence":
-      return withFamily(familyId, (workspace) => workspace.restoreOccurrenceSlot(String(payload.courseId || ""), {
-        date: String(payload.date || ""),
-        startTime: String(payload.startTime || ""),
-        endTime: String(payload.endTime || "")
-      }));
-    case "dropOccurrence":
-      return withFamily(familyId, (workspace) => {
-        workspace.dropOccurrenceSlot(String(payload.courseId || ""), String(payload.date || ""));
-        return null;
-      });
-    case "attendance":
-      return withFamily(familyId, (workspace) => workspace.setOccurrenceAttendance(
-        String(payload.courseId || ""),
-        String(payload.date || ""),
-        payload.status,
-        {
-          billable: Boolean(payload.billable),
-          actualMinutes: payload.actualMinutes == null ? void 0 : Number(payload.actualMinutes)
-        }
-      ));
-    case "occurrenceExpense":
-      return withFamily(familyId, (workspace) => raiseCode(
-        workspace.upsertOccurrenceExpense(String(payload.courseId || ""), String(payload.date || ""), {
-          amount: Number(payload.amount) || 0,
-          paid: Boolean(payload.paid)
-        }),
-        {
-          "not-found": ["COURSE_NOT_FOUND", "\u8BFE\u7A0B\u4E0D\u5B58\u5728"],
-          "paid-immutable": ["PAID_BILL_IMMUTABLE", "\u5DF2\u652F\u4ED8\u8D26\u5355\u4E0D\u80FD\u6539\u91D1\u989D"]
-        }
-      ));
-    case "upsertExpense":
-      return withFamily(familyId, (workspace) => workspace.upsertExpense(payload));
-    case "generateBills":
-      return withFamily(familyId, (workspace) => {
-        const period = String(payload.period || "");
-        if (!/^\d{4}-\d{2}$/.test(period)) throw new ActionError("INVALID_PERIOD", "\u8D26\u671F\u683C\u5F0F\u5E94\u4E3A YYYY-MM");
-        return workspace.generateBillingStatements(period);
-      });
-    case "setExpenseStatus":
-      return withFamily(familyId, (workspace) => raiseCode(
-        workspace.setExpenseStatus(String(payload.id || ""), payload.status),
-        {
-          "not-found": ["BILL_NOT_FOUND", "\u8D26\u5355\u4E0D\u5B58\u5728"],
-          "paid-immutable": ["PAID_BILL_IMMUTABLE", "\u5DF2\u652F\u4ED8\u8D26\u5355\u4E0D\u80FD\u6539\u56DE\u672A\u652F\u4ED8"]
-        }
-      ));
-    case "refund":
-      return withFamily(familyId, (workspace) => raiseObject(
-        workspace.refundExpense(String(payload.id || ""), Number(payload.amount) || 0, String(payload.note || ""))
-      ));
-    case "removeExpense":
-      return withFamily(familyId, (workspace) => raiseCode(workspace.removeExpense(String(payload.id || "")), {
-        "not-found": ["BILL_NOT_FOUND", "\u8D26\u5355\u4E0D\u5B58\u5728"],
-        "paid-immutable": ["PAID_BILL_IMMUTABLE", "\u5DF2\u652F\u4ED8\u8D26\u5355\u4E0D\u80FD\u5220\u9664"]
-      }));
-    default:
-      throw new ActionError("UNKNOWN_ACTION", "\u4E0D\u652F\u6301\u7684\u64CD\u4F5C");
-  }
+  return withFamily(user.familyId, (workspace) => applyFamilyAction(workspace, action, payload));
 }
 async function main(event) {
   const context = import_wx_server_sdk.default.getWXContext();
@@ -1978,7 +1970,7 @@ async function main(event) {
     const data = await dispatch(openid, action, event.payload ?? {});
     return { ok: true, data };
   } catch (error) {
-    const code = error instanceof ActionError ? error.code : "CLOUD_ERROR";
+    const code = error instanceof FamilyActionError ? error.code : "CLOUD_ERROR";
     const message = error instanceof Error ? error.message : "\u4E91\u51FD\u6570\u6267\u884C\u5931\u8D25";
     return fail(code, message);
   }

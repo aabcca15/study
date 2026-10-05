@@ -5,6 +5,7 @@ import { buildCourseBillLedger } from '@server-domain/courseBills'
 import { money } from '@server-domain/billing'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
 const courseId = ref('')
@@ -35,7 +36,8 @@ async function markPaid(expenseId?: string) {
 </script>
 
 <template>
-  <view class="page edit">
+  <view class="page edit sub">
+    <PageHeader safe show-back title="课程账单" />
     <view v-if="!course" class="empty">课程不存在</view>
     <template v-else-if="ledger">
       <view class="h1">{{ course.title }}</view>

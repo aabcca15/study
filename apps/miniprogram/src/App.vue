@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app'
-import { CLOUD_ENV } from './config'
+import { CLOUD_ENV, WECHAT_LOGIN_ENABLED } from './config'
 
 onLaunch(() => {
   // #ifdef MP-WEIXIN
-  if (wx.cloud) {
+  if (WECHAT_LOGIN_ENABLED && wx.cloud) {
     wx.cloud.init({
       traceUser: true,
       ...(CLOUD_ENV ? { env: CLOUD_ENV } : {}),

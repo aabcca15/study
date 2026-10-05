@@ -11,9 +11,7 @@
     { "path": "pages/expense-edit/index", "style": { "navigationBarTitleText": "账单" } }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "小树成长",
-    "navigationBarBackgroundColor": "#F3F4FB",
+    "navigationStyle": "custom",
     "backgroundColor": "#F3F4FB",
     "backgroundTextStyle": "dark"
   }

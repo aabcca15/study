@@ -14,6 +14,7 @@ import type {
 } from '@server-domain/types'
 import { emptySnapshot } from '@server-domain/constants'
 import { callCloud } from '@/cloud/call'
+import { clearDevSession } from '@/cloud/local'
 
 const LOGGED_KEY = 'myhome.mp.logged'
 
@@ -87,8 +88,8 @@ export const useFamilyStore = defineStore('family', {
       this.ready = true
       return data.result
     },
-    async login(childName = '') {
-      const data = await callCloud<CloudSession>('login', { childName })
+    async login(childName = '小U', avatarKey?: ChildAvatarKey) {
+      const data = await callCloud<CloudSession>('login', { childName, avatarKey })
       this.openid = data.openid
       this.familyId = data.familyId
       this.snapshot = data.snapshot
@@ -101,6 +102,7 @@ export const useFamilyStore = defineStore('family', {
       this.familyId = ''
       this.snapshot = emptySnapshot()
       uni.removeStorageSync(LOGGED_KEY)
+      clearDevSession()
     },
     refresh() {
       const from = dayjs().startOf('month').format('YYYY-MM-DD')
