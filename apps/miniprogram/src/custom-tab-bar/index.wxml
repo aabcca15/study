@@ -24,12 +24,11 @@
 </view>
 
 <view id="glass-tabbar" class="tabbar">
-  <view class="indicator {{travel ? 'travel' : ''}}" style="{{indicator}}" />
+  <view class="indicator {{travel ? 'travel' : ''}} {{jelly ? 'jelly' : ''}}" style="{{indicator}}" />
   <view
     wx:for="{{left}}"
     wx:key="key"
-    id="glass-tab-{{index}}"
-    class="tab {{selected === index ? 'active' : ''}}"
+    class="tab {{selected === index ? 'active' : ''}} {{jelly && selected === index ? 'jelly' : ''}}"
     data-index="{{index}}"
     bindtap="onTab"
   >
@@ -44,8 +43,7 @@
   <view
     wx:for="{{right}}"
     wx:key="key"
-    id="glass-tab-{{index + 2}}"
-    class="tab {{selected === index + 2 ? 'active' : ''}}"
+    class="tab {{selected === index + 2 ? 'active' : ''}} {{jelly && selected === index + 2 ? 'jelly' : ''}}"
     data-index="{{index + 2}}"
     bindtap="onTab"
   >

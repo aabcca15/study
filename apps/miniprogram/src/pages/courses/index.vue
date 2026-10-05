@@ -245,7 +245,7 @@ function more(course: Course) {
 .face.active { transform: scale(1.06); }
 .child-actions { display: flex; gap: 8px; margin: -8px 0 16px; }
 .child-actions button { color: var(--accent-text); font-size: 12px; font-weight: 700; }
-.avatar-pick { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-right: 12px; padding: 6px; border-radius: 16px; color: var(--muted); font-size: 11px; }
+.avatar-pick { display: flex; width: calc(25% - 6px); box-sizing: border-box; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; border-radius: 16px; color: var(--muted); font-size: 10px; }
 .avatar-pick.active { box-shadow: 0 0 0 2px #ff7a45; color: var(--ink); }
 .course-grid { display: flex; flex-wrap: wrap; gap: 12px; }
 .course {

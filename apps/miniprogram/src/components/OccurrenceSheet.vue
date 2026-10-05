@@ -115,34 +115,56 @@ function cancelOnce() {
   <view v-if="item" class="mask" @click="emit('close')">
     <view class="sheet" @click.stop>
       <view class="sheet-head">
-        <text class="sheet-title">{{ item.course.title }}</text>
-        <text class="muted" @click="emit('close')">关闭</text>
-      </view>
-      <text class="muted">{{ item.date }}</text>
-      <view class="row" style="margin-top: 20rpx">
-        <view class="field" style="flex: 1">
-          <text class="field-label">开始</text>
-          <TimeField v-model="startTime" />
+        <view>
+          <text class="eyebrow">这次安排</text>
+          <text class="sheet-title">{{ item.course.title }}</text>
         </view>
-        <view class="field" style="flex: 1">
-          <text class="field-label">结束</text>
-          <TimeField v-model="endTime" />
+        <text class="close" @click="emit('close')">×</text>
+      </view>
+      <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
+        <text class="muted">{{ item.date }}</text>
+        <view class="row" style="margin-top: 16px">
+          <view class="field" style="flex: 1">
+            <text class="field-label">开始</text>
+            <TimeField v-model="startTime" />
+          </view>
+          <view class="field" style="flex: 1">
+            <text class="field-label">结束</text>
+            <TimeField v-model="endTime" />
+          </view>
         </view>
+        <view v-if="!free" class="field">
+          <text class="field-label">本次金额</text>
+          <input v-model="amount" type="digit" :disabled="locked" />
+        </view>
+        <view v-if="!free" class="row pay-row">
+          <text>已支付</text>
+          <switch :checked="paid" :disabled="locked" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
+        </view>
+      </scroll-view>
+      <view class="sheet-foot">
+        <button class="btn block" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存本次' }}</button>
+        <view class="row" style="margin-top: 10px">
+          <button class="btn ghost" style="flex: 1" @click="markAttendance(true)">确认已上</button>
+          <button class="btn ghost" style="flex: 1" @click="markAttendance(false)">标为未上</button>
+        </view>
+        <button class="btn danger block" style="margin-top: 10px" @click="cancelOnce">取消这次课</button>
       </view>
-      <view v-if="!free" class="field">
-        <text class="field-label">本次金额</text>
-        <input v-model="amount" type="digit" :disabled="locked" />
-      </view>
-      <view v-if="!free" class="row" style="margin-bottom: 20rpx">
-        <text>已支付</text>
-        <switch :checked="paid" :disabled="locked" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
-      </view>
-      <button class="btn block" :disabled="saving" @click="save">保存本次</button>
-      <view class="row" style="margin-top: 16rpx">
-        <button class="btn ghost" style="flex: 1" @click="markAttendance(true)">确认已上</button>
-        <button class="btn ghost" style="flex: 1" @click="markAttendance(false)">标为未上</button>
-      </view>
-      <button class="btn danger block" style="margin-top: 16rpx" @click="cancelOnce">取消这次课</button>
     </view>
   </view>
 </template>
+
+<style scoped>
+.eyebrow { display: block; color: var(--accent-text); font-size: 11px; font-weight: 700; }
+.close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  text-align: center;
+  line-height: 34px;
+  font-size: 22px;
+}
+.pay-row { margin-bottom: 8px; }
+</style>

@@ -20,23 +20,30 @@ const faceStyle = computed(() => ({
 </script>
 
 <template>
-  <view class="child-face" :class="`is-${option.key}`" :style="faceStyle" />
+  <view class="child-face" :class="`is-${option.key}`" :style="faceStyle">
+    <image class="sprite" src="/static/user_icon.png" mode="scaleToFill" />
+  </view>
 </template>
 
 <style scoped>
 .child-face {
+  position: relative;
   display: block;
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: 50%;
-  background-image: url('../static/user_icon.png');
-  background-repeat: no-repeat;
-  background-size: 228% 242%;
   box-shadow: inset 0 0 0 1px rgba(91, 141, 239, 0.18);
 }
 
-.child-face.is-boy-blue { background-position: 6% 2%; }
-.child-face.is-boy-cap { background-position: 94% 2%; }
-.child-face.is-girl-flower { background-position: 6% 94%; }
-.child-face.is-girl-bow { background-position: 94% 94%; }
+.sprite {
+  position: absolute;
+  width: 228%;
+  height: 242%;
+}
+
+/* 与网页雪碧图 background-position 对齐：偏移 = (1 - 缩放) × 百分比 */
+.child-face.is-boy-blue .sprite { left: -7.68%; top: -2.84%; }
+.child-face.is-boy-cap .sprite { left: -120.32%; top: -2.84%; }
+.child-face.is-girl-flower .sprite { left: -7.68%; top: -133.48%; }
+.child-face.is-girl-bow .sprite { left: -120.32%; top: -133.48%; }
 </style>

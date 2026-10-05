@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
 import { WECHAT_LOGIN_ENABLED } from '@/config'
 import { showCloudError } from '@/cloud/call'
@@ -71,13 +72,15 @@ async function submit() {
     <view v-else class="panel">
       <text class="pick-title">选择小U</text>
       <view class="picks">
-        <view class="pick" :class="{ on: avatarKey === 'boy-blue' }" @click="avatarKey = 'boy-blue'">
-          <ChildAvatar avatar-key="boy-blue" :size="72" />
-          <text>男孩</text>
-        </view>
-        <view class="pick" :class="{ on: avatarKey === 'girl-flower' }" @click="avatarKey = 'girl-flower'">
-          <ChildAvatar avatar-key="girl-flower" :size="72" />
-          <text>女孩</text>
+        <view
+          v-for="option in CHILD_AVATAR_OPTIONS"
+          :key="option.key"
+          class="pick"
+          :class="{ on: avatarKey === option.key }"
+          @click="avatarKey = option.key"
+        >
+          <ChildAvatar :avatar-key="option.key" :size="64" />
+          <text>{{ option.label }}</text>
         </view>
       </view>
 
@@ -158,14 +161,16 @@ async function submit() {
 
 .picks {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 22px;
+  gap: 12px;
   margin-bottom: 22px;
 }
 
 .pick {
   display: flex;
-  width: 108px;
+  width: calc(50% - 6px);
+  box-sizing: border-box;
   flex-direction: column;
   align-items: center;
   gap: 8px;
@@ -174,7 +179,7 @@ async function submit() {
   background: rgba(255, 255, 255, 0.72);
   box-shadow: var(--elev-sm);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
 }
 
