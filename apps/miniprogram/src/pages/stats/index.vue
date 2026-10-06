@@ -7,6 +7,7 @@ import { CATEGORY_LABEL } from '@server-domain/constants'
 import { calculateLearningStatistics } from '@server-domain/statistics'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/composables/useThemePage'
+import { useThemeStore } from '@/stores/theme'
 import { currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
 import { syncVisibleTab } from '@/utils/nav'
 import { windowWidth } from '@/utils/system'
@@ -17,6 +18,7 @@ import TrendChart from '@/components/TrendChart.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+const theme = useThemeStore()
 /** 与 web 一致：卡片接近整行，右侧露出下一张方便左右滑。 */
 const reportCardWidth = Math.max(280, windowWidth() - 88)
 
@@ -58,12 +60,14 @@ const feeBreakdown = computed(() =>
   })),
 )
 const donutBackground = computed(() => {
-  if (!stats.value.periodTotal || !feeBreakdown.value.length) return '#e6e8f0'
+  const paper = currentMixBase()
+  const empty = theme.isDark ? '#2a3142' : '#e6e8f0'
+  if (!stats.value.periodTotal || !feeBreakdown.value.length) return empty
   let cursor = 0
   const slices = feeBreakdown.value.flatMap((item) => {
     const start = cursor
     cursor += (item.amount / stats.value.periodTotal) * 100
-    return [`${mix(item.color, '#ffffff', 0.2)} ${start}%`, `${item.color} ${cursor}%`]
+    return [`${mix(item.color, paper, 0.2)} ${start}%`, `${item.color} ${cursor}%`]
   })
   return `conic-gradient(from -90deg, ${slices.join(',')})`
 })
@@ -186,7 +190,7 @@ function formatTrendHours(hours: number) {
               </view>
               <view
                 class="progress-ring"
-                :style="{ background: `conic-gradient(from 210deg, ${deepTone(item.course.color)} 0deg, ${item.course.color} ${item.completion}%, ${mix(item.course.color, '#eceef4', 0.84)} ${item.completion}%)`, color: deepTone(item.course.color) }"
+                :style="{ background: `conic-gradient(from 210deg, ${deepTone(item.course.color)} 0deg, ${item.course.color} ${item.completion}%, ${mix(item.course.color, currentMixBase(), 0.84)} ${item.completion}%)`, color: deepTone(item.course.color) }"
               >
                 <text>{{ item.completion }}%</text>
               </view>
@@ -226,7 +230,7 @@ function formatTrendHours(hours: number) {
 
 <style scoped>
 .stats-page { padding-top: 8px; }
-.nav { display: flex; align-items: center; padding: 3px; border-radius: 14px; background: #fff; box-shadow: var(--elev-sm); }
+.nav { display: flex; align-items: center; padding: 3px; border-radius: 14px; background: var(--paper); box-shadow: var(--elev-sm); }
 .nav button {
   display: flex;
   min-width: 48px;
@@ -267,8 +271,8 @@ function formatTrendHours(hours: number) {
 .mini { flex: 1; padding: 2px 8px; text-align: center; border-left: 1px solid var(--line); }
 .mini:first-child { padding-left: 0; border-left: 0; }
 .mini .muted, .strong { display: block; }
-.strong { margin-top: 5px; font-size: 15px; font-weight: 800; }
-.section { display: block; margin-bottom: 8px; font-size: 16px; font-weight: 800; }
+.strong { margin-top: 5px; color: var(--ink); font-size: 15px; font-weight: 800; }
+.section { display: block; margin-bottom: 8px; color: var(--ink); font-size: 16px; font-weight: 800; }
 .fee-content { display: flex; gap: 14px; align-items: center; }
 .donut { position: relative; width: 120px; height: 120px; flex: 0 0 auto; }
 .donut-ring { position: absolute; inset: 0; border-radius: 50%; }
@@ -280,9 +284,9 @@ function formatTrendHours(hours: number) {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #fff;
+  background: var(--paper);
 }
-.donut-total { margin-top: 3px; font-size: 13px; font-weight: 800; }
+.donut-total { margin-top: 3px; color: var(--ink); font-size: 13px; font-weight: 800; }
 .legend { flex: 1; min-width: 0; }
 .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: var(--muted); font-size: 11px; }
 .swatch { width: 7px; height: 7px; border-radius: 50%; }
@@ -290,11 +294,11 @@ function formatTrendHours(hours: number) {
 .legend-amount { color: var(--ink); font-weight: 700; }
 .empty { display: block; padding: 18px 8px; color: var(--muted); text-align: center; font-size: 12px; }
 .quick-metrics { display: flex; gap: 10px; margin-bottom: 18px; }
-.metric { display: flex; flex: 1; align-items: center; gap: 10px; padding: 14px; border-radius: 20px; background: #fff; box-shadow: var(--elev-sm); }
+.metric { display: flex; flex: 1; align-items: center; gap: 10px; padding: 14px; border-radius: 20px; background: var(--paper); box-shadow: var(--elev-sm); }
 .metric-icon { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 12px; }
 .metric-icon.purple { background: linear-gradient(140deg, #b388ff, #7b61ff); }
 .metric-icon.blue { background: linear-gradient(140deg, #8eb6ff, #5b8def); }
-.metric-value { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
+.metric-value { display: block; margin-top: 2px; color: var(--ink); font-size: 18px; font-weight: 800; }
 .unit { margin-left: 2px; font-size: 12px; font-weight: 650; }
 .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .section-head .muted {
@@ -304,7 +308,7 @@ function formatTrendHours(hours: number) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.h2 { display: block; font-size: 16px; font-weight: 800; }
+.h2 { display: block; color: var(--ink); font-size: 16px; font-weight: 800; }
 .report-scroll { width: 100%; margin-bottom: 16px; white-space: nowrap; }
 .report-row { display: flex; gap: 12px; padding-bottom: 4px; }
 .course-report {
@@ -313,7 +317,7 @@ function formatTrendHours(hours: number) {
   flex: 0 0 auto;
   padding: 16px;
   border-radius: 23px;
-  background: #fff;
+  background: var(--paper);
   box-shadow: var(--elev-md);
   white-space: normal;
   vertical-align: top;
@@ -322,7 +326,7 @@ function formatTrendHours(hours: number) {
 .report-icon { display: flex; width: 42px; height: 42px; align-items: center; justify-content: center; border-radius: 14px; }
 .report-copy { flex: 1; min-width: 0; }
 .report-copy .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.report-title { display: block; overflow: hidden; font-size: 15px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.report-title { display: block; overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .progress-ring {
   display: flex;
   width: 48px;
@@ -337,7 +341,7 @@ function formatTrendHours(hours: number) {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--paper);
   text-align: center;
   line-height: 36px;
 }

@@ -93,7 +93,7 @@ async function submit() {
 
       <view class="field">
         <text class="field-label">孩子名字</text>
-        <input v-model="childName" maxlength="20" placeholder="小U" />
+        <input v-model="childName" maxlength="20" placeholder="小U" placeholder-class="ph" />
       </view>
       <button class="btn block" :disabled="submitting" @click="submit">
         {{ submitting ? '进入中…' : (WECHAT_LOGIN_ENABLED ? '微信一键登录' : '进入') }}
@@ -190,7 +190,7 @@ async function submit() {
   gap: 8px;
   padding: 12px 8px 10px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--paper);
   box-shadow: var(--elev-sm);
   color: var(--muted);
   font-size: 12px;

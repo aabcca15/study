@@ -149,7 +149,7 @@ async function undoCancel() {
   align-items: center;
   padding: 3px;
   border-radius: 14px;
-  background: #fff;
+  background: var(--paper);
   box-shadow: var(--elev-sm);
 }
 .nav button {
@@ -183,7 +183,7 @@ async function undoCancel() {
   border-radius: 12px;
   font-size: 14px;
 }
-.day.muted { color: #c5cad6; }
+.day.muted { color: var(--faint); }
 .day.today { font-weight: 700; }
 .day.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 700; }
 .dots { display: flex; gap: 2px; min-height: 5px; margin-top: 2px; }

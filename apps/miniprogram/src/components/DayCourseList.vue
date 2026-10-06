@@ -311,6 +311,7 @@ const rows = computed(() => {
   display: block;
   margin: 7px 0 5px;
   overflow: hidden;
+  color: var(--ink);
   font-size: 17px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -318,7 +319,7 @@ const rows = computed(() => {
 }
 .lesson-meta { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
 .lesson-meta text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lesson-meta .dot { width: 3px; height: 3px; flex: 0 0 auto; border-radius: 50%; background: #c5cad6; }
+.lesson-meta .dot { width: 3px; height: 3px; flex: 0 0 auto; border-radius: 50%; background: var(--faint); }
 .range { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 9px; }
 .lesson-period { display: flex; flex-wrap: wrap; gap: 5px 9px; align-items: center; margin-top: 11px; }
 .dur { font-size: 15px; font-weight: 750; }
@@ -354,7 +355,7 @@ const rows = computed(() => {
   padding: 28px 20px 24px;
   text-align: center;
   border-radius: 24px;
-  background: #fff;
+  background: var(--paper);
   box-shadow: var(--elev-md);
 }
 .empty-add {

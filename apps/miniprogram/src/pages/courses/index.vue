@@ -42,12 +42,16 @@ watch(managing, (open) => {
 })
 const ui = useUiStore()
 function faceStyle(color: string, inactive: boolean) {
+  const paper = currentMixBase()
+  const dark = theme.isDark
   if (inactive) {
-    return { background: `linear-gradient(150deg, ${mix('#8b93a5', currentMixBase(), 0.86)} 0%, ${currentMixBase()} 62%)` }
+    return { background: `linear-gradient(150deg, ${mix('#8b93a5', paper, 0.86)} 0%, ${paper} 62%)` }
   }
   return {
     background: cardBackground(color),
-    boxShadow: `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(color, '#6d6780', 0.35)}, inset 0 1px 0 rgba(255,255,255,.9)`,
+    boxShadow: dark
+      ? `0 2px 6px rgba(0,0,0,.3), 0 18px 34px -16px ${mix(color, '#10131b', 0.35)}, inset 0 1px 0 rgba(255,255,255,.08)`
+      : `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(color, '#6d6780', 0.35)}, inset 0 1px 0 rgba(255,255,255,.9)`,
   }
 }
 
@@ -206,7 +210,7 @@ function more(course: Course) {
           class="course"
           :class="{ inactive: card.lifecycle.inactive }"
         >
-          <view class="bookmark" :style="{ background: card.lifecycle.inactive ? '#eceef4' : folderTab(card.course.color) }" />
+          <view class="bookmark" :style="{ background: card.lifecycle.inactive ? (card.dark ? '#2a3142' : '#eceef4') : folderTab(card.course.color) }" />
           <view class="course-face" :style="card.face">
           <text v-if="card.lifecycle.inactive" class="watermark">{{ card.lifecycle.label }}</text>
           <view class="course-top">
@@ -218,9 +222,9 @@ function more(course: Course) {
               <button class="more" @click="more(card.course)"><AppIcon name="dots" tone="muted" :size="18" /></button>
             </view>
           </view>
-          <text class="type" :style="{ color: card.lifecycle.inactive ? '#8b93a5' : deepTone(card.course.color), background: card.lifecycle.inactive ? '#eef0f4' : mix(card.course.color, '#ffffff', 0.82) }">{{ COURSE_TYPE_LABEL[card.course.type] }}</text>
+          <text class="type" :style="{ color: card.lifecycle.inactive ? '#8b93a5' : deepTone(card.course.color), background: card.lifecycle.inactive ? (card.dark ? '#2a3142' : '#eef0f4') : mix(card.course.color, currentMixBase(), card.dark ? 0.72 : 0.82) }">{{ COURSE_TYPE_LABEL[card.course.type] }}</text>
           <text class="name">{{ card.course.title }}</text>
-          <view class="bar" :style="{ background: mix(card.course.color, '#eceef4', 0.86) }">
+          <view class="bar" :style="{ background: mix(card.course.color, card.dark ? '#2a3142' : '#eceef4', 0.86) }">
             <view :style="{ width: card.progress.percent + '%', background: card.lifecycle.inactive ? '#aeb4c0' : tileBackground(card.course.color) }" />
           </view>
           <text class="meta">{{ card.progress.completed }}/{{ card.progress.total }} 课时 · {{ card.progress.percent }}%</text>
@@ -270,7 +274,7 @@ function more(course: Course) {
             </view>
             <view class="field profile-name">
               <text class="field-label">孩子名称</text>
-              <input v-model="names[child.id]" maxlength="8" @blur="saveName(child.id)" />
+              <input v-model="names[child.id]" maxlength="8" placeholder-class="ph" @blur="saveName(child.id)" />
             </view>
             <text class="delete" @click="removeCurrentChild(child.id, child.name)">删除</text>
           </view>
@@ -286,7 +290,7 @@ function more(course: Course) {
             </view>
           </view>
           <view class="new-row">
-            <input v-model="newName" maxlength="8" placeholder="输入新孩子名字" />
+            <input v-model="newName" maxlength="8" placeholder="输入新孩子名字" placeholder-class="ph" />
             <button class="btn" @click="addChild">添加</button>
           </view>
           <text v-if="childError" class="form-error">{{ childError }}</text>
@@ -303,7 +307,7 @@ function more(course: Course) {
 .child-pill { display: flex; width: 48px; flex-direction: column; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 650; }
 .child-pill text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pill.on { color: var(--ink); font-weight: 750; }
-.child-pill.on :deep(.child-face) { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #8eb6ff; }
+.child-pill.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #8eb6ff; }
 .manage {
   display: flex;
   width: 40px;
@@ -357,7 +361,7 @@ function more(course: Course) {
 .badge.is-ended, .badge.is-completed { color: #6e7482; background: rgba(124,138,165,.16); }
 .more { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; }
 .type { display: inline-block; margin-top: 14px; padding: 3px 8px; border-radius: 7px; font-size: 9px; font-weight: 700; }
-.name { display: block; margin: 5px 0 10px; overflow: hidden; font-size: 17px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.name { display: block; margin: 5px 0 10px; overflow: hidden; color: var(--ink); font-size: 17px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .bar { height: 5px; border-radius: 999px; overflow: hidden; }
 .bar view { height: 100%; border-radius: inherit; }
 .meta { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; }
@@ -388,7 +392,7 @@ function more(course: Course) {
   padding: 16px 12px;
   border: 1.5px dashed rgba(255, 122, 69, 0.35);
   border-radius: 22px;
-  background: linear-gradient(150deg, #fff4ee 0%, #fff 70%);
+  background: linear-gradient(150deg, var(--accent-soft) 0%, var(--paper) 70%);
   text-align: center;
 }
 .course.add .name, .course.add .meta { width: 100%; text-align: center; }
@@ -405,14 +409,14 @@ function more(course: Course) {
 }
 .eyebrow { display: block; color: var(--accent-text); font-size: 11px; font-weight: 700; }
 .close { width: 34px; height: 34px; border-radius: 50%; background: var(--bg); color: var(--muted); text-align: center; line-height: 34px; font-size: 22px; }
-.profile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 9px; border-radius: 16px; background: #f7f8fc; }
+.profile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 9px; border-radius: 16px; background: var(--surface-2); }
 .profile-name { flex: 1; min-width: 0; margin-bottom: 0; }
 .delete { color: #ed5d6e; font-size: 12px; font-weight: 700; }
 .avatar-choices { display: flex; flex-wrap: wrap; gap: 8px; }
 .avatar-choices.new { margin: 8px 0 12px; }
 .avatar-choices .on :deep(.child-face) { box-shadow: 0 0 0 2px #ff7a45; }
 .new-row { display: flex; align-items: center; gap: 8px; }
-.new-row input { flex: 1; min-height: 44px; padding: 0 12px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+.new-row input { flex: 1; min-height: 44px; padding: 0 12px; border-radius: 14px; color: var(--ink); background: var(--field-bg); box-shadow: inset 0 0 0 1px var(--line); }
 .form-error { display: block; margin-top: 8px; color: var(--unpaid); font-size: 12px; }
 .course.inactive { color: var(--muted); }
 </style>

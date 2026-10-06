@@ -131,10 +131,10 @@ watch(signature, () => nextTick(draw))
   padding: 17px;
   border-radius: 24px;
   background: var(--paper);
-  box-shadow: var(--elev-md), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: var(--elev-md), var(--glow-top);
 }
 .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.title { display: block; font-size: 16px; font-weight: 800; }
+.title { display: block; color: var(--ink); font-size: 16px; font-weight: 800; }
 .caption { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
 .total { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
 .plot { width: 100%; height: 128px; margin-top: 6px; }

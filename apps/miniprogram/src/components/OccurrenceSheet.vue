@@ -128,7 +128,7 @@ function cancelOnce() {
           <text class="field-label">金额</text>
           <view class="money">
             <text>¥</text>
-            <input v-model="amount" type="digit" :disabled="locked" />
+            <input v-model="amount" type="digit" placeholder-class="ph" :disabled="locked" />
           </view>
         </view>
         <view v-if="!free" class="row pay-row">
@@ -161,7 +161,7 @@ function cancelOnce() {
 .action-row .btn { flex: 1; min-height: 48px; }
 .action-row .btn.danger {
   color: #ed5d6e;
-  background: #fff1f3;
+  background: var(--danger-soft);
   box-shadow: none;
 }
 </style>

@@ -316,7 +316,7 @@ function pickIcon(icon: CourseIcon) {
       </view>
       <view class="field">
         <text class="field-label">课程名称</text>
-        <input v-model="form.title" maxlength="40" placeholder="例如 钢琴课 / 外教口语" />
+        <input v-model="form.title" maxlength="40" placeholder="例如 钢琴课 / 外教口语" placeholder-class="ph" />
       </view>
       <view class="row">
         <view class="field" style="flex: 1">
@@ -325,12 +325,12 @@ function pickIcon(icon: CourseIcon) {
         </view>
         <view class="field" style="flex: 1">
           <text class="field-label">老师</text>
-          <input v-model="form.teacher" placeholder="老师姓名" />
+          <input v-model="form.teacher" placeholder="老师姓名" placeholder-class="ph" />
         </view>
       </view>
       <view class="field">
         <text class="field-label">上课地点</text>
-        <input v-model="form.location" placeholder="线下地点或在线平台" />
+        <input v-model="form.location" placeholder="线下地点或在线平台" placeholder-class="ph" />
       </view>
 
       <view class="billing">
@@ -361,7 +361,7 @@ function pickIcon(icon: CourseIcon) {
           <text class="field-label">{{ amountLabel }}</text>
           <view class="money">
             <text>¥</text>
-            <input v-model="form.amount" type="digit" />
+            <input v-model="form.amount" type="digit" placeholder-class="ph" />
           </view>
         </view>
         <view v-if="form.pricingMode === 'prepaid'" class="row pay-row">
@@ -467,7 +467,7 @@ function pickIcon(icon: CourseIcon) {
       </view>
       <view class="field">
         <text class="field-label">备注</text>
-        <textarea v-model="form.note" maxlength="200" placeholder="课程说明或注意事项" />
+        <textarea v-model="form.note" maxlength="200" placeholder="课程说明或注意事项" placeholder-class="ph" />
       </view>
     </view>
 
@@ -517,19 +517,19 @@ function pickIcon(icon: CourseIcon) {
   margin-bottom: 14px;
   padding: 15px 14px 12px;
   border-radius: 22px;
-  background: linear-gradient(150deg, #fff1ea 0%, #fff 68%);
+  background: linear-gradient(150deg, var(--accent-soft) 0%, var(--paper) 68%);
   box-shadow: var(--elev-sm);
 }
 .participants-title { display: block; margin-bottom: 12px; color: var(--muted); text-align: center; font-size: 12px; font-weight: 650; }
 .child-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .child-pick { display: flex; width: 76px; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .child-pick.on { color: var(--ink); }
-.child-pick.on :deep(.child-face) { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #ff7a45; }
+.child-pick.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .editor-card {
   margin-bottom: 12px;
   padding: 16px 14px;
   border-radius: 22px;
-  background: #fff;
+  background: var(--paper);
   box-shadow: var(--elev-sm);
 }
 .section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -552,18 +552,18 @@ function pickIcon(icon: CourseIcon) {
   font-size: 12px;
   font-weight: 800;
 }
-.h2 { display: block; font-size: 16px; font-weight: 800; }
+.h2 { display: block; color: var(--ink); font-size: 16px; font-weight: 800; }
 .hint { display: block; color: var(--muted); font-size: 12px; }
 .hint.warn, .form-error { color: var(--unpaid); }
 .billing { margin-top: 4px; }
 .bill-title { display: block; font-weight: 800; }
 .plan-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
-.plan { padding: 12px; border-radius: 16px; background: #f7f8fc; }
-.plan.on { background: #fff7f2; box-shadow: inset 0 0 0 1.5px #ff7a45; }
+.plan { padding: 12px; border-radius: 16px; background: var(--surface-2); }
+.plan.on { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px #ff7a45; }
 .plan-name { display: block; font-weight: 700; }
 .unit-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.unit { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 40px; padding: 10px 0; border-radius: 12px; background: #f7f8fc; font-weight: 700; line-height: 1; }
-.unit.on { background: #fff7f2; box-shadow: inset 0 0 0 1.5px #ff7a45; }
+.unit { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 40px; padding: 10px 0; border-radius: 12px; background: var(--surface-2); font-weight: 700; line-height: 1; }
+.unit.on { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px #ff7a45; }
 .pay-row { align-items: center; margin-bottom: 8px; }
 .summary { margin-top: 4px; color: var(--muted); font-size: 12px; }
 .slot { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
@@ -579,15 +579,15 @@ function pickIcon(icon: CourseIcon) {
   align-items: center;
   gap: 5px;
   padding: 9px 2px 7px;
-  border: 1px solid #e9e4f0;
+  border: 1px solid var(--icon-line);
   border-radius: 14px;
-  background: #f7f6fb;
-  color: #81798d;
+  background: var(--icon-bg);
+  color: var(--icon-fg);
   font-size: 10px;
 }
-.icon-option.on { color: #7048df; border-color: #8b64ee; background: #f0eaff; }
+.icon-option.on { color: var(--icon-on-fg); border-color: var(--icon-on-line); background: var(--icon-on-bg); }
 .swatch { width: 28px; height: 28px; border-radius: 50%; }
-.swatch.on { box-shadow: 0 0 0 3px #fff, 0 0 0 5px #ff7a45; }
+.swatch.on { box-shadow: 0 0 0 3px var(--halo), 0 0 0 5px #ff7a45; }
 .form-error { display: block; margin-bottom: 8px; }
 .save-dock {
   position: fixed;
@@ -596,7 +596,7 @@ function pickIcon(icon: CourseIcon) {
   right: 0;
   bottom: 0;
   padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
-  background: rgba(243, 244, 251, 0.96);
+  background: var(--dock-bg);
 }
 .eyebrow { display: block; color: var(--accent-text); font-size: 11px; font-weight: 700; }
 .close {

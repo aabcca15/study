@@ -229,6 +229,12 @@
 .tab-host.dark .tab { color: #8d94a5; }
 .tab-host.dark .tab.active { color: #ffb08d; }
 
+.tab-host.dark .tabbar-fab {
+  box-shadow: 0 0 0 5px rgba(16, 19, 27, 0.72), 0 0 0 8px rgba(16, 19, 27, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 14px 26px -8px rgba(255, 122, 69, 0.55);
+}
+
+.tab-host.dark .quick-item { color: #f3f5fa; }
+
 .tab-host.dark .quick-menu {
   background: rgba(28, 34, 48, 0.82);
   border-color: rgba(255, 255, 255, 0.08);

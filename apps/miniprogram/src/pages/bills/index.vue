@@ -10,12 +10,14 @@ import { useThemePage } from '@/composables/useThemePage'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
 import TabBar from '@/components/TabBar.vue'
-import { mix, tileBackground } from '@/utils/color'
+import { useThemeStore } from '@/stores/theme'
+import { currentMixBase, mix, tileBackground } from '@/utils/color'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+const theme = useThemeStore()
 const anchor = ref(dayjs().format('YYYY-MM-DD'))
 const fromToday = ref(false)
 
@@ -48,12 +50,13 @@ const slices = computed(() =>
   })),
 )
 const donutBackground = computed(() => {
-  if (!weekTotal.value || !slices.value.length) return '#e6e8f0'
+  const paper = currentMixBase()
+  if (!weekTotal.value || !slices.value.length) return theme.isDark ? '#2a3142' : '#e6e8f0'
   let cursor = 0
   const parts = slices.value.flatMap((item) => {
     const start = cursor
     cursor += (item.amount / weekTotal.value) * 100
-    return [`${mix(item.color, '#ffffff', 0.2)} ${start}%`, `${item.color} ${cursor}%`]
+    return [`${mix(item.color, paper, 0.2)} ${start}%`, `${item.color} ${cursor}%`]
   })
   return `conic-gradient(from -90deg, ${parts.join(',')})`
 })
@@ -163,8 +166,8 @@ function shift(delta: number) {
 .mini { flex: 1; padding: 2px 8px; text-align: center; border-left: 1px solid var(--line); }
 .mini:first-child { padding-left: 0; border-left: 0; }
 .mini .muted, .strong { display: block; }
-.strong { margin-top: 5px; font-size: 15px; font-weight: 800; }
-.section { display: block; margin-bottom: 8px; font-size: 16px; font-weight: 800; }
+.strong { margin-top: 5px; color: var(--ink); font-size: 15px; font-weight: 800; }
+.section { display: block; margin-bottom: 8px; color: var(--ink); font-size: 16px; font-weight: 800; }
 .fee-content { display: flex; gap: 12px; align-items: center; }
 .donut { position: relative; width: 112px; height: 112px; flex: 0 0 auto; }
 .donut-ring { position: absolute; inset: 0; border-radius: 50%; }
@@ -176,9 +179,9 @@ function shift(delta: number) {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #fff;
+  background: var(--paper);
 }
-.donut-total { margin-top: 3px; font-size: 13px; font-weight: 800; }
+.donut-total { margin-top: 3px; color: var(--ink); font-size: 13px; font-weight: 800; }
 .legend { flex: 1; min-width: 0; }
 .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: var(--muted); font-size: 11px; }
 .swatch { width: 7px; height: 7px; border-radius: 50%; }

@@ -225,7 +225,7 @@ async function submit() {
         <template v-else>
           <view class="field">
             <text class="field-label">课程名称</text>
-            <input v-model="title" placeholder="例如 临时钢琴课" />
+            <input v-model="title" placeholder="例如 临时钢琴课" placeholder-class="ph" />
           </view>
           <view class="row">
             <view class="field" style="flex: 1">
@@ -244,7 +244,7 @@ async function submit() {
             <text class="field-label">费用</text>
             <view class="money">
               <text>¥</text>
-              <input v-model="amount" type="digit" />
+              <input v-model="amount" type="digit" placeholder-class="ph" />
             </view>
           </view>
           <view class="row pay-row">
@@ -306,7 +306,7 @@ async function submit() {
   margin-bottom: 14px;
   padding: 4px;
   border-radius: 16px;
-  background: #f4f5f8;
+  background: var(--surface-2);
 }
 .mode-tabs text {
   display: flex;
@@ -321,7 +321,7 @@ async function submit() {
   line-height: 1;
 }
 .mode-tabs text.on {
-  background: #fff;
+  background: var(--paper);
   color: var(--ink);
   box-shadow: var(--elev-sm);
 }
@@ -338,9 +338,9 @@ async function submit() {
   margin-bottom: 8px;
   padding: 12px;
   border-radius: 16px;
-  background: #f7f8fc;
+  background: var(--surface-2);
 }
-.preset.on { box-shadow: inset 0 0 0 1.5px #ff7a45; background: #fff7f2; }
+.preset.on { box-shadow: inset 0 0 0 1.5px #ff7a45; background: var(--accent-soft); }
 .preset.off { opacity: 0.45; }
 .dot { width: 10px; height: 10px; border-radius: 50%; }
 .preset-copy { flex: 1; min-width: 0; }
@@ -368,7 +368,8 @@ async function submit() {
   gap: 8px;
   padding: 0 13px;
   border-radius: 14px;
-  background: #fff;
+  color: var(--ink);
+  background: var(--field-bg);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .date-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

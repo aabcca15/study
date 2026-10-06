@@ -230,8 +230,8 @@ async function undoCancel() {
   margin-bottom: 20px;
   padding: 12px 10px 10px;
   border-radius: 24px;
-  background: linear-gradient(170deg, #fff 0%, #fff6f1 100%);
-  box-shadow: var(--elev-md), inset 0 1px 0 rgba(255,255,255,.9);
+  background: linear-gradient(170deg, var(--paper) 0%, var(--accent-soft) 100%);
+  box-shadow: var(--elev-md), var(--glow-top);
 }
 .week-toolbar {
   display: flex;
@@ -278,12 +278,12 @@ async function undoCancel() {
   justify-content: space-between;
   padding: 14px 15px;
   border-radius: 24px;
-  background: linear-gradient(150deg, #fff1ea 0%, #ffffff 62%);
-  box-shadow: 0 2px 5px rgba(25, 31, 58, 0.04), 0 18px 34px -16px rgba(255, 122, 69, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: linear-gradient(150deg, var(--accent-soft) 0%, var(--paper) 62%);
+  box-shadow: var(--elev-md), var(--glow-top);
 }
 .overview-card.is-bill {
-  background: linear-gradient(150deg, #ffe8ee 0%, #ffffff 62%);
-  box-shadow: 0 2px 5px rgba(25, 31, 58, 0.04), 0 18px 34px -16px rgba(255, 95, 121, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: linear-gradient(150deg, var(--unpaid-soft) 0%, var(--paper) 62%);
+  box-shadow: var(--elev-md), var(--glow-top);
 }
 .overview-head { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .overview-head text:nth-child(2) { flex: 1; }
@@ -300,7 +300,7 @@ async function undoCancel() {
 .mark.bill { background: linear-gradient(140deg, #ff8ea3, #d93d59); box-shadow: 0 6px 14px -6px rgba(255, 95, 121, 0.75), inset 0 1px 0 rgba(255,255,255,.45); }
 .more { font-size: 15px; }
 .overview-body { display: flex; align-items: flex-end; justify-content: space-between; }
-.big { display: block; font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
+.big { display: block; color: var(--ink); font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
 .overview-ring {
   width: 44px;
   height: 44px;
@@ -308,14 +308,14 @@ async function undoCancel() {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: conic-gradient(from 210deg, #e95331 0deg, #ff7a45 var(--ring), #f6e4dc var(--ring));
+  background: conic-gradient(from 210deg, #e95331 0deg, #ff7a45 var(--ring), var(--ring-rest) var(--ring));
   box-shadow: 0 8px 16px -8px rgba(255, 122, 69, 0.7);
   font-size: 9px;
   font-weight: 800;
   color: #e95331;
 }
 .is-bill .overview-ring {
-  background: conic-gradient(from 210deg, #d93d59 0deg, #ff5f79 var(--ring), #f8e4e8 var(--ring));
+  background: conic-gradient(from 210deg, #d93d59 0deg, #ff5f79 var(--ring), var(--ring-rest-bill) var(--ring));
   box-shadow: 0 8px 16px -8px rgba(255, 95, 121, 0.7);
   color: #d93d59;
 }
@@ -323,7 +323,7 @@ async function undoCancel() {
   width: 33px;
   height: 33px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--paper);
   text-align: center;
   line-height: 33px;
   box-shadow: inset 0 1px 3px rgba(25, 31, 58, 0.08);

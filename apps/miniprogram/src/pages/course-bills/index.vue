@@ -84,19 +84,19 @@ function subOf(day: { startTime?: string; endTime?: string; kind?: string }) {
 .edit { padding-bottom: 48px; }
 .hero { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 14px 16px; border-radius: 22px; box-shadow: var(--elev-sm); }
 .hero-icon { display: flex; width: 46px; height: 46px; align-items: center; justify-content: center; border-radius: 15px; }
-.hero-title { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
+.hero-title { display: block; margin-top: 2px; color: var(--ink); font-size: 18px; font-weight: 800; }
 .stats { display: flex; }
 .mini { flex: 1; padding: 2px 8px; text-align: center; border-left: 1px solid var(--line); }
 .mini:first-child { border-left: 0; }
 .mini .muted, .strong { display: block; }
-.strong { margin-top: 5px; font-size: 15px; font-weight: 800; }
+.strong { margin-top: 5px; color: var(--ink); font-size: 15px; font-weight: 800; }
 .list-title { margin: 6px 0 11px; }
-.h2 { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
-.day-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 14px; border-radius: 18px; background: #fff; box-shadow: var(--elev-sm); }
+.h2 { display: block; margin-top: 2px; color: var(--ink); font-size: 18px; font-weight: 800; }
+.day-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 14px; border-radius: 18px; background: var(--paper); box-shadow: var(--elev-sm); }
 .day-copy { flex: 1; min-width: 0; }
-.day-title { display: block; font-weight: 750; }
+.day-title { display: block; color: var(--ink); font-weight: 750; }
 .day-fee { text-align: right; }
-.day-amount { display: block; font-weight: 750; }
-.arrow { color: #c5cad6; font-size: 18px; }
+.day-amount { display: block; color: var(--ink); font-weight: 750; }
+.arrow { color: var(--faint); font-size: 18px; }
 .empty { display: block; padding: 24px 8px; color: var(--muted); text-align: center; }
 </style>

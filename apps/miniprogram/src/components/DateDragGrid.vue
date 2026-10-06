@@ -170,7 +170,7 @@ defineExpose({ shift })
   border-radius: 50%;
   line-height: 1;
 }
-.drag-day.out { color: #d5d8e2; }
+.drag-day.out { color: var(--faint); }
 .drag-day.on text { background: #ff7a45; color: #fff; }
 .drag-day.today:not(.on) text { box-shadow: inset 0 0 0 1px #ffb45c; }
 </style>

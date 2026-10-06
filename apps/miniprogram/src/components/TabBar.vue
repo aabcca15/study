@@ -2,6 +2,7 @@
 import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon.vue'
+import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
 import { openTab } from '@/utils/nav'
 
@@ -10,6 +11,7 @@ const props = defineProps<{
 }>()
 
 const ui = useUiStore()
+const theme = useThemeStore()
 const open = ref(false)
 const travel = ref(false)
 const ready = ref(false)
@@ -100,8 +102,8 @@ onShow(measureSoon)
 </script>
 
 <template>
-  <view class="quick-backdrop" :class="{ show: open }" @click="open = false" />
-  <view class="quick-menu" :class="{ show: open }">
+  <view class="quick-backdrop" :class="{ show: open, dark: theme.isDark }" @click="open = false" />
+  <view class="quick-menu" :class="{ show: open, dark: theme.isDark }">
     <button class="quick-item" @click="quick('/pages/today/index?add=1')">
       <text class="quick-badge accent">＋</text>
       <view>
@@ -125,7 +127,7 @@ onShow(measureSoon)
     </button>
   </view>
 
-  <view id="glass-tabbar" class="tabbar">
+  <view id="glass-tabbar" class="tabbar" :class="{ dark: theme.isDark }">
     <view class="indicator" :class="{ travel }" :style="indicatorStyle" />
     <view
       v-for="tab in leftTabs"
@@ -349,4 +351,24 @@ onShow(measureSoon)
 .quick-item text { display: block; }
 .quick-item .title { font-size: 13px; font-weight: 700; }
 .quick-item .desc { margin-top: 3px; color: var(--muted); font-size: 10px; }
+
+.tabbar.dark {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 40px -18px rgba(0, 0, 0, 0.55);
+}
+.tabbar.dark .indicator {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.12) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 10px 20px -12px rgba(0, 0, 0, 0.55);
+}
+.tabbar.dark .tab { color: #8d94a5; }
+.tabbar.dark .tab.active { color: #ffb08d; }
+.tabbar.dark .tabbar-fab {
+  box-shadow: 0 0 0 5px rgba(16, 19, 27, 0.72), 0 0 0 8px rgba(16, 19, 27, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 14px 26px -8px rgba(255, 122, 69, 0.55);
+}
+.quick-menu.dark {
+  background: rgba(28, 34, 48, 0.82);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.quick-backdrop.dark { background: rgba(8, 10, 16, 0.45); }
 </style>

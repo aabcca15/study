@@ -120,7 +120,7 @@ function remove() {
       <text class="muted">记到当前孩子 {{ store.child?.name || '' }}，并直接记为已支付。</text>
       <view class="field">
         <text class="field-label">名称</text>
-        <input v-model="form.title" placeholder="例如：买书" />
+        <input v-model="form.title" placeholder="例如：买书" placeholder-class="ph" />
       </view>
       <view class="field">
         <text class="field-label">类型</text>
@@ -128,7 +128,7 @@ function remove() {
       </view>
       <view class="field">
         <text class="field-label">金额</text>
-        <input v-model="form.amount" type="digit" />
+        <input v-model="form.amount" type="digit" placeholder-class="ph" />
       </view>
       <view class="field">
         <text class="field-label">日期</text>
@@ -152,11 +152,11 @@ function remove() {
         <text class="muted">剩余可退 {{ money(refundable) }}</text>
         <view class="field">
           <text class="field-label">退款金额</text>
-          <input v-model="refundAmount" type="digit" />
+          <input v-model="refundAmount" type="digit" placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="field-label">备注</text>
-          <input v-model="refundNote" placeholder="选填" />
+          <input v-model="refundNote" placeholder="选填" placeholder-class="ph" />
         </view>
         <button class="btn ghost block" @click="refund">记录退款</button>
       </view>
