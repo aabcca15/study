@@ -320,17 +320,16 @@ module.exports = __toCommonJS(index_exports);
 var import_wx_server_sdk = __toESM(require("wx-server-sdk"));
 
 // ../../server/src/domain/constants.ts
-var COURSE_ICON_COLORS = {
-  school: "#7B61FF",
-  sport: "#26C281",
-  math: "#FF9A3D",
-  reading: "#FF6B8A",
-  music: "#C265F0",
-  swimming: "#22C4CC",
-  english: "#3E9BFF",
-  calligraphy: "#F0A92B",
-  generic: "#7C8AA5"
-};
+var COURSE_COLORS = [
+  "#7B61FF",
+  "#FF6B8A",
+  "#26C281",
+  "#3E9BFF",
+  "#C265F0",
+  "#FF9A3D",
+  "#22C4CC",
+  "#7C8AA5"
+];
 var CHILD_AVATAR_OPTIONS = [
   { key: "boy-blue", label: "\u84DD\u8863\u7537\u5B69", color: "#5B8DEF" },
   { key: "boy-cap", label: "\u767D\u5E3D\u7537\u5B69", color: "#6EA0F0" },
@@ -340,6 +339,17 @@ var CHILD_AVATAR_OPTIONS = [
 var DEFAULT_CHILD_AVATAR = CHILD_AVATAR_OPTIONS[0];
 function childAvatarOption(key) {
   return CHILD_AVATAR_OPTIONS.find((item) => item.key === key) ?? DEFAULT_CHILD_AVATAR;
+}
+function randomCourseColor(courses, options) {
+  const used = new Set(
+    courses.filter((course) => course.id !== (options == null ? void 0 : options.exceptId)).map((course) => {
+      var _a;
+      return (_a = course.color) == null ? void 0 : _a.toUpperCase();
+    }).filter(Boolean)
+  );
+  const unused = COURSE_COLORS.filter((color) => !used.has(color.toUpperCase()));
+  const palette = unused.length ? unused : COURSE_COLORS;
+  return palette[Math.floor(Math.random() * palette.length)];
 }
 var BILLING_SCHEMA_VERSION = 4;
 function createId(prefix) {
@@ -1620,7 +1630,7 @@ function createFamilyWorkspace(initial) {
       teacher: "",
       location: "",
       icon: "generic",
-      color: COURSE_ICON_COLORS.generic,
+      color: randomCourseColor(snapshot.value.courses),
       billingPolicy: {
         pricingMode: amount > 0 ? "per_session" : "free",
         settlementCycle: "manual"

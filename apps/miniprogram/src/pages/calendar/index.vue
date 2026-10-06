@@ -9,7 +9,7 @@ import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/composables/useThemePage'
 import { useUiStore } from '@/stores/ui'
 import { setTabCover, syncVisibleTab } from '@/utils/nav'
-import { monthMatrix } from '@/utils/view'
+import { monthMatrix, occurrenceDots } from '@/utils/view'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import DayCourseList from '@/components/DayCourseList.vue'
@@ -39,7 +39,7 @@ const items = computed(() =>
 )
 /** 只随月份和课程数据变化；点选日期不会触发重算。 */
 const cellColors = computed(() => cells.value.map((date) => date
-  ? [...new Set(occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions).map((item) => item.course.color))].slice(0, 3)
+  ? occurrenceDots(store.overviewCourses, date, store.overviewScheduleExceptions)
   : []))
 const cellViews = computed(() => cells.value.map((date, index) => ({
   date,
@@ -122,7 +122,7 @@ async function undoCancel() {
           >
             <text>{{ cell.label }}</text>
             <view class="dots">
-              <view v-for="color in cell.colors" :key="color" :style="{ background: color }" />
+              <view v-for="dot in cell.colors" :key="dot.id" :style="{ background: dot.color }" />
             </view>
           </button>
         </view>
@@ -186,6 +186,6 @@ async function undoCancel() {
 .day.muted { color: var(--faint); }
 .day.today { font-weight: 700; }
 .day.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 700; }
-.dots { display: flex; gap: 2px; min-height: 5px; margin-top: 2px; }
+.dots { display: flex; justify-content: center; gap: 2px; min-height: 5px; margin-top: 2px; }
 .dots view { width: 4px; height: 4px; border-radius: 50%; }
 </style>

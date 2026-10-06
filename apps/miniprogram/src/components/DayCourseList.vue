@@ -119,11 +119,13 @@ const rows = computed(() => {
       width: done.percent + '%',
       background: `linear-gradient(90deg, ${mix(color, paper, 0.28)} 0%, ${deepTone(color)} 100%)`,
     },
+    startStyle: { color: deepTone(color) },
+    endStyle: { color: mix(color, paper, dark ? 0.42 : 0.36) },
     lineStyle: {
-      background: `linear-gradient(180deg, ${mix(color, paper, 0.2)} 0%, ${mix(color, dark ? '#10131b' : '#f3f4fb', 0.72)} 100%)`,
+      background: `linear-gradient(180deg, ${deepTone(color)} 0%, ${mix(color, paper, dark ? 0.68 : 0.58)} 100%)`,
     },
     dotStyle: {
-      background: mix(color, '#687087', 0.35),
+      background: deepTone(color),
       boxShadow: `0 0 0 2px ${mix(color, paper, 0.55)}`,
     },
   }
@@ -144,7 +146,10 @@ const rows = computed(() => {
     <view v-if="rows.length" class="lesson-list">
       <view v-for="(row, index) in rows" :key="row.item.id" class="timeline-entry">
         <view class="timeline-marker">
-          <text class="timeline-start">{{ row.start }}</text>
+          <view class="timeline-times">
+            <text class="timeline-start" :style="row.startStyle">{{ row.start }}</text>
+            <text class="timeline-end" :style="row.endStyle">{{ row.end }}</text>
+          </view>
           <view class="timeline-rail">
             <view class="timeline-line" :class="{ last: index === rows.length - 1 }" :style="row.lineStyle" />
             <view class="timeline-dot" :style="row.dotStyle" />
@@ -152,33 +157,35 @@ const rows = computed(() => {
               <ChildAvatar v-for="child in row.faces" :key="child.id" :avatar-key="child.avatarKey" :size="26" />
             </view>
           </view>
-          <text class="timeline-end">{{ row.end }}</text>
         </view>
         <view class="lesson-card" :style="row.cardStyle">
           <view class="lesson-body">
             <view class="lesson-time" :style="row.tileStyle">
               <AppIcon :key="row.icon" :name="row.icon" tone="white" :size="26" />
             </view>
-            <view class="lesson-main">
-              <view class="lesson-copy">
-                <text class="lesson-type" :style="row.typeStyle">{{ COURSE_TYPE_LABEL[row.item.course.type] }}</text>
-                <text class="lesson-name">{{ row.item.course.title }}</text>
-                <view class="lesson-meta">
-                  <text>{{ row.item.course.teacher || '老师待定' }}</text>
-                  <view class="dot" />
-                  <text>{{ row.item.course.location || '地点待定' }}</text>
-                </view>
-                <view class="lesson-period">
-                  <text class="dur">{{ row.duration }}</text>
-                  <view class="range">
-                    <AppIcon name="clock" tone="muted" :size="12" />
-                    <text>{{ row.start }}–{{ row.end }}</text>
-                  </view>
-                </view>
-                <text v-if="row.item.exception" class="adjust" :style="{ color: row.item.course.color }">
-                  {{ row.item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}
-                </text>
+            <view class="lesson-copy">
+              <text class="lesson-type" :style="row.typeStyle">{{ COURSE_TYPE_LABEL[row.item.course.type] }}</text>
+              <text class="lesson-name">{{ row.item.course.title }}</text>
+              <view class="lesson-meta">
+                <text>{{ row.item.course.teacher || '老师待定' }}</text>
+                <view class="dot" />
+                <text>{{ row.item.course.location || '地点待定' }}</text>
               </view>
+              <view class="lesson-period">
+                <text class="dur">{{ row.duration }}</text>
+                <view class="range">
+                  <AppIcon name="clock" tone="muted" :size="12" />
+                  <text>{{ row.start }}–{{ row.end }}</text>
+                </view>
+              </view>
+              <text v-if="row.item.exception" class="adjust" :style="{ color: row.item.course.color }">
+                {{ row.item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}
+              </text>
+            </view>
+            <view class="lesson-side">
+              <button class="more" @click="emit('edit', row.item)">
+                <AppIcon name="dots" tone="muted" :size="18" />
+              </button>
               <view class="fee-row">
                 <text class="fee">{{ row.fee.label }}</text>
                 <text
@@ -189,9 +196,6 @@ const rows = computed(() => {
                 <text v-if="row.totals" class="fee-totals">已付 {{ money(row.totals.paid) }} · 未付 {{ money(row.totals.unpaid) }}</text>
               </view>
             </view>
-            <button class="more" @click="emit('edit', row.item)">
-              <AppIcon name="dots" tone="muted" :size="18" />
-            </button>
           </view>
           <view class="course-progress">
             <view class="progress-copy">
@@ -230,29 +234,35 @@ const rows = computed(() => {
   font-size: 12px;
   font-weight: 700;
 }
-.timeline-entry { display: flex; align-items: stretch; gap: 10px; margin-bottom: 12px; }
+.timeline-entry { display: flex; align-items: stretch; gap: 8px; margin-bottom: 12px; }
 .timeline-marker {
   display: flex;
-  width: 48px;
+  width: 52px;
+  flex: 0 0 auto;
+  align-items: stretch;
+  padding-top: 2px;
+}
+.timeline-times {
+  display: flex;
+  width: 36px;
   flex-direction: column;
-  align-items: center;
+  justify-content: space-between;
+  padding: 1px 3px 2px 0;
 }
 .timeline-start, .timeline-end {
   width: 100%;
-  color: var(--ink);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 9px;
+  letter-spacing: -0.04em;
   line-height: 1;
-  text-align: center;
+  text-align: right;
 }
-.timeline-start { padding-top: 2px; }
-.timeline-end { padding-bottom: 2px; }
-.timeline-rail { position: relative; flex: 1; width: 100%; min-height: 28px; }
+.timeline-start { font-weight: 800; }
+.timeline-end { font-weight: 650; }
+.timeline-rail { position: relative; flex: 1; width: 12px; min-width: 12px; }
 .timeline-line {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
+  top: 7px;
+  bottom: -12px;
   left: 50%;
   width: 2px;
   margin-left: -1px;
@@ -262,7 +272,7 @@ const rows = computed(() => {
 .timeline-dot {
   position: absolute;
   z-index: 1;
-  top: 2px;
+  top: 1px;
   left: 50%;
   width: 7px;
   height: 7px;
@@ -273,7 +283,7 @@ const rows = computed(() => {
 .timeline-faces {
   position: absolute;
   z-index: 2;
-  top: 16px;
+  top: 18px;
   left: 50%;
   display: flex;
   flex-direction: column;
@@ -298,7 +308,6 @@ const rows = computed(() => {
   border-radius: 16px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
 }
-.lesson-main { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; }
 .lesson-copy { min-width: 0; flex: 1; }
 .lesson-type {
   display: inline-block;
@@ -317,34 +326,39 @@ const rows = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lesson-meta { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
-.lesson-meta text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+.lesson-meta text { min-width: 0; line-height: 1.35; }
 .lesson-meta .dot { width: 3px; height: 3px; flex: 0 0 auto; border-radius: 50%; background: var(--faint); }
 .range { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 9px; }
 .lesson-period { display: flex; flex-wrap: wrap; gap: 5px 9px; align-items: center; margin-top: 11px; }
 .dur { font-size: 15px; font-weight: 750; }
 .adjust { display: block; margin-top: 6px; font-size: 10px; font-weight: 650; }
-.fee-row {
+.lesson-side {
   display: flex;
+  width: 78px;
   flex: 0 0 auto;
   flex-direction: column;
   align-items: flex-end;
-  align-self: center;
+  gap: 8px;
+}
+.fee-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 6px;
-  max-width: 42%;
   text-align: right;
 }
 .fee { font-size: 15px; font-weight: 750; white-space: nowrap; }
 .pay-pill { padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 750; }
 .pay-pill.paid { color: var(--paid); background: var(--paid-soft); }
 .pay-pill.unpaid { color: var(--unpaid); background: var(--unpaid-soft); }
-.fee-totals { max-width: 118px; color: var(--muted); font-size: 9px; line-height: 1.35; text-align: right; }
+.fee-totals { color: var(--muted); font-size: 9px; line-height: 1.35; text-align: right; }
 .more {
   display: flex;
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
 }
 .course-progress { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }

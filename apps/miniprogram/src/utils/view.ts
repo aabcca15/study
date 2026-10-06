@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
-import type { Course, Expense } from '@server-domain/types'
+import type { Course, Expense, ScheduleException } from '@server-domain/types'
 import { money } from '@server-domain/billing'
+import { occurrencesOnDate } from '@server-domain/schedule'
 
 export function mondayOf(date: string) {
   const day = dayjs(date)
@@ -30,6 +31,18 @@ export function weekLabel(date: string) {
   const end = dayjs(days[6])
   if (start.month() === end.month()) return `${start.format('M月D日')}–${end.format('D日')}`
   return `${start.format('M月D日')}–${end.format('M月D日')}`
+}
+
+/** 一天一个点，颜色相同也分开画，方便看出当天有几节课。 */
+export function occurrenceDots(
+  courses: Course[],
+  date: string,
+  exceptions: ScheduleException[],
+  limit = 4,
+) {
+  return occurrencesOnDate(courses, date, exceptions)
+    .slice(0, limit)
+    .map((item) => ({ id: item.id, color: item.course.color }))
 }
 
 export function occurrenceExpense(expenses: Expense[], course: Course, date: string) {

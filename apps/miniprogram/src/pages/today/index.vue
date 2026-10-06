@@ -12,7 +12,7 @@ import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
 import { useThemePage } from '@/composables/useThemePage'
 import { openTab, setTabCover, syncVisibleTab } from '@/utils/nav'
-import { weekDates, weekLabel } from '@/utils/view'
+import { occurrenceDots, weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import DayCourseList from '@/components/DayCourseList.vue'
@@ -98,7 +98,7 @@ const dayViews = computed(() => days.value.map((date) => ({
   date,
   weekday: WEEKDAY_SHORT[dayjs(date).day()],
   num: Number(date.slice(8, 10)),
-  colors: [...new Set(occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions).map((item) => item.course.color))].slice(0, 3),
+  colors: occurrenceDots(store.overviewCourses, date, store.overviewScheduleExceptions),
 })))
 const isToday = computed(() => ui.selectedDate === ui.today)
 const selectedLabel = computed(() => dayjs(ui.selectedDate).format('M月D日'))
@@ -166,7 +166,7 @@ async function undoCancel() {
             <text>{{ day.weekday }}</text>
             <text class="num">{{ day.num }}</text>
             <view class="course-dots">
-              <view v-for="color in day.colors" :key="color" :style="{ background: color }" />
+              <view v-for="dot in day.colors" :key="dot.id" :style="{ background: dot.color }" />
             </view>
           </button>
         </view>
@@ -267,7 +267,7 @@ async function undoCancel() {
   box-shadow: 0 14px 26px -10px rgba(255,122,69,.75);
 }
 .date-strip button.active .num { color: #fff; }
-.course-dots { display: flex; min-height: 6px; gap: 3px; margin-top: 5px; }
+.course-dots { display: flex; min-height: 6px; justify-content: center; gap: 2px; margin-top: 5px; }
 .course-dots view { width: 6px; height: 6px; border-radius: 50%; }
 .overview { display: flex; gap: 11px; margin-bottom: 28px; }
 .overview-card {

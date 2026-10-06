@@ -13,7 +13,7 @@ import type {
   ScheduleException,
   SettlementCycle,
 } from '../domain/types'
-import { childAvatarOption, COURSE_ICON_COLORS, createId } from '../domain/constants'
+import { childAvatarOption, createId, randomCourseColor } from '../domain/constants'
 import { currentPeriod } from '../domain/billing'
 import {
   busyIntervalsOnDate,
@@ -920,7 +920,7 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
       teacher: '',
       location: '',
       icon: 'generic',
-      color: COURSE_ICON_COLORS.generic,
+      color: randomCourseColor(snapshot.value.courses),
       billingPolicy: {
         pricingMode: amount > 0 ? 'per_session' : 'free',
         settlementCycle: 'manual',

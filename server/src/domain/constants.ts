@@ -116,6 +116,21 @@ export function unusedCourseColor(
   return palette.find((color) => !used.has(color.toUpperCase())) ?? preferred ?? COURSE_COLORS[0]
 }
 
+export function randomCourseColor(
+  courses: Array<{ id?: string; color?: string }>,
+  options?: { exceptId?: string },
+) {
+  const used = new Set(
+    courses
+      .filter((course) => course.id !== options?.exceptId)
+      .map((course) => course.color?.toUpperCase())
+      .filter(Boolean),
+  )
+  const unused = COURSE_COLORS.filter((color) => !used.has(color.toUpperCase()))
+  const palette = unused.length ? unused : COURSE_COLORS
+  return palette[Math.floor(Math.random() * palette.length)]
+}
+
 export const COURSE_ICON_OPTIONS: Array<{ value: CourseIcon; label: string }> = [
   { value: 'school', label: '学校' },
   { value: 'sport', label: '运动' },
