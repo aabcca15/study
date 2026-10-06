@@ -146,7 +146,7 @@ function shift(delta: number) {
 
 <style scoped>
 .nav { display: flex; align-items: center; gap: 4px; }
-.nav button { display: flex; width: 32px; height: 32px; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; }
+.nav button { display: flex; width: 32px; height: 32px; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; line-height: 32px; }
 .nav .add {
   width: auto;
   gap: 4px;

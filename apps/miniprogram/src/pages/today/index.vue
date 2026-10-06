@@ -10,7 +10,7 @@ import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
-import { openTab, setTabCover } from '@/utils/nav'
+import { openTab, setTabCover, syncVisibleTab } from '@/utils/nav'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
 import AppHeader from '@/components/AppHeader.vue'
@@ -34,6 +34,7 @@ watch([addOpen, editing], () => {
 })
 
 onShow(() => {
+  syncVisibleTab(0)
   setTabCover(addOpen.value || Boolean(editing.value))
   const app = getApp() as { globalData?: { pendingAdd?: boolean } }
   if (app?.globalData?.pendingAdd) {

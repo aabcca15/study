@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import dayjs from 'dayjs'
 import { groupByCategory, money } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { calculateLearningStatistics } from '@server-domain/statistics'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { deepTone, mix, tileBackground } from '@/utils/color'
+import { syncVisibleTab } from '@/utils/nav'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import TrendChart from '@/components/TrendChart.vue'
 
 const store = useFamilyPage()
+
+onShow(() => {
+  syncVisibleTab(3)
+})
 const granularity = ref<'month' | 'year'>('month')
 const anchor = ref(dayjs())
 const chartColors = ['#FF7A45', '#FF5F79', '#FFB347', '#39C6A4', '#5D9CFF', '#B46AF4']
@@ -215,12 +221,43 @@ function formatTrendHours(hours: number) {
 
 <style scoped>
 .stats-page { padding-top: 8px; }
-.nav { display: flex; padding: 3px; border-radius: 14px; background: #fff; box-shadow: var(--elev-sm); }
-.nav button { min-width: 48px; height: 30px; padding: 0 10px; border-radius: 11px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.nav { display: flex; align-items: center; padding: 3px; border-radius: 14px; background: #fff; box-shadow: var(--elev-sm); }
+.nav button {
+  display: flex;
+  min-width: 48px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 30px;
+}
 .nav button.on { color: var(--accent-text); background: var(--accent-soft); }
-.scope-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.scope-nav button { width: 32px; height: 32px; color: var(--muted); font-size: 22px; }
-.scope-nav text { font-size: 16px; font-weight: 800; }
+.scope-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.scope-nav button {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+}
+.scope-nav text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .stats { display: flex; margin-bottom: 14px; }
 .mini { flex: 1; padding: 2px 8px; text-align: center; border-left: 1px solid var(--line); }
 .mini:first-child { padding-left: 0; border-left: 0; }
@@ -254,8 +291,15 @@ function formatTrendHours(hours: number) {
 .metric-icon.blue { background: linear-gradient(140deg, #8eb6ff, #5b8def); }
 .metric-value { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
 .unit { margin-left: 2px; font-size: 12px; font-weight: 650; }
-.section-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
-.h2 { display: block; font-size: 18px; font-weight: 800; }
+.section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.section-head .muted {
+  max-width: 48%;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.h2 { display: block; font-size: 16px; font-weight: 800; }
 .report-scroll { width: 100%; margin-bottom: 16px; white-space: nowrap; }
 .report-row { display: flex; gap: 12px; padding-bottom: 4px; }
 .course-report {

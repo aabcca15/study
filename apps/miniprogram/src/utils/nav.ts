@@ -14,6 +14,44 @@ const TAB_INDEX: Record<string, number> = {
   stats: 3,
 }
 
+type TabBarHandle = {
+  showTab?: (index: number, animate?: boolean) => void
+  setData?: (data: { selected?: number; covered?: boolean }) => void
+}
+
+function tabBars(): TabBarHandle[] {
+  return getCurrentPages().flatMap((page) => {
+    const raw = page as {
+      getTabBar?: () => TabBarHandle
+      $vm?: { getTabBar?: () => TabBarHandle }
+    }
+    const bar = raw.getTabBar?.() || raw.$vm?.getTabBar?.()
+    return bar ? [bar] : []
+  })
+}
+
+/** 微信会缓存每个 tab 页，底栏也各有一份。切换时要把已经打开过的每一份都写成同一个下标。 */
+export function syncVisibleTab(index: number) {
+  const app = getApp({ allowDefault: true }) as {
+    globalData?: { tabIndex?: number; tabStamp?: number; tabBars?: TabBarHandle[] }
+  }
+  app.globalData = app.globalData || {}
+  const stamp = Date.now()
+  app.globalData.tabIndex = index
+  app.globalData.tabStamp = stamp
+  const paint = () => {
+    if (app.globalData?.tabStamp !== stamp || app.globalData.tabIndex !== index) return
+    const bars = [...(app.globalData.tabBars || []), ...tabBars()]
+    bars.forEach((bar) => {
+      if (bar.showTab) bar.showTab(index, false)
+      else bar.setData?.({ selected: index })
+    })
+  }
+  paint()
+  setTimeout(paint, 50)
+  setTimeout(paint, 320)
+}
+
 export function setTabCover(covered: boolean) {
   const apply = () => {
     const page = getCurrentPages().slice(-1)[0] as {
@@ -36,10 +74,7 @@ export function openTab(url: string) {
   else if (path.includes('/stats/')) key = 'stats'
   else if (path.includes('/today/')) key = 'today'
   ui.tab = key as 'today' | 'calendar' | 'courses' | 'stats'
-  const app = getApp({ allowDefault: true }) as { globalData?: { tabIndex?: number; tabStamp?: number } }
-  app.globalData = app.globalData || {}
-  app.globalData.tabIndex = TAB_INDEX[key]
-  app.globalData.tabStamp = Date.now()
+  syncVisibleTab(TAB_INDEX[key])
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]?.route
   if (current && `/${current}` === path) return

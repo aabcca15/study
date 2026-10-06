@@ -12,7 +12,7 @@ import {
 } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
-import DateField from './DateField.vue'
+import DateDragGrid from './DateDragGrid.vue'
 import TimeField from './TimeField.vue'
 
 const props = defineProps<{
@@ -35,6 +35,7 @@ const amount = ref('0')
 const paid = ref(false)
 const saving = ref(false)
 const errorText = ref('')
+const pickerOpen = ref(false)
 
 const sortedDates = computed(() => [...dates.value].filter(Boolean).sort())
 const courses = computed(() => store.overviewCourses)
@@ -53,6 +54,15 @@ const busyIntervals = computed(() =>
   ),
 )
 const conflict = computed(() => findBusyConflict(busyIntervals.value, startTime.value, endTime.value))
+const dateLabel = computed(() => {
+  const dates = sortedDates.value
+  if (!dates.length) return '选择安排日期'
+  const first = dayjs(dates[0])
+  const last = dayjs(dates[dates.length - 1])
+  if (dates.length === 1) return first.format('YYYY年M月D日')
+  if (first.isSame(last, 'year')) return `${first.format('YYYY年M月D日')}–${last.format('M月D日')}`
+  return `${first.format('YYYY年M月D日')}–${last.format('YYYY年M月D日')}`
+})
 
 function courseScheduledOnAllDates(id: string) {
   if (!sortedDates.value.length) return false
@@ -84,21 +94,13 @@ function resetForm() {
   amount.value = '0'
   paid.value = false
   errorText.value = ''
+  pickerOpen.value = false
   pickDefaultTimes(dates.value[0])
 }
 
 watch(() => props.open, (open) => {
   if (open) resetForm()
 })
-
-function addDate(value: string) {
-  if (!value || dates.value.includes(value)) return
-  dates.value = [...dates.value, value].sort()
-}
-
-function removeDate(value: string) {
-  dates.value = dates.value.filter((item) => item !== value)
-}
 
 function selectCourse(id: string) {
   if (courseScheduledOnAllDates(id)) return
@@ -185,10 +187,10 @@ async function submit() {
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
         <view class="field">
           <text class="field-label">安排日期</text>
-          <view class="chip-row">
-            <text v-for="item in sortedDates" :key="item" class="chip active" @click="removeDate(item)">{{ item.slice(5) }} ×</text>
+          <view class="date-trigger" @click="pickerOpen = true">
+            <text class="date-text">{{ dateLabel }}</text>
+            <text class="date-count">{{ sortedDates.length ? `${sortedDates.length} 天` : '' }}</text>
           </view>
-          <DateField model-value="" placeholder="再加一天" @update:model-value="addDate" />
         </view>
 
         <view class="mode-tabs">
@@ -258,6 +260,19 @@ async function submit() {
       </view>
     </view>
   </view>
+  <view v-if="pickerOpen" class="mask picker-mask" @click="pickerOpen = false">
+    <view class="sheet picker-sheet" @click.stop>
+      <view class="sheet-head">
+        <text class="sheet-title">选择安排日期</text>
+        <text class="close" @click="pickerOpen = false">×</text>
+      </view>
+      <text class="tip">点选或按住滑动，可连续多选、取消。</text>
+      <DateDragGrid :selected="dates" @update:selected="dates = $event" />
+      <view class="sheet-foot">
+        <button class="btn block" @click="pickerOpen = false">完成 · {{ dates.length }} 天</button>
+      </view>
+    </view>
+  </view>
 </template>
 
 <style scoped>
@@ -294,14 +309,16 @@ async function submit() {
   background: #f4f5f8;
 }
 .mode-tabs text {
+  display: flex;
   flex: 1;
   min-height: 39px;
+  align-items: center;
+  justify-content: center;
   border-radius: 12px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
-  text-align: center;
-  line-height: 39px;
+  line-height: 1;
 }
 .mode-tabs text.on {
   background: #fff;
@@ -341,6 +358,21 @@ async function submit() {
 }
 .money input { flex: 1; height: 44px; }
 .busy { margin-bottom: 12px; }
-.pay-row { margin-bottom: 8px; }
+.pay-row { align-items: center; margin-bottom: 8px; }
 .form-error { margin: 4px 0 8px; color: var(--unpaid); }
+.date-trigger {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 13px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.date-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-count { color: var(--accent-text); font-size: 12px; font-weight: 700; }
+.picker-mask { z-index: 12000; }
+.picker-sheet { padding-bottom: calc(16px + var(--safe-bottom)); }
 </style>

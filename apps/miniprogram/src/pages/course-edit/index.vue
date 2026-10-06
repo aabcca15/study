@@ -19,6 +19,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import SelectField from '@/components/SelectField.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
+import DateDragGrid from '@/components/DateDragGrid.vue'
 
 const store = useFamilyPage({ refresh: false })
 const courseId = ref('')
@@ -28,7 +29,6 @@ const slotError = ref('')
 const slots = ref<CourseDateSlot[]>([])
 const batchStart = ref('18:00')
 const batchEnd = ref('19:00')
-const calendarMonth = ref(dayjs().startOf('month'))
 const editingSlot = ref<CourseDateSlot | null>(null)
 
 const form = reactive({
@@ -57,7 +57,7 @@ const usageUnits = [
 
 const existing = computed(() => store.snapshot.courses.find((course) => course.id === courseId.value))
 const sortedSlots = computed(() => [...slots.value].sort((a, b) => a.date.localeCompare(b.date)))
-const monthSlots = computed(() => sortedSlots.value.filter((slot) => dayjs(slot.date).isSame(calendarMonth.value, 'month')))
+const selectedDates = computed(() => sortedSlots.value.map((slot) => slot.date))
 const paymentPlan = computed(() => (
   form.pricingMode === 'per_session' || form.pricingMode === 'per_hour' ? 'usage' : form.pricingMode
 ))
@@ -74,20 +74,6 @@ const billingSummary = computed(() => {
   }
   const unit = form.pricingMode === 'per_hour' ? '每小时' : '每完成 1 次'
   return `${unit}计费 ${amount}；取消未上的课次不计费。`
-})
-const calendarDays = computed(() => {
-  const start = calendarMonth.value.startOf('month').startOf('week')
-  return Array.from({ length: 42 }, (_, index) => {
-    const day = start.add(index, 'day')
-    const date = day.format('YYYY-MM-DD')
-    return {
-      date,
-      label: day.date(),
-      inMonth: day.isSame(calendarMonth.value, 'month'),
-      today: day.isSame(dayjs(), 'day'),
-      selected: slots.value.some((slot) => slot.date === date),
-    }
-  })
 })
 const batchConflict = computed(() => {
   if (!slots.value.length) return ''
@@ -130,7 +116,6 @@ onLoad((query) => {
     item.courseId === courseId.value && (item.source === 'course_upfront' || item.billingMode === 'term'),
   )
   form.paymentStatus = upfront?.status === 'paid' ? 'paid' : 'unpaid'
-  if (slots.value[0]) calendarMonth.value = dayjs(slots.value[0].date).startOf('month')
 })
 
 function toggleChild(id: string) {
@@ -151,22 +136,13 @@ function setUsageUnit(value: string) {
   form.pricingMode = value as CoursePricingMode
 }
 
-function shiftMonth(delta: number) {
-  calendarMonth.value = calendarMonth.value.add(delta, 'month')
-}
-
-function toggleDate(date: string, inMonth: boolean) {
-  if (!inMonth) return
-  const found = slots.value.find((slot) => slot.date === date)
-  if (found) {
-    slots.value = slots.value.filter((slot) => slot.date !== date)
-    return
-  }
-  slots.value = [...slots.value, {
+function onSelectedDates(dates: string[]) {
+  const current = new Map(slots.value.map((slot) => [slot.date, slot]))
+  slots.value = dates.map((date) => current.get(date) ?? {
     date,
     startTime: batchStart.value,
     endTime: batchEnd.value,
-  }].sort((a, b) => a.date.localeCompare(b.date))
+  }).sort((left, right) => left.date.localeCompare(right.date))
 }
 
 function applyBatchTime() {
@@ -397,32 +373,11 @@ function pickIcon(icon: CourseIcon) {
         <text>02</text>
         <view>
           <text class="h2">选择上课日期</text>
-          <text class="hint">点选日期，再次点击可取消</text>
+          <text class="hint">点选或按住滑动，可连续多选、取消</text>
         </view>
       </view>
-      <view class="month-nav">
-        <text @click="shiftMonth(-1)">‹</text>
-        <text class="month-label">{{ calendarMonth.format('YYYY年 M月') }}</text>
-        <text @click="shiftMonth(1)">›</text>
-      </view>
-      <view class="week-row">
-        <text v-for="day in WEEKDAY_SHORT" :key="day">{{ day }}</text>
-      </view>
-      <view class="date-grid">
-        <view
-          v-for="day in calendarDays"
-          :key="day.date"
-          class="day"
-          :class="{ out: !day.inMonth, on: day.selected, today: day.today }"
-          @click="toggleDate(day.date, day.inMonth)"
-        >
-          <text>{{ day.label }}</text>
-        </view>
-      </view>
-      <view class="cal-summary">
-        <text>本月已选 {{ monthSlots.length }} 天</text>
-        <text>全部共 {{ slots.length }} 次课</text>
-      </view>
+      <DateDragGrid :selected="selectedDates" @update:selected="onSelectedDates" />
+      <text class="hint">已选 {{ slots.length }} 个日期</text>
     </view>
 
     <view class="editor-card">
@@ -583,31 +538,10 @@ function pickIcon(icon: CourseIcon) {
 .plan.on { background: #fff7f2; box-shadow: inset 0 0 0 1.5px #ff7a45; }
 .plan-name { display: block; font-weight: 700; }
 .unit-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.unit { flex: 1; padding: 10px 0; border-radius: 12px; background: #f7f8fc; text-align: center; font-weight: 700; }
+.unit { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 40px; padding: 10px 0; border-radius: 12px; background: #f7f8fc; font-weight: 700; line-height: 1; }
 .unit.on { background: #fff7f2; box-shadow: inset 0 0 0 1.5px #ff7a45; }
-.money { display: flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
-.money input { flex: 1; height: 44px; }
-.pay-row { margin-bottom: 8px; }
+.pay-row { align-items: center; margin-bottom: 8px; }
 .summary { margin-top: 4px; color: var(--muted); font-size: 12px; }
-.month-nav, .week-row, .cal-summary { display: flex; align-items: center; justify-content: space-between; }
-.month-nav text { min-width: 36px; padding: 6px 0; text-align: center; font-size: 20px; }
-.month-label { font-size: 15px; font-weight: 800; }
-.week-row { margin: 8px 0; color: var(--muted); font-size: 12px; }
-.week-row text, .day { width: 14.28%; text-align: center; }
-.date-grid { display: flex; flex-wrap: wrap; }
-.day { height: 40px; line-height: 40px; color: var(--ink); }
-.day.out { color: #d5d8e2; }
-.day.on text {
-  display: inline-block;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #ff7a45;
-  color: #fff;
-  line-height: 32px;
-}
-.day.today text { box-shadow: inset 0 0 0 1px #ffb45c; border-radius: 50%; }
-.cal-summary { margin-top: 8px; color: var(--muted); font-size: 12px; }
 .slot { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
 .slot-date { display: block; font-weight: 700; }
 .slot-time { margin-left: auto; font-weight: 700; }

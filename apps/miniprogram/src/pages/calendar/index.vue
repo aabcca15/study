@@ -7,7 +7,7 @@ import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
-import { setTabCover } from '@/utils/nav'
+import { setTabCover, syncVisibleTab } from '@/utils/nav'
 import { monthMatrix } from '@/utils/view'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -27,6 +27,7 @@ watch([addOpen, editing], () => {
 })
 
 onShow(() => {
+  syncVisibleTab(1)
   setTabCover(addOpen.value || Boolean(editing.value))
 })
 
@@ -140,12 +141,16 @@ async function undoCancel() {
   box-shadow: var(--elev-sm);
 }
 .nav button {
+  display: flex;
   width: 32px;
   height: 30px;
+  align-items: center;
+  justify-content: center;
   color: var(--muted);
   border-radius: 11px;
   font-size: 16px;
   font-weight: 700;
+  line-height: 30px;
 }
 .nav .today {
   width: 38px;

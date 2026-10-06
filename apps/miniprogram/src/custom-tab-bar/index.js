@@ -29,6 +29,21 @@ function resolveIndex() {
   return typeof data.tabIndex === 'number' ? data.tabIndex : 0
 }
 
+function paintEveryBar(index, animate) {
+  const seen = new Set()
+  const paint = (bar) => {
+    if (!bar || seen.has(bar) || typeof bar.showTab !== 'function') return
+    seen.add(bar)
+    bar.showTab(index, animate)
+  }
+  ;(appData().tabBars || []).forEach(paint)
+  getCurrentPages().forEach((page) => {
+    const raw = page
+    paint(typeof raw.getTabBar === 'function' ? raw.getTabBar() : null)
+    paint(raw.$vm && typeof raw.$vm.getTabBar === 'function' ? raw.$vm.getTabBar() : null)
+  })
+}
+
 function place(index) {
   const width = wx.getSystemInfoSync().windowWidth || 375
   const bar = Math.min(width - 24, 432)
@@ -57,21 +72,31 @@ Component({
     right: tabs.slice(2),
   },
   lifetimes: {
+    attached() {
+      const data = appData()
+      data.tabBars = data.tabBars || []
+      if (!data.tabBars.includes(this)) data.tabBars.push(this)
+    },
+    detached() {
+      const data = appData()
+      data.tabBars = (data.tabBars || []).filter((bar) => bar !== this)
+    },
     ready() {
-      this.apply(resolveIndex(), false)
+      this.showTab(resolveIndex(), false)
     },
   },
   pageLifetimes: {
     show() {
       const next = resolveIndex()
-      if (next === this.data.selected) {
-        this.refine(next)
-        return
-      }
-      this.apply(next, false)
+      if (next < 0) return
+      this.showTab(next, false)
     },
   },
   methods: {
+    showTab(index, animate) {
+      if (index < 0 || index > 3) return
+      this.apply(index, Boolean(animate))
+    },
     mark(index) {
       const data = appData()
       data.tabIndex = index
@@ -129,7 +154,7 @@ Component({
         return
       }
       this.mark(index)
-      this.apply(index, true)
+      paintEveryBar(index, true)
       wx.switchTab({ url: tab.url })
     },
     toggle() {
@@ -145,7 +170,7 @@ Component({
         const data = appData()
         data.pendingAdd = true
         this.mark(0)
-        this.apply(0, false)
+        paintEveryBar(0, false)
         wx.switchTab({ url: '/pages/today/index' })
         return
       }
