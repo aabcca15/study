@@ -8,12 +8,15 @@ import { calculateLearningStatistics } from '@server-domain/statistics'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { deepTone, mix, tileBackground } from '@/utils/color'
 import { syncVisibleTab } from '@/utils/nav'
+import { windowWidth } from '@/utils/system'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import TrendChart from '@/components/TrendChart.vue'
 
 const store = useFamilyPage()
+/** 与 web 一致：卡片接近整行，右侧露出下一张方便左右滑。 */
+const reportCardWidth = Math.max(280, windowWidth() - 88)
 
 onShow(() => {
   syncVisibleTab(3)
@@ -168,7 +171,7 @@ function formatTrendHours(hours: number) {
             v-for="item in stats.courseStats"
             :key="item.course.id"
             class="course-report"
-            :style="{ background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, '#ffffff', 0.84)} 0%, #ffffff 78%)` }"
+            :style="{ width: reportCardWidth + 'px', background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, '#ffffff', 0.84)} 0%, #ffffff 78%)` }"
             @click="uni.navigateTo({ url: `/pages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
           >
             <view class="report-head">
@@ -304,7 +307,8 @@ function formatTrendHours(hours: number) {
 .report-row { display: flex; gap: 12px; padding-bottom: 4px; }
 .course-report {
   display: inline-block;
-  width: 280px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
   padding: 16px;
   border-radius: 23px;
   background: #fff;
@@ -315,6 +319,7 @@ function formatTrendHours(hours: number) {
 .report-head { display: flex; align-items: center; gap: 10px; }
 .report-icon { display: flex; width: 42px; height: 42px; align-items: center; justify-content: center; border-radius: 14px; }
 .report-copy { flex: 1; min-width: 0; }
+.report-copy .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .report-title { display: block; overflow: hidden; font-size: 15px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .progress-ring {
   display: flex;
@@ -337,7 +342,7 @@ function formatTrendHours(hours: number) {
 .course-values { display: flex; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .course-values view { flex: 1; text-align: center; border-left: 1px solid var(--line); }
 .course-values view:first-child { border-left: 0; }
-.course-values text { display: block; color: var(--muted); font-size: 10px; }
-.val { margin-top: 4px; color: var(--ink); font-size: 13px; font-weight: 800; }
+.course-values text { display: block; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.val { margin-top: 4px; color: var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; }
 .package { display: block; margin-top: 10px; color: var(--muted); font-size: 11px; }
 </style>

@@ -167,23 +167,25 @@ function more(course: Course) {
   <view>
     <AppHeader />
     <view class="page courses-page">
-      <PageHeader title="课程安排" :caption="`管理 ${store.child?.name || '孩子'} 的排课、进度与费用`" />
-
-      <view class="child-row">
-        <view
-          v-for="child in store.snapshot.children"
-          :key="child.id"
-          class="child-pill"
-          :class="{ on: child.id === store.childId }"
-          @click="onChildChange(child.id)"
-        >
-          <ChildAvatar :avatar-key="child.avatarKey" :size="40" />
-          <text>{{ child.name }}</text>
-        </view>
-        <view class="manage" @click="managing = true">
-          <AppIcon name="plus" tone="accent" :size="18" />
-        </view>
-      </view>
+      <PageHeader title="课程安排" :caption="`管理 ${store.child?.name || '孩子'} 的排课、进度与费用`">
+        <template #actions>
+          <view class="child-row">
+            <view
+              v-for="child in store.snapshot.children"
+              :key="child.id"
+              class="child-pill"
+              :class="{ on: child.id === store.childId }"
+              @click="onChildChange(child.id)"
+            >
+              <ChildAvatar :avatar-key="child.avatarKey" :size="40" />
+              <text>{{ child.name }}</text>
+            </view>
+            <view class="manage" @click="managing = true">
+              <AppIcon name="plus" tone="accent" :size="18" />
+            </view>
+          </view>
+        </template>
+      </PageHeader>
 
       <view class="course-grid">
         <view
@@ -284,8 +286,9 @@ function more(course: Course) {
 
 <style scoped>
 .courses-page { padding-top: 8px; }
-.child-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; gap: 10px; margin: -4px 0 18px; }
-.child-pill { display: flex; width: 52px; flex-direction: column; align-items: center; gap: 4px; color: var(--muted); font-size: 10px; }
+.courses-page :deep(.page-header) { align-items: flex-start; }
+.child-row { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: flex-end; gap: 8px; }
+.child-pill { display: flex; width: 48px; flex-direction: column; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 650; }
 .child-pill text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pill.on { color: var(--ink); font-weight: 750; }
 .child-pill.on :deep(.child-face) { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #8eb6ff; }

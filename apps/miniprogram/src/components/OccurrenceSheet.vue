@@ -33,8 +33,8 @@ const free = computed(() => {
 
 watch(() => props.item, (item) => {
   if (!item) return
-  startTime.value = item.course.recurrence.startTime
-  endTime.value = item.course.recurrence.endTime
+  startTime.value = item.exception?.startTime ?? item.course.recurrence.startTime
+  endTime.value = item.exception?.endTime ?? item.course.recurrence.endTime
   const bill = occurrenceExpense(store.overviewExpenses, item.course, item.date)
   amount.value = String(bill?.amount ?? item.course.amount ?? 0)
   paid.value = bill?.status === 'paid'
@@ -49,7 +49,9 @@ async function save() {
   }
   saving.value = true
   try {
-    const timeChanged = startTime.value !== item.course.recurrence.startTime || endTime.value !== item.course.recurrence.endTime
+    const scheduledStart = item.exception?.startTime ?? item.course.recurrence.startTime
+    const scheduledEnd = item.exception?.endTime ?? item.course.recurrence.endTime
+    const timeChanged = startTime.value !== scheduledStart || endTime.value !== scheduledEnd
     if (timeChanged) {
       await store.upsertException({
         courseId: item.course.id,
@@ -69,17 +71,6 @@ async function save() {
     showCloudError(error)
   } finally {
     saving.value = false
-  }
-}
-
-async function markAttendance(done: boolean) {
-  const item = props.item
-  if (!item) return
-  try {
-    await store.setAttendance(item.course.id, item.date, done ? 'completed' : 'scheduled', done)
-    uni.showToast({ icon: 'none', title: done ? '已确认上课' : '已标为未上' })
-  } catch (error) {
-    showCloudError(error)
   }
 }
 
@@ -134,21 +125,20 @@ function cancelOnce() {
           </view>
         </view>
         <view v-if="!free" class="field">
-          <text class="field-label">本次金额</text>
-          <input v-model="amount" type="digit" :disabled="locked" />
+          <text class="field-label">金额</text>
+          <view class="money">
+            <text>¥</text>
+            <input v-model="amount" type="digit" :disabled="locked" />
+          </view>
         </view>
         <view v-if="!free" class="row pay-row">
-          <text>已支付</text>
+          <text>是否已支付</text>
           <switch :checked="paid" :disabled="locked" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
         </view>
       </scroll-view>
-      <view class="sheet-foot">
-        <button class="btn block" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存本次' }}</button>
-        <view class="row" style="margin-top: 10px">
-          <button class="btn ghost" style="flex: 1" @click="markAttendance(true)">确认已上</button>
-          <button class="btn ghost" style="flex: 1" @click="markAttendance(false)">标为未上</button>
-        </view>
-        <button class="btn danger block" style="margin-top: 10px" @click="cancelOnce">取消这次课</button>
+      <view class="sheet-foot action-row">
+        <button class="btn danger" @click="cancelOnce">取消课程</button>
+        <button class="btn" :disabled="saving" @click="save">{{ saving ? '保存中…' : '确认修改' }}</button>
       </view>
     </view>
   </view>
@@ -166,5 +156,12 @@ function cancelOnce() {
   line-height: 34px;
   font-size: 22px;
 }
-.pay-row { margin-bottom: 8px; }
+.pay-row { align-items: center; margin-bottom: 8px; }
+.action-row { display: flex; gap: 10px; }
+.action-row .btn { flex: 1; min-height: 48px; }
+.action-row .btn.danger {
+  color: #ed5d6e;
+  background: #fff1f3;
+  box-shadow: none;
+}
 </style>

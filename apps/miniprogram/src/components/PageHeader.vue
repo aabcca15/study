@@ -28,7 +28,9 @@ function back() {
         <view class="h1">{{ title }}</view>
         <text v-if="caption" class="caption">{{ caption }}</text>
       </view>
-      <slot name="actions" />
+      <view v-if="$slots.actions" class="page-header-actions">
+        <slot name="actions" />
+      </view>
     </view>
   </view>
 </template>

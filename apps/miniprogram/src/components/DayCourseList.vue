@@ -109,7 +109,17 @@ const rows = computed(() => props.items.map((item) => {
     tileStyle: tileStyle(item),
     typeStyle: { color: deepTone(color), background: mix(color, '#ffffff', 0.82) },
     trackStyle: { background: mix(color, '#eceef4', 0.86) },
-    fillStyle: { width: done.percent + '%', background: tileBackground(color) },
+    fillStyle: {
+      width: done.percent + '%',
+      background: `linear-gradient(90deg, ${mix(color, '#ffffff', 0.28)} 0%, ${deepTone(color)} 100%)`,
+    },
+    lineStyle: {
+      background: `linear-gradient(180deg, ${mix(color, '#ffffff', 0.2)} 0%, ${mix(color, '#f3f4fb', 0.72)} 100%)`,
+    },
+    dotStyle: {
+      background: mix(color, '#687087', 0.35),
+      boxShadow: `0 0 0 2px ${mix(color, '#ffffff', 0.55)}`,
+    },
   }
 }))
 </script>
@@ -126,15 +136,19 @@ const rows = computed(() => props.items.map((item) => {
 
     <view v-if="rows.length" class="lesson-list">
       <view v-for="(row, index) in rows" :key="row.item.id" class="timeline-entry">
-        <view class="timeline-marker" :class="{ last: index === rows.length - 1 }" :style="{ color: row.item.course.color }">
-          <text>{{ row.start }}</text>
-          <view class="timeline-dot" :style="{ background: row.item.course.color }" />
-          <view v-if="row.faces.length" class="timeline-faces">
-            <ChildAvatar v-for="child in row.faces" :key="child.id" :avatar-key="child.avatarKey" :size="26" />
+        <view class="timeline-marker">
+          <text class="timeline-start">{{ row.start }}</text>
+          <view class="timeline-rail">
+            <view class="timeline-line" :class="{ last: index === rows.length - 1 }" :style="row.lineStyle" />
+            <view class="timeline-dot" :style="row.dotStyle" />
+            <view v-if="row.faces.length" class="timeline-faces">
+              <ChildAvatar v-for="child in row.faces" :key="child.id" :avatar-key="child.avatarKey" :size="26" />
+            </view>
           </view>
+          <text class="timeline-end">{{ row.end }}</text>
         </view>
         <view class="lesson-card" :style="row.cardStyle">
-          <view class="lesson-row">
+          <view class="lesson-body">
             <view class="lesson-time" :style="row.tileStyle">
               <AppIcon :key="row.icon" :name="row.icon" tone="white" :size="26" />
             </view>
@@ -209,27 +223,55 @@ const rows = computed(() => props.items.map((item) => {
   font-size: 12px;
   font-weight: 700;
 }
-.timeline-entry { display: flex; gap: 10px; margin-bottom: 12px; }
-.timeline-marker { position: relative; width: 52px; padding-top: 16px; font-size: 10px; font-weight: 800; }
-.timeline-faces { display: flex; flex-direction: column; gap: 4px; margin-top: 28px; }
-.timeline-marker::after {
-  content: "";
-  position: absolute;
-  top: 35px;
-  right: 3px;
-  bottom: -18px;
-  width: 2px;
-  background: rgba(123, 97, 255, 0.25);
+.timeline-entry { display: flex; align-items: stretch; gap: 10px; margin-bottom: 12px; }
+.timeline-marker {
+  display: flex;
+  width: 48px;
+  flex-direction: column;
+  align-items: center;
 }
-.timeline-marker.last::after { bottom: 20px; }
+.timeline-start, .timeline-end {
+  width: 100%;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-align: center;
+}
+.timeline-start { padding-top: 2px; }
+.timeline-end { padding-bottom: 2px; }
+.timeline-rail { position: relative; flex: 1; width: 100%; min-height: 28px; }
+.timeline-line {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 999px;
+}
+.timeline-line.last { bottom: 10px; }
 .timeline-dot {
   position: absolute;
-  top: 30px;
-  right: 0;
+  z-index: 1;
+  top: 2px;
+  left: 50%;
   width: 7px;
   height: 7px;
+  margin-left: -5.5px;
   border: 2px solid var(--bg);
   border-radius: 50%;
+}
+.timeline-faces {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transform: translateX(-50%);
 }
 .lesson-card {
   flex: 1;
@@ -238,17 +280,18 @@ const rows = computed(() => props.items.map((item) => {
   overflow: hidden;
   border-radius: 22px;
 }
-.lesson-row { display: flex; gap: 10px; align-items: flex-start; }
+.lesson-body { display: flex; align-items: flex-start; gap: 10px; }
 .lesson-time {
   display: flex;
   width: 54px;
   min-height: 102px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   border-radius: 16px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
 }
-.lesson-main { display: flex; flex: 1; gap: 8px; justify-content: space-between; min-width: 0; }
+.lesson-main { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; }
 .lesson-copy { min-width: 0; flex: 1; }
 .lesson-type {
   display: inline-block;
@@ -273,17 +316,27 @@ const rows = computed(() => props.items.map((item) => {
 .lesson-period { display: flex; flex-wrap: wrap; gap: 5px 9px; align-items: center; margin-top: 11px; }
 .dur { font-size: 15px; font-weight: 750; }
 .adjust { display: block; margin-top: 6px; font-size: 10px; font-weight: 650; }
-.fee-row { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.fee { font-size: 15px; font-weight: 750; }
+.fee-row {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: center;
+  gap: 6px;
+  max-width: 42%;
+  text-align: right;
+}
+.fee { font-size: 15px; font-weight: 750; white-space: nowrap; }
 .pay-pill { padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 750; }
 .pay-pill.paid { color: var(--paid); background: var(--paid-soft); }
 .pay-pill.unpaid { color: var(--unpaid); background: var(--unpaid-soft); }
-.fee-totals { max-width: 118px; color: var(--muted); font-size: 9px; text-align: right; }
+.fee-totals { max-width: 118px; color: var(--muted); font-size: 9px; line-height: 1.35; text-align: right; }
 .more {
   display: flex;
   width: 32px;
   height: 32px;
-  align-items: center;
+  flex: 0 0 auto;
+  align-items: flex-start;
   justify-content: center;
 }
 .course-progress { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }

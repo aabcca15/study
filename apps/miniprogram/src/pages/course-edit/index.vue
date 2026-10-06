@@ -30,6 +30,7 @@ const slots = ref<CourseDateSlot[]>([])
 const batchStart = ref('18:00')
 const batchEnd = ref('19:00')
 const editingSlot = ref<CourseDateSlot | null>(null)
+const slotsOpen = ref(false)
 
 const form = reactive({
   childIds: [] as string[],
@@ -405,25 +406,30 @@ function pickIcon(icon: CourseIcon) {
     </view>
 
     <view v-if="sortedSlots.length" class="editor-card">
-      <view class="section-heading">
+      <view class="section-heading slot-toggle" @click="slotsOpen = !slotsOpen">
         <text>04</text>
-        <view>
+        <view class="slot-toggle-copy">
           <text class="h2">逐日调整</text>
-          <text class="hint">点击某个日期，单独修改当天时间</text>
+          <text class="hint">{{ slotsOpen ? '点击某个日期，单独修改当天时间' : `已选 ${sortedSlots.length} 个日期，展开后可单独调整` }}</text>
+        </view>
+        <view class="slot-caret" :class="{ open: slotsOpen }">
+          <AppIcon name="chevron-right" tone="muted" :size="16" />
         </view>
       </view>
-      <view
-        v-for="slot in sortedSlots"
-        :key="slot.date"
-        class="slot"
-        @click="openSlot(slot)"
-      >
-        <view>
-          <text class="slot-date">{{ dayjs(slot.date).format('M月D日') }}</text>
-          <text class="hint">周{{ WEEKDAY_SHORT[dayjs(slot.date).day()] }}</text>
+      <view v-if="slotsOpen" class="slot-panel">
+        <view
+          v-for="slot in sortedSlots"
+          :key="slot.date"
+          class="slot"
+          @click="openSlot(slot)"
+        >
+          <view>
+            <text class="slot-date">{{ dayjs(slot.date).format('M月D日') }}</text>
+            <text class="hint">周{{ WEEKDAY_SHORT[dayjs(slot.date).day()] }}</text>
+          </view>
+          <text class="slot-time">{{ slot.startTime }}–{{ slot.endTime }}</text>
+          <text class="slot-more">›</text>
         </view>
-        <text class="slot-time">{{ slot.startTime }}–{{ slot.endTime }}</text>
-        <text class="slot-more">›</text>
       </view>
     </view>
 
@@ -522,7 +528,21 @@ function pickIcon(icon: CourseIcon) {
   background: #fff;
   box-shadow: var(--elev-sm);
 }
-.section-heading { display: flex; gap: 10px; margin-bottom: 14px; }
+.section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.slot-toggle { margin-bottom: 0; }
+.slot-toggle-copy { flex: 1; min-width: 0; }
+.slot-caret {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(90deg);
+  transition: transform 0.22s ease;
+}
+.slot-caret.open { transform: rotate(-90deg); }
+.slot-panel { margin-top: 8px; }
 .section-heading > text {
   color: var(--accent-text);
   font-size: 12px;
