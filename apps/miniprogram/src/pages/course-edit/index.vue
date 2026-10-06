@@ -14,6 +14,7 @@ import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, Course
 import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useThemePage } from '@/composables/useThemePage'
 import TimeField from '@/components/TimeField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import SelectField from '@/components/SelectField.vue'
@@ -22,6 +23,7 @@ import ChildAvatar from '@/components/ChildAvatar.vue'
 import DateDragGrid from '@/components/DateDragGrid.vue'
 
 const store = useFamilyPage({ refresh: false })
+const themeClass = useThemePage()
 const courseId = ref('')
 const saving = ref(false)
 const errorText = ref('')
@@ -280,6 +282,7 @@ function pickIcon(icon: CourseIcon) {
 </script>
 
 <template>
+  <view class="theme-root" :class="themeClass">
   <view class="page edit sub">
     <PageHeader safe show-back :title="courseId ? '课程编辑' : '新增课程'">
       <template #actions>
@@ -503,6 +506,7 @@ function pickIcon(icon: CourseIcon) {
         <text class="hint">只修改这一天，不影响其他已选日期。</text>
       </view>
     </view>
+  </view>
   </view>
 </template>
 

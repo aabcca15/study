@@ -1,12 +1,5 @@
 page {
   background-color: #f3f4fb;
-  background-image:
-    radial-gradient(120% 70% at 12% -8%, rgba(255, 180, 92, 0.13) 0%, rgba(255, 180, 92, 0) 58%),
-    radial-gradient(100% 60% at 96% 4%, rgba(69, 205, 181, 0.1) 0%, rgba(69, 205, 181, 0) 62%);
-  background-repeat: no-repeat;
-  background-position: left top;
-  background-size: 100% 100vh;
-  background-attachment: fixed;
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "SF Pro Text", sans-serif;
   font-size: 14px;
@@ -30,10 +23,14 @@ page {
   --unpaid: #e5703f;
   --paid-soft: #e8f7f1;
   --unpaid-soft: #fdeee6;
+  --header-bg: rgba(243, 244, 251, 0.96);
   --elev-sm: 0 1px 2px rgba(25, 31, 58, 0.04), 0 6px 16px -8px rgba(25, 31, 58, 0.12);
   --elev-md: 0 2px 5px rgba(25, 31, 58, 0.04), 0 16px 34px -14px rgba(25, 31, 58, 0.18);
   --elev-lg: 0 4px 10px rgba(25, 31, 58, 0.05), 0 30px 58px -22px rgba(25, 31, 58, 0.24);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --page-glow:
+    radial-gradient(120% 70% at 12% -8%, rgba(255, 180, 92, 0.13) 0%, rgba(255, 180, 92, 0) 58%),
+    radial-gradient(100% 60% at 96% 4%, rgba(69, 205, 181, 0.1) 0%, rgba(69, 205, 181, 0) 62%);
 }
 
 button {
@@ -47,6 +44,42 @@ button {
 
 button::after {
   border: none;
+}
+
+.theme-root {
+  min-height: 100vh;
+  background-color: var(--bg);
+  background-image: var(--page-glow);
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-size: 100% 100vh;
+  color: var(--ink);
+}
+
+.theme-root.theme-dark {
+  --bg: #10131b;
+  --paper: #1c2230;
+  --mix-base: #1c2230;
+  --surface-2: #262d3d;
+  --field-bg: #161b26;
+  --track: #2a3142;
+  --ink: #f3f5fa;
+  --muted: #9aa3b8;
+  --line: #2d3546;
+  --accent: #ff946b;
+  --accent-text: #ffb08d;
+  --accent-soft: #3a2720;
+  --paid: #7ed6b0;
+  --unpaid: #ff9d76;
+  --paid-soft: #2a3d37;
+  --unpaid-soft: #3d2c26;
+  --header-bg: rgba(16, 19, 27, 0.94);
+  --elev-sm: 0 1px 2px rgba(0, 0, 0, 0.28), 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+  --elev-md: 0 2px 6px rgba(0, 0, 0, 0.3), 0 20px 38px -16px rgba(0, 0, 0, 0.62);
+  --elev-lg: 0 4px 12px rgba(0, 0, 0, 0.34), 0 34px 60px -22px rgba(0, 0, 0, 0.72);
+  --page-glow:
+    radial-gradient(120% 70% at 12% -8%, rgba(255, 122, 69, 0.16) 0%, rgba(255, 122, 69, 0) 58%),
+    radial-gradient(100% 60% at 96% 4%, rgba(37, 196, 201, 0.1) 0%, rgba(37, 196, 201, 0) 62%);
 }
 
 .page {
@@ -85,6 +118,11 @@ button::after {
   color: var(--muted);
   font-size: 13px;
   letter-spacing: 0.08em;
+}
+
+.h1,
+.sheet-title {
+  color: var(--ink);
 }
 
 .h1 {
@@ -223,7 +261,7 @@ button::after {
   position: sticky;
   z-index: 90;
   top: 0;
-  background: rgba(243, 244, 251, 0.96);
+  background: var(--header-bg);
   backdrop-filter: blur(22px) saturate(180%);
   -webkit-backdrop-filter: blur(22px) saturate(180%);
   box-shadow: inset 0 -1px 0 rgba(25, 31, 58, 0.06), 0 10px 22px -18px rgba(25, 31, 58, 0.35);
@@ -276,11 +314,18 @@ button::after {
   font-size: 11px;
 }
 
+.app-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
 .logout {
   padding: 8px 12px;
   color: var(--muted);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
+  background: transparent;
   font-size: 13px;
 }
 
@@ -301,7 +346,7 @@ button::after {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: #fff;
+  background: var(--paper);
   box-shadow: var(--elev-sm);
   color: var(--ink);
   font-size: 22px;
@@ -358,7 +403,8 @@ button::after {
   box-sizing: border-box;
   padding: 10px 18px calc(12px + var(--safe-bottom));
   border-radius: 28px 28px 0 0;
-  background: #fff;
+  background: var(--paper);
+  color: var(--ink);
   box-shadow: var(--elev-lg);
 }
 
@@ -390,7 +436,8 @@ button::after {
   margin: auto;
   padding: 22px 18px 16px;
   border-radius: 24px;
-  background: #fff;
+  background: var(--paper);
+  color: var(--ink);
   text-align: center;
   box-shadow: var(--elev-lg);
 }
@@ -418,4 +465,89 @@ button::after {
 
 .undo button {
   color: #ffb45c;
+}
+
+.theme-dark .app-brand-header {
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06), 0 10px 22px -18px rgba(0, 0, 0, 0.55);
+}
+
+.theme-dark .card,
+.theme-dark .editor-card,
+.theme-dark .empty-state,
+.theme-dark .week-picker,
+.theme-dark .nav,
+.theme-dark .metric,
+.theme-dark .cal,
+.theme-dark .day-row,
+.theme-dark .donut-hole,
+.theme-dark .progress-ring text,
+.theme-dark .profile,
+.theme-dark .plan,
+.theme-dark .unit,
+.theme-dark .preset,
+.theme-dark .mode-tabs,
+.theme-dark .date-trigger,
+.theme-dark .new-row input {
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: var(--elev-sm);
+}
+
+.theme-dark .week-picker {
+  background: linear-gradient(170deg, var(--paper) 0%, #2a2430 100%);
+}
+
+.theme-dark .overview-card {
+  background: linear-gradient(150deg, #3a2a24 0%, var(--paper) 62%);
+}
+
+.theme-dark .overview-card.is-bill {
+  background: linear-gradient(150deg, #32242a 0%, var(--paper) 62%);
+}
+
+.theme-dark .course.add,
+.theme-dark .participants {
+  background: linear-gradient(150deg, #3a2a24 0%, var(--paper) 70%);
+}
+
+.theme-dark .plan.on,
+.theme-dark .unit.on,
+.theme-dark .preset.on,
+.theme-dark .mode-tabs text.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.theme-dark .save-dock {
+  background: rgba(16, 19, 27, 0.96);
+}
+
+.theme-dark .close,
+.theme-dark .page-back {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.theme-dark .btn.ghost {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.theme-dark .field input,
+.theme-dark .field textarea,
+.theme-dark .control {
+  color: var(--ink);
+  background: var(--field-bg);
+}
+
+.theme-dark .icon-option {
+  color: #c8c0d6;
+  border-color: #3a3348;
+  background: #262233;
+}
+
+.theme-dark .icon-option.on {
+  color: #c9b3ff;
+  border-color: #7b61ff;
+  background: #2a2440;
 }

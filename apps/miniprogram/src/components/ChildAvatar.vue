@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 import type { ChildAvatarKey } from '@server-domain/types'
 import { childAvatarOption } from '@server-domain/constants'
-import { mix } from '@/utils/color'
+import { storeToRefs } from 'pinia'
+import { useThemeStore } from '@/stores/theme'
+import { currentMixBase, mix } from '@/utils/color'
 
 const props = withDefaults(defineProps<{
   avatarKey?: ChildAvatarKey
@@ -11,11 +13,13 @@ const props = withDefaults(defineProps<{
   size: 42,
 })
 
+const theme = useThemeStore()
+const { isDark } = storeToRefs(theme)
 const option = computed(() => childAvatarOption(props.avatarKey))
 const faceStyle = computed(() => ({
   width: `${props.size}px`,
   height: `${props.size}px`,
-  backgroundColor: mix(option.value.color, '#ffffff', 0.84),
+  backgroundColor: mix(option.value.color, currentMixBase(), isDark.value ? 0.72 : 0.84),
 }))
 </script>
 

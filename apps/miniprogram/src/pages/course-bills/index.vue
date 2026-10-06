@@ -6,11 +6,13 @@ import { COURSE_TYPE_LABEL } from '@server-domain/constants'
 import { buildCourseBillLedger } from '@server-domain/courseBills'
 import { money } from '@server-domain/billing'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useThemePage } from '@/composables/useThemePage'
 import { cardBackground, tileBackground } from '@/utils/color'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
+const themeClass = useThemePage()
 const courseId = ref('')
 
 onLoad((query) => {
@@ -40,7 +42,7 @@ function subOf(day: { startTime?: string; endTime?: string; kind?: string }) {
 </script>
 
 <template>
-  <view class="page edit sub">
+  <view class="theme-root page edit sub" :class="themeClass">
     <PageHeader safe show-back title="课程账单" :caption="course ? COURSE_TYPE_LABEL[course.type] + ' · ' + course.title : ''" />
     <view v-if="!course" class="empty">课程不存在</view>
     <template v-else-if="ledger">

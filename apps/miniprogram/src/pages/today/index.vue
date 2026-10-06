@@ -10,6 +10,7 @@ import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
+import { useThemePage } from '@/composables/useThemePage'
 import { openTab, setTabCover, syncVisibleTab } from '@/utils/nav'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
@@ -19,6 +20,7 @@ import AddSheet from '@/components/AddSheet.vue'
 import OccurrenceSheet from '@/components/OccurrenceSheet.vue'
 
 const store = useFamilyPage()
+const themeClass = useThemePage()
 const ui = useUiStore()
 const addOpen = ref(false)
 const editing = ref<DayOccurrence | null>(null)
@@ -145,7 +147,7 @@ async function undoCancel() {
 </script>
 
 <template>
-  <view>
+  <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page today-page">
       <view class="week-picker">

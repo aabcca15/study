@@ -6,7 +6,8 @@ import { groupByCategory, money } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { calculateLearningStatistics } from '@server-domain/statistics'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { deepTone, mix, tileBackground } from '@/utils/color'
+import { useThemePage } from '@/composables/useThemePage'
+import { currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
 import { syncVisibleTab } from '@/utils/nav'
 import { windowWidth } from '@/utils/system'
 import AppHeader from '@/components/AppHeader.vue'
@@ -15,6 +16,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import TrendChart from '@/components/TrendChart.vue'
 
 const store = useFamilyPage()
+const themeClass = useThemePage()
 /** 与 web 一致：卡片接近整行，右侧露出下一张方便左右滑。 */
 const reportCardWidth = Math.max(280, windowWidth() - 88)
 
@@ -87,7 +89,7 @@ function formatTrendHours(hours: number) {
 </script>
 
 <template>
-  <view>
+  <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page stats-page">
       <PageHeader eyebrow="账单数据" title="课程统计">
@@ -171,7 +173,7 @@ function formatTrendHours(hours: number) {
             v-for="item in stats.courseStats"
             :key="item.course.id"
             class="course-report"
-            :style="{ width: reportCardWidth + 'px', background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, '#ffffff', 0.84)} 0%, #ffffff 78%)` }"
+            :style="{ width: reportCardWidth + 'px', background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, currentMixBase(), 0.84)} 0%, ${currentMixBase()} 78%)` }"
             @click="uni.navigateTo({ url: `/pages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
           >
             <view class="report-head">

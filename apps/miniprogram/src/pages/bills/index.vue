@@ -6,6 +6,7 @@ import { billsInDueRange, groupByCategory, money } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useThemePage } from '@/composables/useThemePage'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
 import TabBar from '@/components/TabBar.vue'
@@ -14,6 +15,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
+const themeClass = useThemePage()
 const anchor = ref(dayjs().format('YYYY-MM-DD'))
 const fromToday = ref(false)
 
@@ -68,7 +70,7 @@ function shift(delta: number) {
 </script>
 
 <template>
-  <view>
+  <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page">
       <PageHeader show-back eyebrow="全家账单" :title="weekLabel(anchor)">

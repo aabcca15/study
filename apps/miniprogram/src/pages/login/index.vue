@@ -8,10 +8,13 @@ import { showCloudError } from '@/cloud/call'
 import { hasDevSession } from '@/cloud/local'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { useThemePage } from '@/composables/useThemePage'
 import { openTab } from '@/utils/nav'
 import { statusBarHeight } from '@/utils/system'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const store = useFamilyStore()
+const themeClass = useThemePage()
 const statusBar = statusBarHeight()
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
@@ -62,7 +65,10 @@ async function submit() {
 </script>
 
 <template>
-  <view class="login" :style="{ paddingTop: statusBar + 'px' }">
+  <view class="theme-root login" :class="themeClass" :style="{ paddingTop: statusBar + 'px' }">
+    <view class="login-bar">
+      <ThemeToggle />
+    </view>
     <view class="stage">
       <view class="mark">U</view>
       <text class="word">Uday</text>
@@ -99,6 +105,7 @@ async function submit() {
 
 <style scoped>
 .login {
+  position: relative;
   box-sizing: border-box;
   display: flex;
   min-height: 100vh;
@@ -106,6 +113,12 @@ async function submit() {
   align-items: center;
   justify-content: center;
   padding: 28px 28px 48px;
+}
+
+.login-bar {
+  position: absolute;
+  top: 8px;
+  right: 10px;
 }
 
 .stage {

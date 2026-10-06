@@ -1,4 +1,4 @@
-<view class="tab-host {{covered ? 'covered' : ''}}">
+<view class="tab-host {{covered ? 'covered' : ''}} {{dark ? 'dark' : ''}}">
 <view class="quick-backdrop {{open ? 'show' : ''}}" bindtap="close" />
 <view class="quick-menu {{open ? 'show' : ''}}">
   <view class="quick-item" data-kind="add" bindtap="quick">

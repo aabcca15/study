@@ -214,3 +214,27 @@
 .title, .desc { display: block; }
 .title { font-size: 13px; font-weight: 700; }
 .desc { margin-top: 3px; color: #8b93a5; font-size: 10px; }
+
+.tab-host.dark .tabbar {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 40px -18px rgba(0, 0, 0, 0.55);
+}
+
+.tab-host.dark .indicator {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.12) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 10px 20px -12px rgba(0, 0, 0, 0.55);
+}
+
+.tab-host.dark .tab { color: #8d94a5; }
+.tab-host.dark .tab.active { color: #ffb08d; }
+
+.tab-host.dark .quick-menu {
+  background: rgba(28, 34, 48, 0.82);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f3f5fa;
+}
+
+.tab-host.dark .quick-backdrop { background: rgba(8, 10, 16, 0.45); }
+.tab-host.dark .title { color: #f3f5fa; }
+.tab-host.dark .desc { color: #9aa3b8; }

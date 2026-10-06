@@ -8,7 +8,9 @@ import { money } from '@server-domain/billing'
 import type { DayOccurrence } from '@server-domain/types'
 import { useFamilyStore } from '@/stores/family'
 import { occurrenceExpense } from '@/utils/view'
-import { cardBackground, deepTone, mix, tileBackground } from '@/utils/color'
+import { storeToRefs } from 'pinia'
+import { useThemeStore } from '@/stores/theme'
+import { cardBackground, currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
 import AppIcon from '@/components/AppIcon.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 
@@ -26,6 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useFamilyStore()
+const { isDark } = storeToRefs(useThemeStore())
 
 function progress(item: DayOccurrence) {
   return courseScheduleProgress(item.course, item.date, store.overviewScheduleExceptions)
@@ -92,7 +95,10 @@ function tileStyle(item: DayOccurrence) {
 }
 
 /** 每张卡片的账单、进度只算一次；缓存的页面在数据变化时也只重算一遍。 */
-const rows = computed(() => props.items.map((item) => {
+const rows = computed(() => {
+  const paper = currentMixBase()
+  const dark = isDark.value
+  return props.items.map((item) => {
   const color = item.course.color
   const done = progress(item)
   return {
@@ -107,21 +113,22 @@ const rows = computed(() => props.items.map((item) => {
     icon: courseIcon(item),
     cardStyle: cardStyle(item),
     tileStyle: tileStyle(item),
-    typeStyle: { color: deepTone(color), background: mix(color, '#ffffff', 0.82) },
-    trackStyle: { background: mix(color, '#eceef4', 0.86) },
+    typeStyle: { color: deepTone(color), background: mix(color, paper, dark ? 0.72 : 0.82) },
+    trackStyle: { background: mix(color, dark ? '#2a3142' : '#eceef4', 0.86) },
     fillStyle: {
       width: done.percent + '%',
-      background: `linear-gradient(90deg, ${mix(color, '#ffffff', 0.28)} 0%, ${deepTone(color)} 100%)`,
+      background: `linear-gradient(90deg, ${mix(color, paper, 0.28)} 0%, ${deepTone(color)} 100%)`,
     },
     lineStyle: {
-      background: `linear-gradient(180deg, ${mix(color, '#ffffff', 0.2)} 0%, ${mix(color, '#f3f4fb', 0.72)} 100%)`,
+      background: `linear-gradient(180deg, ${mix(color, paper, 0.2)} 0%, ${mix(color, dark ? '#10131b' : '#f3f4fb', 0.72)} 100%)`,
     },
     dotStyle: {
       background: mix(color, '#687087', 0.35),
-      boxShadow: `0 0 0 2px ${mix(color, '#ffffff', 0.55)}`,
+      boxShadow: `0 0 0 2px ${mix(color, paper, 0.55)}`,
     },
   }
-}))
+})
+})
 </script>
 
 <template>

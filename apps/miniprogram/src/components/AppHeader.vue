@@ -2,6 +2,7 @@
 import { useFamilyStore } from '@/stores/family'
 import { openTab } from '@/utils/nav'
 import { statusBarHeight } from '@/utils/system'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const store = useFamilyStore()
 const statusBar = statusBarHeight()
@@ -22,7 +23,10 @@ function logout() {
           <text>Plan Your Day. Grow Your Way.</text>
         </view>
       </view>
-      <button v-if="store.ready" class="logout" @click="logout">退出</button>
+      <view class="app-actions">
+        <button v-if="store.ready" class="logout" @click="logout">退出</button>
+        <ThemeToggle />
+      </view>
     </view>
   </view>
 </template>

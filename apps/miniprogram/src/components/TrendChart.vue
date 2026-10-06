@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, nextTick, onMounted, watch } from 'vue'
-import { mix } from '@/utils/color'
+import { storeToRefs } from 'pinia'
+import { useThemeStore } from '@/stores/theme'
+import { currentMixBase, isDarkMix, mix } from '@/utils/color'
 
 const props = defineProps<{
   title: string
@@ -12,6 +14,8 @@ const props = defineProps<{
 
 const canvasId = `trend-${props.color.replace('#', '')}`
 const instance = getCurrentInstance()
+const theme = useThemeStore()
+const { mode } = storeToRefs(theme)
 const maxValue = computed(() => Math.max(1, ...props.points.map((item) => item.value)))
 const total = computed(() => props.points.reduce((sum, item) => sum + item.value, 0))
 
@@ -33,7 +37,7 @@ function draw() {
     const ctx = uni.createCanvasContext(canvasId, instance?.proxy)
     const points = coordinates(width)
     ctx.clearRect(0, 0, width, 128)
-    ctx.setStrokeStyle('#e6e8f0')
+    ctx.setStrokeStyle(isDarkMix() ? '#2d3546' : '#e6e8f0')
     ctx.setLineWidth(1)
     for (const y of [32, 64, 96]) {
       ctx.beginPath()
@@ -70,7 +74,7 @@ function draw() {
     ctx.lineTo(width - 12, 104)
     ctx.lineTo(12, 104)
     ctx.closePath()
-    ctx.setFillStyle(mix(props.color, '#ffffff', 0.82))
+    ctx.setFillStyle(mix(props.color, currentMixBase(), isDarkMix() ? 0.72 : 0.82))
     ctx.fill()
     ctx.beginPath()
     line()
@@ -83,14 +87,14 @@ function draw() {
       if (point.value <= 0) return
       ctx.beginPath()
       ctx.arc(point.x, point.y, 3.2, 0, Math.PI * 2)
-      ctx.setFillStyle('#ffffff')
+      ctx.setFillStyle(currentMixBase())
       ctx.fill()
       ctx.setStrokeStyle(props.color)
       ctx.setLineWidth(2.4)
       ctx.stroke()
     })
     const step = Math.max(1, Math.ceil(points.length / 6))
-    ctx.setFillStyle('#8b93a5')
+    ctx.setFillStyle(isDarkMix() ? '#9aa3b8' : '#8b93a5')
     ctx.setFontSize(8)
     ctx.setTextAlign('center')
     points.forEach((point, index) => {
@@ -102,7 +106,7 @@ function draw() {
 }
 
 /** 任何一次录入都会产生新的 points 数组；曲线数值没变就不重画画布。 */
-const signature = computed(() => `${props.color}|${props.points.map((item) => `${item.label}:${item.value}`).join(',')}`)
+const signature = computed(() => `${mode.value}|${props.color}|${props.points.map((item) => `${item.label}:${item.value}`).join(',')}`)
 
 onMounted(() => nextTick(draw))
 watch(signature, () => nextTick(draw))

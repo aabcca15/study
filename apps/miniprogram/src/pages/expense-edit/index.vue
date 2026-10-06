@@ -7,11 +7,13 @@ import { CATEGORY_LABEL } from '@server-domain/constants'
 import type { ExpenseCategory } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useThemePage } from '@/composables/useThemePage'
 import DateField from '@/components/DateField.vue'
 import SelectField from '@/components/SelectField.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
+const themeClass = useThemePage()
 const expenseId = ref('')
 const saving = ref(false)
 const refundAmount = ref('')
@@ -112,7 +114,7 @@ function remove() {
 </script>
 
 <template>
-  <view class="page edit sub">
+  <view class="theme-root page edit sub" :class="themeClass">
     <PageHeader safe show-back :title="expenseId ? '账单详情' : '记一笔支出'" />
     <template v-if="!expenseId">
       <text class="muted">记到当前孩子 {{ store.child?.name || '' }}，并直接记为已支付。</text>

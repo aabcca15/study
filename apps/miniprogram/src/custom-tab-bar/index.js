@@ -48,12 +48,14 @@ Component({
     travel: false,
     jelly: false,
     covered: false,
+    dark: false,
     indicator: 'opacity:0;',
     left: tabs.slice(0, 2),
     right: tabs.slice(2),
   },
   lifetimes: {
     ready() {
+      this.syncTheme()
       if (this.owner === undefined) {
         const guess = routeIndex()
         if (guess >= 0) this.own(guess)
@@ -65,10 +67,15 @@ Component({
   },
   pageLifetimes: {
     show() {
+      this.syncTheme()
       if (this.owner !== undefined) this.own(this.owner)
     },
   },
   methods: {
+    syncTheme() {
+      const dark = appData().theme === 'dark'
+      if (this.data.dark !== dark) this.setData({ dark })
+    },
     clearTimers() {
       clearTimeout(this._slideTimer)
       clearTimeout(this._travelTimer)

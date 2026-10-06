@@ -7,15 +7,19 @@ import { getCourseAmountLabel, getCourseBillingSummary, getCourseLifecycle, getC
 import { courseScheduleProgress } from '@server-domain/courseSchedule'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useThemePage } from '@/composables/useThemePage'
+import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
 import AppIcon from '@/components/AppIcon.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
-import { cardBackground, deepTone, folderTab, mix, tileBackground } from '@/utils/color'
+import { cardBackground, currentMixBase, deepTone, folderTab, mix, tileBackground } from '@/utils/color'
 import { setTabCover, syncVisibleTab } from '@/utils/nav'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
+const themeClass = useThemePage()
+const theme = useThemeStore()
 
 onShow(() => {
   syncVisibleTab(2)
@@ -37,32 +41,40 @@ watch(managing, (open) => {
   for (const child of store.snapshot.children) names[child.id] = child.name
 })
 const ui = useUiStore()
-const cards = computed(() => {
-  const today = ui.today
-  const period = today.slice(0, 7)
-  return store.allCourses
-    .filter((course) => course.source !== 'temporary')
-    .map((course) => ({
-      course,
-      lifecycle: getCourseLifecycle(course, store.scheduleExceptions, today),
-      progress: courseScheduleProgress(course, today, store.scheduleExceptions),
-      billing: getCourseBillingSummary(
-        course,
-        store.expenses,
-        period,
-        store.snapshot.charges ?? [],
-        store.snapshot.occurrenceRecords ?? [],
-      ),
-    }))
-})
-
 function faceStyle(color: string, inactive: boolean) {
-  if (inactive) return { background: 'linear-gradient(150deg, #f4f5f8 0%, #ffffff 62%)' }
+  if (inactive) {
+    return { background: `linear-gradient(150deg, ${mix('#8b93a5', currentMixBase(), 0.86)} 0%, ${currentMixBase()} 62%)` }
+  }
   return {
     background: cardBackground(color),
     boxShadow: `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(color, '#6d6780', 0.35)}, inset 0 1px 0 rgba(255,255,255,.9)`,
   }
 }
+
+const cards = computed(() => {
+  const today = ui.today
+  const period = today.slice(0, 7)
+  const dark = theme.isDark
+  return store.allCourses
+    .filter((course) => course.source !== 'temporary')
+    .map((course) => {
+      const lifecycle = getCourseLifecycle(course, store.scheduleExceptions, today)
+      return {
+        course,
+        lifecycle,
+        progress: courseScheduleProgress(course, today, store.scheduleExceptions),
+        billing: getCourseBillingSummary(
+          course,
+          store.expenses,
+          period,
+          store.snapshot.charges ?? [],
+          store.snapshot.occurrenceRecords ?? [],
+        ),
+        face: faceStyle(course.color, lifecycle.inactive),
+        dark,
+      }
+    })
+})
 
 async function saveName(id: string) {
   const name = (names[id] || '').trim()
@@ -164,7 +176,7 @@ function more(course: Course) {
 </script>
 
 <template>
-  <view>
+  <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page courses-page">
       <PageHeader title="课程安排" :caption="`管理 ${store.child?.name || '孩子'} 的排课、进度与费用`">
@@ -195,7 +207,7 @@ function more(course: Course) {
           :class="{ inactive: card.lifecycle.inactive }"
         >
           <view class="bookmark" :style="{ background: card.lifecycle.inactive ? '#eceef4' : folderTab(card.course.color) }" />
-          <view class="course-face" :style="faceStyle(card.course.color, card.lifecycle.inactive)">
+          <view class="course-face" :style="card.face">
           <text v-if="card.lifecycle.inactive" class="watermark">{{ card.lifecycle.label }}</text>
           <view class="course-top">
             <view class="course-icon" :style="{ background: card.lifecycle.inactive ? '#aeb4c0' : tileBackground(card.course.color) }">

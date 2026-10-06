@@ -1,6 +1,7 @@
 import { onShow } from '@dcloudio/uni-app'
 import { showCloudError } from '@/cloud/call'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
 
 /**
@@ -10,9 +11,11 @@ import { useUiStore } from '@/stores/ui'
 export function useFamilyPage(options: { refresh?: boolean } = {}) {
   const store = useFamilyStore()
   const ui = useUiStore()
+  const theme = useThemeStore()
   const refresh = options.refresh !== false
 
   onShow(() => {
+    theme.apply()
     if (!store.ready) {
       uni.reLaunch({ url: '/pages/login/index' })
       return

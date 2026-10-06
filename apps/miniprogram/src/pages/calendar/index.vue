@@ -6,6 +6,7 @@ import { occurrencesOnDate } from '@server-domain/schedule'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useThemePage } from '@/composables/useThemePage'
 import { useUiStore } from '@/stores/ui'
 import { setTabCover, syncVisibleTab } from '@/utils/nav'
 import { monthMatrix } from '@/utils/view'
@@ -16,6 +17,7 @@ import AddSheet from '@/components/AddSheet.vue'
 import OccurrenceSheet from '@/components/OccurrenceSheet.vue'
 
 const store = useFamilyPage()
+const themeClass = useThemePage()
 const ui = useUiStore()
 const cursor = ref(dayjs().format('YYYY-MM'))
 const addOpen = ref(false)
@@ -94,7 +96,7 @@ async function undoCancel() {
 </script>
 
 <template>
-  <view>
+  <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page">
       <PageHeader eyebrow="课程日历" :title="monthTitle">
