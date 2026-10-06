@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import dayjs from 'dayjs'
 import { CHILD_AVATAR_OPTIONS, COURSE_TYPE_LABEL } from '@server-domain/constants'
 import type { ChildAvatarKey, Course } from '@server-domain/types'
 import { getCourseAmountLabel, getCourseBillingSummary, getCourseLifecycle, getCoursePricingLabel } from '@server-domain/courseOverview'
 import { courseScheduleProgress } from '@server-domain/courseSchedule'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
+import { useUiStore } from '@/stores/ui'
 import AppIcon from '@/components/AppIcon.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { cardBackground, deepTone, folderTab, mix, tileBackground } from '@/utils/color'
@@ -36,9 +36,10 @@ watch(managing, (open) => {
   newAvatar.value = 'boy-blue'
   for (const child of store.snapshot.children) names[child.id] = child.name
 })
+const ui = useUiStore()
 const cards = computed(() => {
-  const today = dayjs().format('YYYY-MM-DD')
-  const period = dayjs().format('YYYY-MM')
+  const today = ui.today
+  const period = today.slice(0, 7)
   return store.allCourses
     .filter((course) => course.source !== 'temporary')
     .map((course) => ({

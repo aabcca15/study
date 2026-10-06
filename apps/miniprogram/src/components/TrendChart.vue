@@ -101,8 +101,11 @@ function draw() {
   }).exec()
 }
 
+/** 任何一次录入都会产生新的 points 数组；曲线数值没变就不重画画布。 */
+const signature = computed(() => `${props.color}|${props.points.map((item) => `${item.label}:${item.value}`).join(',')}`)
+
 onMounted(() => nextTick(draw))
-watch(() => [props.points, props.color], () => nextTick(draw), { deep: true })
+watch(signature, () => nextTick(draw))
 </script>
 
 <template>

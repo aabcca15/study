@@ -9,9 +9,10 @@ import { hasDevSession } from '@/cloud/local'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { openTab } from '@/utils/nav'
+import { statusBarHeight } from '@/utils/system'
 
 const store = useFamilyStore()
-const statusBar = uni.getSystemInfoSync().statusBarHeight || 20
+const statusBar = statusBarHeight()
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
 const submitting = ref(false)

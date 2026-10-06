@@ -13,39 +13,17 @@ function appData() {
 
 function routeIndex() {
   const route = getCurrentPages().slice(-1)[0]?.route || ''
-  if (route.indexOf('calendar') >= 0) return 1
-  if (route.indexOf('courses') >= 0) return 2
-  if (route.indexOf('stats') >= 0) return 3
-  if (route.indexOf('today') >= 0) return 0
-  return -1
+  return tabs.findIndex((tab) => route.indexOf(`pages/${tab.key}/`) >= 0)
 }
 
-function resolveIndex() {
-  const data = appData()
-  const fresh = typeof data.tabIndex === 'number' && data.tabStamp && Date.now() - data.tabStamp < 800
-  if (fresh) return data.tabIndex
-  const fromRoute = routeIndex()
-  if (fromRoute >= 0) return fromRoute
-  return typeof data.tabIndex === 'number' ? data.tabIndex : 0
-}
-
-function paintEveryBar(index, animate) {
-  const seen = new Set()
-  const paint = (bar) => {
-    if (!bar || seen.has(bar) || typeof bar.showTab !== 'function') return
-    seen.add(bar)
-    bar.showTab(index, animate)
-  }
-  ;(appData().tabBars || []).forEach(paint)
-  getCurrentPages().forEach((page) => {
-    const raw = page
-    paint(typeof raw.getTabBar === 'function' ? raw.getTabBar() : null)
-    paint(raw.$vm && typeof raw.$vm.getTabBar === 'function' ? raw.$vm.getTabBar() : null)
-  })
-}
+let windowWidth = 0
 
 function place(index) {
-  const width = wx.getSystemInfoSync().windowWidth || 375
+  if (!windowWidth) {
+    const info = typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : wx.getSystemInfoSync()
+    windowWidth = info.windowWidth || 375
+  }
+  const width = windowWidth
   const bar = Math.min(width - 24, 432)
   const pad = 8
   const gap = 5
@@ -60,10 +38,13 @@ function place(index) {
   return `left:${left}px;top:${pad}px;width:${tabWidth(index)}px;height:50px;opacity:1;`
 }
 
+// 微信给每个 tab 页各建一份底栏实例，页面被缓存时实例也被缓存。
+// 每份实例只显示自己所属页面的下标（owner），从不被别的页面改写。
 Component({
   data: {
-    selected: 0,
+    selected: -1,
     open: false,
+    instant: false,
     travel: false,
     jelly: false,
     covered: false,
@@ -72,58 +53,60 @@ Component({
     right: tabs.slice(2),
   },
   lifetimes: {
-    attached() {
-      const data = appData()
-      data.tabBars = data.tabBars || []
-      if (!data.tabBars.includes(this)) data.tabBars.push(this)
+    ready() {
+      if (this.owner === undefined) {
+        const guess = routeIndex()
+        if (guess >= 0) this.own(guess)
+      }
     },
     detached() {
-      const data = appData()
-      data.tabBars = (data.tabBars || []).filter((bar) => bar !== this)
-    },
-    ready() {
-      this.showTab(resolveIndex(), false)
+      this.clearTimers()
     },
   },
   pageLifetimes: {
     show() {
-      const next = resolveIndex()
-      if (next < 0) return
-      this.showTab(next, false)
+      if (this.owner !== undefined) this.own(this.owner)
     },
   },
   methods: {
-    showTab(index, animate) {
+    clearTimers() {
+      clearTimeout(this._slideTimer)
+      clearTimeout(this._travelTimer)
+      clearTimeout(this._refineTimer)
+    },
+    own(index) {
       if (index < 0 || index > 3) return
-      this.apply(index, Boolean(animate))
-    },
-    mark(index) {
+      this.owner = index
       const data = appData()
-      data.tabIndex = index
-      data.tabStamp = Date.now()
-    },
-    apply(index, animate) {
-      if (this._travelTimer) clearTimeout(this._travelTimer)
-      this.setData({
-        selected: index,
-        open: false,
-        travel: Boolean(animate),
-        indicator: place(index),
-      })
-      if (animate) {
-        this._travelTimer = setTimeout(() => this.setData({ travel: false }), 240)
+      const from = data.tabFrom
+      const recent = data.tabStamp && Date.now() - data.tabStamp < 1200
+      const slide = recent && typeof from === 'number' && from !== index && from >= 0
+      if (!slide && this.data.selected === index) {
+        if (this.data.open) this.setData({ open: false })
+        return
       }
+      data.tabFrom = undefined
+      this.clearTimers()
+      if (slide) {
+        this.setData({ selected: index, open: false, instant: true, travel: false, indicator: place(from) })
+        this._slideTimer = setTimeout(() => {
+          this.setData({ instant: false, travel: true, indicator: place(index) })
+          this._travelTimer = setTimeout(() => this.setData({ travel: false }), 240)
+          this.refine(index)
+        }, 30)
+        return
+      }
+      this.setData({ selected: index, open: false, instant: false, travel: false, indicator: place(index) })
       this.refine(index)
     },
     refine(index) {
-      if (this._refineTimer) clearTimeout(this._refineTimer)
       this._refineTimer = setTimeout(() => {
         if (this.data.selected !== index) return
         const query = this.createSelectorQuery()
         query.select('#glass-tabbar').boundingClientRect()
         query.selectAll('.tab').boundingClientRect()
         query.exec((res) => {
-          if (this.data.selected !== index) return
+          if (this.data.selected !== index || this.data.instant) return
           const bar = res?.[0]
           const tab = res?.[1]?.[index]
           if (!bar?.width || !tab?.width) return
@@ -131,7 +114,7 @@ Component({
             indicator: `left:${tab.left - bar.left}px;top:${tab.top - bar.top}px;width:${tab.width}px;height:${tab.height}px;opacity:1;`,
           })
         })
-      }, 280)
+      }, 520)
     },
     bounce() {
       this.setData({ jelly: false })
@@ -142,20 +125,29 @@ Component({
         }, 480)
       })
     },
+    go(index) {
+      const data = appData()
+      data.tabFrom = this.owner
+      data.tabStamp = Date.now()
+      wx.switchTab({
+        url: tabs[index].url,
+        fail: () => {
+          data.tabFrom = undefined
+          wx.reLaunch({ url: tabs[index].url })
+        },
+      })
+    },
     onTab(event) {
       const index = Number(event.currentTarget.dataset.index)
-      const tab = tabs[index]
-      if (!tab) return
-      const route = getCurrentPages().slice(-1)[0]?.route || ''
-      const same = index === this.data.selected && route.indexOf(tab.key) >= 0
-      if (same) {
+      if (!tabs[index]) return
+      const current = this.owner !== undefined ? this.owner : routeIndex()
+      if (index === current) {
         this.setData({ open: false })
         this.bounce()
         return
       }
-      this.mark(index)
-      paintEveryBar(index, true)
-      wx.switchTab({ url: tab.url })
+      this.setData({ open: false })
+      this.go(index)
     },
     toggle() {
       this.setData({ open: !this.data.open })
@@ -168,10 +160,12 @@ Component({
       this.setData({ open: false })
       if (kind === 'add') {
         const data = appData()
+        if (this.owner === 0 && typeof data.openTodayAdd === 'function') {
+          data.openTodayAdd()
+          return
+        }
         data.pendingAdd = true
-        this.mark(0)
-        paintEveryBar(0, false)
-        wx.switchTab({ url: '/pages/today/index' })
+        this.go(0)
         return
       }
       wx.navigateTo({ url: kind === 'course' ? '/pages/course-edit/index' : '/pages/expense-edit/index' })

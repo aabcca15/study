@@ -25,7 +25,7 @@
 </view>
 
 <view id="glass-tabbar" class="tabbar">
-  <view class="indicator {{travel ? 'travel' : ''}} {{jelly ? 'jelly' : ''}}" style="{{indicator}}" />
+  <view class="indicator {{instant ? 'instant' : ''}} {{travel ? 'travel' : ''}} {{jelly ? 'jelly' : ''}}" style="{{indicator}}" />
   <view
     wx:for="{{left}}"
     wx:key="key"

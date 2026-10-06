@@ -35,10 +35,20 @@ const cells = computed(() => monthMatrix(cursor.value))
 const items = computed(() =>
   occurrencesOnDate(store.overviewCourses, ui.selectedDate, store.overviewScheduleExceptions),
 )
-
-function colorsOf(date: string) {
-  return [...new Set(occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions).map((item) => item.course.color))].slice(0, 3)
-}
+/** 只随月份和课程数据变化；点选日期不会触发重算。 */
+const cellColors = computed(() => cells.value.map((date) => date
+  ? [...new Set(occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions).map((item) => item.course.color))].slice(0, 3)
+  : []))
+const cellViews = computed(() => cells.value.map((date, index) => ({
+  date,
+  label: date ? Number(date.slice(8, 10)) : '',
+  muted: Boolean(date) && date!.slice(0, 7) !== cursor.value,
+  today: date === ui.today,
+  on: date === ui.selectedDate,
+  colors: cellColors.value[index],
+})))
+const monthTitle = computed(() => dayjs(`${cursor.value}-01`).format('YYYY年M月'))
+const listTitle = computed(() => `${dayjs(ui.selectedDate).format('M月D日')}安排`)
 
 function shiftMonth(delta: number) {
   cursor.value = dayjs(`${cursor.value}-01`).add(delta, 'month').format('YYYY-MM')
@@ -87,11 +97,11 @@ async function undoCancel() {
   <view>
     <AppHeader />
     <view class="page">
-      <PageHeader eyebrow="课程日历" :title="dayjs(cursor + '-01').format('YYYY年M月')">
+      <PageHeader eyebrow="课程日历" :title="monthTitle">
         <template #actions>
           <view class="nav">
             <button @click="shiftMonth(-1)">‹</button>
-            <button class="today" @click="cursor = dayjs().format('YYYY-MM'); ui.selectedDate = dayjs().format('YYYY-MM-DD')">今</button>
+            <button class="today" @click="pick(ui.today)">今</button>
             <button @click="shiftMonth(1)">›</button>
           </view>
         </template>
@@ -102,21 +112,21 @@ async function undoCancel() {
         </view>
         <view class="days">
           <button
-            v-for="(date, index) in cells"
+            v-for="(cell, index) in cellViews"
             :key="index"
             class="day"
-            :class="{ muted: date && date.slice(0, 7) !== cursor, today: date === dayjs().format('YYYY-MM-DD'), on: date === ui.selectedDate }"
-            @click="date && pick(date)"
+            :class="{ muted: cell.muted, today: cell.today, on: cell.on }"
+            @click="cell.date && pick(cell.date)"
           >
-            <text>{{ date ? dayjs(date).date() : '' }}</text>
+            <text>{{ cell.label }}</text>
             <view class="dots">
-              <view v-for="color in (date ? colorsOf(date) : [])" :key="color" :style="{ background: color }" />
+              <view v-for="color in cell.colors" :key="color" :style="{ background: color }" />
             </view>
           </button>
         </view>
       </view>
       <DayCourseList
-        :title="dayjs(ui.selectedDate).format('M月D日') + '安排'"
+        :title="listTitle"
         :items="items"
         @add="addOpen = true"
         @edit="editing = $event"

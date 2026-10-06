@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useFamilyStore } from '@/stores/family'
 import { openTab } from '@/utils/nav'
+import { statusBarHeight } from '@/utils/system'
 
 const store = useFamilyStore()
-const statusBar = uni.getSystemInfoSync().statusBarHeight || 20
+const statusBar = statusBarHeight()
 
 function logout() {
   store.logout()

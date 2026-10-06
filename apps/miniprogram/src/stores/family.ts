@@ -1,3 +1,4 @@
+import { markRaw } from 'vue'
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
 import type {
@@ -17,6 +18,16 @@ import { callCloud } from '@/cloud/call'
 import { clearDevSession } from '@/cloud/local'
 
 const LOGGED_KEY = 'myhome.mp.logged'
+/** 数据只由本人录入，切页不必重拉；超过这个时长回到前台时再对一次，兼顾多台设备登录同一账号。 */
+const STALE_MS = 5 * 60 * 1000
+
+let inflight: Promise<unknown> | null = null
+let snapshotJson = ''
+
+/** 快照总是整体替换、从不就地修改，不需要深层响应式代理。 */
+function frozen(snapshot: AppSnapshot) {
+  return markRaw(snapshot)
+}
 
 function belongsToChild(course: Course, childId: string) {
   const ids = course.childIds?.length ? course.childIds : [course.childId]
@@ -39,7 +50,9 @@ export const useFamilyStore = defineStore('family', {
     ready: false,
     openid: '',
     familyId: '',
-    snapshot: emptySnapshot() as AppSnapshot,
+    snapshot: frozen(emptySnapshot() as AppSnapshot),
+    syncedAt: 0,
+    rangeMonth: '',
   }),
   getters: {
     child(state): ChildProfile | undefined {
@@ -82,11 +95,18 @@ export const useFamilyStore = defineStore('family', {
     },
   },
   actions: {
+    /** 缓存着的 tab 页都会跟着快照重新计算；内容没变就不替换，避免白白重绘。 */
+    applySnapshot(snapshot: AppSnapshot) {
+      const json = JSON.stringify(snapshot)
+      if (json !== snapshotJson) {
+        snapshotJson = json
+        this.snapshot = frozen(snapshot)
+      }
+      this.syncedAt = Date.now()
+    },
     async dispatch<T>(action: string, payload?: Record<string, unknown>) {
       const data = await callCloud<CloudMutation<T>>(action, payload)
-      if (JSON.stringify(data.snapshot) !== JSON.stringify(this.snapshot)) {
-        this.snapshot = data.snapshot
-      }
+      this.applySnapshot(data.snapshot)
       this.ready = true
       return data.result
     },
@@ -94,7 +114,8 @@ export const useFamilyStore = defineStore('family', {
       const data = await callCloud<CloudSession>('login', { childName, avatarKey })
       this.openid = data.openid
       this.familyId = data.familyId
-      this.snapshot = data.snapshot
+      this.applySnapshot(data.snapshot)
+      this.rangeMonth = ''
       this.ready = true
       uni.setStorageSync(LOGGED_KEY, '1')
     },
@@ -102,14 +123,34 @@ export const useFamilyStore = defineStore('family', {
       this.ready = false
       this.openid = ''
       this.familyId = ''
-      this.snapshot = emptySnapshot()
+      snapshotJson = ''
+      this.snapshot = frozen(emptySnapshot())
+      this.syncedAt = 0
+      this.rangeMonth = ''
       uni.removeStorageSync(LOGGED_KEY)
       clearDevSession()
     },
     refresh() {
+      if (inflight) return inflight
+      const month = dayjs().format('YYYY-MM')
       const from = dayjs().startOf('month').format('YYYY-MM-DD')
       const to = dayjs().endOf('month').format('YYYY-MM-DD')
-      return this.dispatch('snapshot', { from, to })
+      inflight = this.dispatch('snapshot', { from, to })
+        .then((result) => {
+          this.rangeMonth = month
+          return result
+        })
+        .finally(() => {
+          inflight = null
+        })
+      return inflight
+    },
+    /** 本月账期已生成且数据够新时什么都不做；跨月或久未同步才拉一次。 */
+    refreshIfStale() {
+      if (!this.ready) return Promise.resolve(null)
+      const sameMonth = this.rangeMonth === dayjs().format('YYYY-MM')
+      if (sameMonth && Date.now() - this.syncedAt < STALE_MS) return Promise.resolve(null)
+      return this.refresh()
     },
     addChild(name: string, avatarKey?: ChildAvatarKey) {
       return this.dispatch<string>('addChild', { name, avatarKey })

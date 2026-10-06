@@ -7,60 +7,38 @@ const TAB_PAGES = new Set([
   '/pages/stats/index',
 ])
 
-const TAB_INDEX: Record<string, number> = {
-  today: 0,
-  calendar: 1,
-  courses: 2,
-  stats: 3,
-}
-
 type TabBarHandle = {
-  showTab?: (index: number, animate?: boolean) => void
-  setData?: (data: { selected?: number; covered?: boolean }) => void
+  own?: (index: number) => void
+  setData?: (data: { covered?: boolean }) => void
 }
 
-function tabBars(): TabBarHandle[] {
-  return getCurrentPages().flatMap((page) => {
-    const raw = page as {
-      getTabBar?: () => TabBarHandle
-      $vm?: { getTabBar?: () => TabBarHandle }
-    }
-    const bar = raw.getTabBar?.() || raw.$vm?.getTabBar?.()
-    return bar ? [bar] : []
-  })
+function ownTabBar(route: string): TabBarHandle | undefined {
+  const page = getCurrentPages().find((item) => item.route === route) as {
+    getTabBar?: () => TabBarHandle
+    $vm?: { getTabBar?: () => TabBarHandle }
+  } | undefined
+  return page?.getTabBar?.() || page?.$vm?.getTabBar?.()
 }
 
-/** 微信会缓存每个 tab 页，底栏也各有一份。切换时要把已经打开过的每一份都写成同一个下标。 */
+/** 只告诉当前页面自己的那份底栏：它属于第几个 tab。 */
 export function syncVisibleTab(index: number) {
-  const app = getApp({ allowDefault: true }) as {
-    globalData?: { tabIndex?: number; tabStamp?: number; tabBars?: TabBarHandle[] }
+  const route = getCurrentPages().slice(-1)[0]?.route
+  if (!route) return
+  const apply = () => {
+    if (getCurrentPages().slice(-1)[0]?.route !== route) return
+    ownTabBar(route)?.own?.(index)
   }
-  app.globalData = app.globalData || {}
-  const stamp = Date.now()
-  app.globalData.tabIndex = index
-  app.globalData.tabStamp = stamp
-  const paint = () => {
-    if (app.globalData?.tabStamp !== stamp || app.globalData.tabIndex !== index) return
-    const bars = [...(app.globalData.tabBars || []), ...tabBars()]
-    bars.forEach((bar) => {
-      if (bar.showTab) bar.showTab(index, false)
-      else bar.setData?.({ selected: index })
-    })
-  }
-  paint()
-  setTimeout(paint, 50)
-  setTimeout(paint, 320)
+  apply()
+  setTimeout(() => {
+    const bar = ownTabBar(route) as { owner?: number } | undefined
+    if (bar && bar.owner !== index) apply()
+  }, 60)
 }
 
 export function setTabCover(covered: boolean) {
-  const apply = () => {
-    const page = getCurrentPages().slice(-1)[0] as {
-      getTabBar?: () => { setData?: (data: { covered: boolean }) => void }
-      $vm?: { getTabBar?: () => { setData?: (data: { covered: boolean }) => void } }
-    } | undefined
-    const bar = page?.getTabBar?.() || page?.$vm?.getTabBar?.()
-    bar?.setData?.({ covered })
-  }
+  const route = getCurrentPages().slice(-1)[0]?.route
+  if (!route) return
+  const apply = () => ownTabBar(route)?.setData?.({ covered })
   apply()
   setTimeout(apply, 30)
 }
@@ -74,7 +52,6 @@ export function openTab(url: string) {
   else if (path.includes('/stats/')) key = 'stats'
   else if (path.includes('/today/')) key = 'today'
   ui.tab = key as 'today' | 'calendar' | 'courses' | 'stats'
-  syncVisibleTab(TAB_INDEX[key])
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]?.route
   if (current && `/${current}` === path) return

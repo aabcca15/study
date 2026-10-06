@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { openTab } from '@/utils/nav'
+import { statusBarHeight } from '@/utils/system'
 
 defineProps<{
   eyebrow?: string
@@ -9,7 +10,7 @@ defineProps<{
   safe?: boolean
 }>()
 
-const statusBar = uni.getSystemInfoSync().statusBarHeight || 20
+const statusBar = statusBarHeight()
 
 function back() {
   const pages = getCurrentPages()

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import dayjs from 'dayjs'
 import { COURSE_TYPE_LABEL } from '@server-domain/constants'
 import { courseCardFee } from '@server-domain/charges'
 import { buildCourseBillLedger } from '@server-domain/courseBills'
@@ -65,8 +64,6 @@ function totals(item: DayOccurrence) {
   return buildCourseBillLedger(item.course, store.overviewExpenses, store.overviewScheduleExceptions, store.overviewCharges)
 }
 
-const todayLabel = computed(() => dayjs().format('YYYY-MM-DD'))
-
 function participants(item: DayOccurrence) {
   if (store.snapshot.children.length <= 1) return []
   const assigned = item.course.childIds?.length ? item.course.childIds : [item.course.childId]
@@ -93,6 +90,28 @@ function tileStyle(item: DayOccurrence) {
     boxShadow: `0 10px 20px -10px ${mix(tint, '#191f3a', 0.3)}, inset 0 1px 0 rgba(255,255,255,.4)`,
   }
 }
+
+/** 每张卡片的账单、进度只算一次；缓存的页面在数据变化时也只重算一遍。 */
+const rows = computed(() => props.items.map((item) => {
+  const color = item.course.color
+  const done = progress(item)
+  return {
+    item,
+    start: startOf(item),
+    end: endOf(item),
+    duration: duration(item),
+    fee: feeOf(item),
+    totals: totals(item),
+    progress: done,
+    faces: participants(item),
+    icon: courseIcon(item),
+    cardStyle: cardStyle(item),
+    tileStyle: tileStyle(item),
+    typeStyle: { color: deepTone(color), background: mix(color, '#ffffff', 0.82) },
+    trackStyle: { background: mix(color, '#eceef4', 0.86) },
+    fillStyle: { width: done.percent + '%', background: tileBackground(color) },
+  }
+}))
 </script>
 
 <template>
@@ -105,61 +124,61 @@ function tileStyle(item: DayOccurrence) {
       </button>
     </view>
 
-    <view v-if="items.length" class="lesson-list">
-      <view v-for="(item, index) in items" :key="item.id" class="timeline-entry">
-        <view class="timeline-marker" :class="{ last: index === items.length - 1 }" :style="{ color: item.course.color }">
-          <text>{{ startOf(item) }}</text>
-          <view class="timeline-dot" :style="{ background: item.course.color }" />
-          <view v-if="participants(item).length" class="timeline-faces">
-            <ChildAvatar v-for="child in participants(item)" :key="child.id" :avatar-key="child.avatarKey" :size="26" />
+    <view v-if="rows.length" class="lesson-list">
+      <view v-for="(row, index) in rows" :key="row.item.id" class="timeline-entry">
+        <view class="timeline-marker" :class="{ last: index === rows.length - 1 }" :style="{ color: row.item.course.color }">
+          <text>{{ row.start }}</text>
+          <view class="timeline-dot" :style="{ background: row.item.course.color }" />
+          <view v-if="row.faces.length" class="timeline-faces">
+            <ChildAvatar v-for="child in row.faces" :key="child.id" :avatar-key="child.avatarKey" :size="26" />
           </view>
         </view>
-        <view class="lesson-card" :style="cardStyle(item)">
+        <view class="lesson-card" :style="row.cardStyle">
           <view class="lesson-row">
-            <view class="lesson-time" :style="tileStyle(item)">
-              <AppIcon :key="courseIcon(item)" :name="courseIcon(item)" tone="white" :size="26" />
+            <view class="lesson-time" :style="row.tileStyle">
+              <AppIcon :key="row.icon" :name="row.icon" tone="white" :size="26" />
             </view>
             <view class="lesson-main">
               <view class="lesson-copy">
-                <text class="lesson-type" :style="{ color: deepTone(item.course.color), background: mix(item.course.color, '#ffffff', 0.82) }">{{ COURSE_TYPE_LABEL[item.course.type] }}</text>
-                <text class="lesson-name">{{ item.course.title }}</text>
+                <text class="lesson-type" :style="row.typeStyle">{{ COURSE_TYPE_LABEL[row.item.course.type] }}</text>
+                <text class="lesson-name">{{ row.item.course.title }}</text>
                 <view class="lesson-meta">
-                  <text>{{ item.course.teacher || '老师待定' }}</text>
+                  <text>{{ row.item.course.teacher || '老师待定' }}</text>
                   <view class="dot" />
-                  <text>{{ item.course.location || '地点待定' }}</text>
+                  <text>{{ row.item.course.location || '地点待定' }}</text>
                 </view>
                 <view class="lesson-period">
-                  <text class="dur">{{ duration(item) }}</text>
+                  <text class="dur">{{ row.duration }}</text>
                   <view class="range">
                     <AppIcon name="clock" tone="muted" :size="12" />
-                    <text>{{ startOf(item) }}–{{ endOf(item) }}</text>
+                    <text>{{ row.start }}–{{ row.end }}</text>
                   </view>
                 </view>
-                <text v-if="item.exception" class="adjust" :style="{ color: item.course.color }">
-                  {{ item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}
+                <text v-if="row.item.exception" class="adjust" :style="{ color: row.item.course.color }">
+                  {{ row.item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}
                 </text>
               </view>
               <view class="fee-row">
-                <text class="fee">{{ feeOf(item).label }}</text>
+                <text class="fee">{{ row.fee.label }}</text>
                 <text
-                  v-if="feeOf(item).paid !== undefined"
+                  v-if="row.fee.paid !== undefined"
                   class="pay-pill"
-                  :class="feeOf(item).paid ? 'paid' : 'unpaid'"
-                >{{ feeOf(item).paid ? '本次已付' : '本次未付' }}</text>
-                <text v-if="totals(item)" class="fee-totals">已付 {{ money(totals(item)!.paid) }} · 未付 {{ money(totals(item)!.unpaid) }}</text>
+                  :class="row.fee.paid ? 'paid' : 'unpaid'"
+                >{{ row.fee.paid ? '本次已付' : '本次未付' }}</text>
+                <text v-if="row.totals" class="fee-totals">已付 {{ money(row.totals.paid) }} · 未付 {{ money(row.totals.unpaid) }}</text>
               </view>
             </view>
-            <button class="more" @click="emit('edit', item)">
+            <button class="more" @click="emit('edit', row.item)">
               <AppIcon name="dots" tone="muted" :size="18" />
             </button>
           </view>
           <view class="course-progress">
             <view class="progress-copy">
               <text>课程进度</text>
-              <text>{{ progress(item).completed }}/{{ progress(item).total }} 课时</text>
+              <text>{{ row.progress.completed }}/{{ row.progress.total }} 课时</text>
             </view>
-            <view class="progress-track" :style="{ background: mix(item.course.color, '#eceef4', 0.86) }">
-              <view :style="{ width: progress(item).percent + '%', background: tileBackground(item.course.color) }" />
+            <view class="progress-track" :style="row.trackStyle">
+              <view :style="row.fillStyle" />
             </view>
           </view>
         </view>
@@ -168,7 +187,7 @@ function tileStyle(item: DayOccurrence) {
 
     <view v-else class="empty-state">
       <button class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
-      <text class="empty-title">{{ title.includes('今日') || items.length === 0 && todayLabel ? '这一天没有课程' : '这一天没有课程' }}</text>
+      <text class="empty-title">这一天没有课程</text>
       <text class="empty-desc">计划有变化也没关系，好好享受空闲时间。</text>
     </view>
   </view>

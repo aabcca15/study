@@ -24,9 +24,16 @@ const addOpen = ref(false)
 const editing = ref<DayOccurrence | null>(null)
 const cancelled = ref<DayOccurrence | null>(null)
 let undoTimer: ReturnType<typeof setTimeout> | undefined
+/** 页面常驻，进度环按“回到页面的时刻”计算，而不是首次打开的时刻。 */
+const clock = ref(dayjs().format('HH:mm'))
 
 onLoad((query) => {
   if (query?.add === '1') addOpen.value = true
+  const app = getApp() as { globalData?: { openTodayAdd?: () => void } }
+  app.globalData = app.globalData || {}
+  app.globalData.openTodayAdd = () => {
+    addOpen.value = true
+  }
 })
 
 watch([addOpen, editing], () => {
@@ -34,6 +41,7 @@ watch([addOpen, editing], () => {
 })
 
 onShow(() => {
+  clock.value = dayjs().format('HH:mm')
   syncVisibleTab(0)
   setTabCover(addOpen.value || Boolean(editing.value))
   const app = getApp() as { globalData?: { pendingAdd?: boolean } }
@@ -62,37 +70,39 @@ const weekSettledPercent = computed(() => {
   const paid = weekBills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0)
   return Math.round((paid / total) * 100)
 })
-const isThisWeek = computed(() => days.value[0] === weekDates(dayjs().format('YYYY-MM-DD'))[0])
+const isThisWeek = computed(() => days.value[0] === weekDates(ui.today)[0])
+const recordDates = computed(() => new Map((store.snapshot.occurrenceRecords ?? []).map((item) => [item.id, item.date])))
 const weekUnbilled = computed(() => {
   const start = days.value[0]
   const end = days.value[6]
   return sumUnbilledCharges(store.overviewCharges, (charge) => {
-    const record = store.snapshot.occurrenceRecords?.find((item) => item.id === charge.occurrenceId)
-    const date = record?.date ?? charge.occurrenceId.slice(charge.occurrenceId.lastIndexOf('_') + 1)
+    const recordDate = recordDates.value.get(charge.occurrenceId)
+    const date = recordDate ?? charge.occurrenceId.slice(charge.occurrenceId.lastIndexOf('_') + 1)
     return date >= start && date <= end
   })
 })
 const dayDonePercent = computed(() => {
   const total = items.value.length
   if (!total) return 0
-  const today = dayjs().format('YYYY-MM-DD')
+  const today = ui.today
   if (ui.selectedDate < today) return 100
   if (ui.selectedDate > today) return 0
-  const now = dayjs().format('HH:mm')
+  const now = clock.value
   const done = items.value.filter((item) => (item.exception?.endTime ?? item.course.recurrence.endTime) <= now).length
   return Math.round((done / total) * 100)
 })
 
-function colorsOf(date: string) {
-  return [...new Set(occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions).map((item) => item.course.color))].slice(0, 3)
-}
+const dayViews = computed(() => days.value.map((date) => ({
+  date,
+  weekday: WEEKDAY_SHORT[dayjs(date).day()],
+  num: Number(date.slice(8, 10)),
+  colors: [...new Set(occurrencesOnDate(store.overviewCourses, date, store.overviewScheduleExceptions).map((item) => item.course.color))].slice(0, 3),
+})))
+const isToday = computed(() => ui.selectedDate === ui.today)
+const selectedLabel = computed(() => dayjs(ui.selectedDate).format('M月D日'))
 
 function shiftWeek(delta: number) {
   ui.selectedDate = dayjs(ui.selectedDate).add(delta, 'week').format('YYYY-MM-DD')
-}
-
-function weekday(date: string) {
-  return WEEKDAY_SHORT[dayjs(date).day()]
 }
 
 function rememberCancel(item: DayOccurrence) {
@@ -146,15 +156,15 @@ async function undoCancel() {
         </view>
         <view class="date-strip">
           <button
-            v-for="date in days"
-            :key="date"
-            :class="{ active: date === ui.selectedDate, today: date === dayjs().format('YYYY-MM-DD') }"
-            @click="ui.selectedDate = date"
+            v-for="day in dayViews"
+            :key="day.date"
+            :class="{ active: day.date === ui.selectedDate, today: day.date === ui.today }"
+            @click="ui.selectedDate = day.date"
           >
-            <text>{{ weekday(date) }}</text>
-            <text class="num">{{ dayjs(date).date() }}</text>
+            <text>{{ day.weekday }}</text>
+            <text class="num">{{ day.num }}</text>
             <view class="course-dots">
-              <view v-for="color in colorsOf(date)" :key="color" :style="{ background: color }" />
+              <view v-for="color in day.colors" :key="color" :style="{ background: color }" />
             </view>
           </button>
         </view>
@@ -164,7 +174,7 @@ async function undoCancel() {
         <view class="overview-card" @click="openTab('/pages/calendar/index')">
           <view class="overview-head">
             <view class="mark"><AppIcon name="calendar" tone="white" :size="15" /></view>
-            <text>{{ ui.selectedDate === dayjs().format('YYYY-MM-DD') ? '今日课程' : dayjs(ui.selectedDate).format('M月D日') + '课程' }}</text>
+            <text>{{ isToday ? '今日课程' : selectedLabel + '课程' }}</text>
             <text class="more">›</text>
           </view>
           <view class="overview-body">
@@ -196,7 +206,7 @@ async function undoCancel() {
       </view>
 
       <DayCourseList
-        :title="ui.selectedDate === dayjs().format('YYYY-MM-DD') ? '今日安排' : dayjs(ui.selectedDate).format('M月D日') + '安排'"
+        :title="isToday ? '今日安排' : selectedLabel + '安排'"
         :items="items"
         @add="addOpen = true"
         @edit="editing = $event"
