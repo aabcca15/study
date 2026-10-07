@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { billsInDueRange, groupByCategory, money } from '@server-domain/billing'
+import { billNetAmount, billsInDueRange, groupByCategory, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
@@ -37,14 +37,14 @@ const bills = computed(() =>
     .slice()
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
 )
-const weekTotal = computed(() => bills.value.reduce((sum, item) => sum + item.amount, 0))
-const paidAmount = computed(() => bills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0))
+const weekTotal = computed(() => bills.value.reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0))
+const paidAmount = computed(() => bills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0))
 const openAmount = computed(() =>
-  bills.value.filter((item) => item.status !== 'paid').reduce((sum, item) => sum + item.amount, 0),
+  bills.value.filter((item) => item.status !== 'paid').reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0),
 )
 const chartColors = ['#FF7A45', '#FF5F79', '#FFB347', '#39C6A4', '#5D9CFF', '#B46AF4']
 const slices = computed(() =>
-  groupByCategory(bills.value).map((item, index) => ({
+  groupByCategory(bills.value, store.overviewPayments).map((item, index) => ({
     ...item,
     color: chartColors[index % chartColors.length],
   })),
@@ -135,9 +135,12 @@ function shift(delta: number) {
           <text class="muted">{{ CATEGORY_LABEL[bill.category] }} · {{ bill.dueDate }}</text>
           <text class="title">{{ bill.title }}</text>
           <text class="muted">{{ bill.status === 'paid' ? '已支付' : '未支付' }}</text>
+          <text v-if="refundedAmountOf(bill.id, store.overviewPayments)" class="refund-note">
+            已退 {{ money(refundedAmountOf(bill.id, store.overviewPayments)) }}
+          </text>
         </view>
         <view class="bill-side">
-          <text class="amount">{{ money(bill.amount) }}</text>
+          <text class="amount">{{ money(billNetAmount(bill, store.overviewPayments)) }}</text>
           <text class="pill" :class="bill.status === 'paid' ? 'paid' : 'unpaid'">
             {{ bill.status === 'paid' ? '已支付' : '未支付' }}
           </text>
@@ -206,6 +209,7 @@ function shift(delta: number) {
 }
 .bill-copy { flex: 1; min-width: 0; }
 .title { display: block; margin: 2px 0; font-weight: 700; }
+.refund-note { display: block; color: var(--unpaid); font-size: 10px; }
 .bill-side { text-align: right; }
 .amount { display: block; font-weight: 750; }
 .pill { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }

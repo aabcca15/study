@@ -1,7 +1,8 @@
 import dayjs from 'dayjs'
-import type { Charge, Course, Expense, OccurrenceRecord, ScheduleException } from '@/domain/types'
+import type { Charge, Course, Expense, OccurrenceRecord, Payment, ScheduleException } from '@/domain/types'
 import { effectiveCourseSlots } from '@/services/courseSchedule'
 import { getPackageBalance, packageCaption, packageUnitLabel } from '@/services/packages'
+import { billNetAmount } from '@/services/billing'
 import { buildCourseBillLedger } from '@/services/courseBills'
 
 export type CourseLifecycle = 'active' | 'upcoming' | 'unscheduled' | 'ended' | 'completed'
@@ -77,6 +78,7 @@ export function getCourseBillingSummary(
   charges: Charge[] = [],
   records: OccurrenceRecord[] = [],
   exceptions: ScheduleException[] = [],
+  payments: Payment[] = [],
 ): CourseBillingSummary {
   const unitLabel = getCourseAmountLabel(course)
   if (course.billingPolicy?.pricingMode === 'free' || course.billingMode === 'free') {
@@ -89,7 +91,7 @@ export function getCourseBillingSummary(
         && (item.source === 'course_upfront' || item.billingMode === 'term'),
     )
     const balance = getPackageBalance(course, records)
-    const amount = upfront?.amount ?? course.amount
+    const amount = upfront ? billNetAmount(upfront, payments) : course.amount
     const paidAmount = upfront?.status === 'paid' ? amount : 0
     const openAmount = upfront?.status === 'paid' ? 0 : amount
     if (!upfront) {
@@ -106,7 +108,7 @@ export function getCourseBillingSummary(
     }
   }
 
-  const ledger = buildCourseBillLedger(course, expenses, exceptions, charges)
+  const ledger = buildCourseBillLedger(course, expenses, exceptions, charges, payments)
   return {
     key: ledger.unpaid > 0 ? 'open' : ledger.paid > 0 ? 'settled' : 'unbilled',
     label: `已付 ¥${ledger.paid.toLocaleString('zh-CN')} · 未付 ¥${ledger.unpaid.toLocaleString('zh-CN')}`,

@@ -1,5 +1,25 @@
 import dayjs from 'dayjs'
-import type { Expense, ExpenseCategory, ExpenseStatus } from '@/domain/types'
+import type { Expense, ExpenseCategory, ExpenseStatus, Payment } from '@/domain/types'
+
+export function signedPaymentAmount(payment: Payment) {
+  return payment.kind === 'refund' ? -payment.amount : payment.amount
+}
+
+/** 已支付账单按支付/退款净额；未支付仍用账单金额。 */
+export function billNetAmount(expense: Expense, payments: Payment[] = []) {
+  if (expense.status === 'void') return 0
+  const related = payments.filter((item) => item.expenseId === expense.id)
+  if (!related.length) return expense.amount
+  return Math.round(related.reduce((sum, item) => sum + signedPaymentAmount(item), 0) * 100) / 100
+}
+
+export function refundedAmountOf(expenseId: string, payments: Payment[] = []) {
+  return Math.round(
+    payments
+      .filter((item) => item.expenseId === expenseId && item.kind === 'refund')
+      .reduce((sum, item) => sum + item.amount, 0) * 100,
+  ) / 100
+}
 
 export function money(n: number) {
   const amount = Math.round((Number(n) || 0) * 100) / 100
@@ -23,16 +43,20 @@ export function billsInDueRange(expenses: Expense[], start: string, end: string)
   return expenses.filter((item) => item.status !== 'void' && item.dueDate >= start && item.dueDate <= end)
 }
 
-export function summarizeBills(expenses: Expense[]) {
-  const total = expenses.reduce((sum, item) => sum + item.amount, 0)
-  const paid = expenses.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0)
-  return { total, paid, unpaid: total - paid }
+export function summarizeBills(expenses: Expense[], payments: Payment[] = []) {
+  const total = expenses.reduce((sum, item) => sum + billNetAmount(item, payments), 0)
+  const paid = expenses.filter((item) => item.status === 'paid').reduce((sum, item) => sum + billNetAmount(item, payments), 0)
+  return {
+    total: Math.round(total * 100) / 100,
+    paid: Math.round(paid * 100) / 100,
+    unpaid: Math.round((total - paid) * 100) / 100,
+  }
 }
 
-export function groupByCategory(expenses: Expense[]) {
+export function groupByCategory(expenses: Expense[], payments: Payment[] = []) {
   const map = new Map<ExpenseCategory, number>()
   for (const item of expenses) {
-    map.set(item.category, (map.get(item.category) ?? 0) + item.amount)
+    map.set(item.category, (map.get(item.category) ?? 0) + billNetAmount(item, payments))
   }
   return [...map.entries()].map(([category, amount]) => ({ category, amount }))
 }

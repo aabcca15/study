@@ -83,6 +83,13 @@
 - 建议：保持课程账单与本周账单分离。
 - 相关代码：`services/courseBills.ts`、`pages/CourseBillsPage.vue`。
 
+### 退款后周/月消费仍按原账单金额
+
+- 状态：已处理
+- 现状：退款只新增 `Payment(kind=refund)`，不改 `Expense.amount`。周账单、月统计、分类饼图、课程账单原先直接加账单金额，退款后消费对不上。
+- 已解决：`billNetAmount` / `summarizeBills` / `groupByCategory` 对已支付账单按支付减退款；未支付仍用账单金额。账单详情展示退款流水、剩余可退与退款金额分色。
+- 相关代码：`server/src/domain/billing.ts`、`statistics.ts`、`courseBills.ts`，小程序账单/统计/账单详情。
+
 ### 课程金额、账单和真实支出混为一层
 
 - 状态：已处理（第四阶段）

@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { WEEKDAY_SHORT } from '@server-domain/constants'
 import { occurrencesOnDate } from '@server-domain/schedule'
-import { billsInDueRange, money } from '@server-domain/billing'
+import { billNetAmount, billsInDueRange, money } from '@server-domain/billing'
 import { sumUnbilledCharges } from '@server-domain/charges'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
@@ -64,12 +64,12 @@ const items = computed(() =>
 )
 const weekBills = computed(() => billsInDueRange(store.overviewExpenses, days.value[0], days.value[6]))
 const weekOpen = computed(() =>
-  weekBills.value.filter((item) => item.status !== 'paid').reduce((sum, item) => sum + item.amount, 0),
+  weekBills.value.filter((item) => item.status !== 'paid').reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0),
 )
 const weekSettledPercent = computed(() => {
-  const total = weekBills.value.reduce((sum, item) => sum + item.amount, 0)
+  const total = weekBills.value.reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0)
   if (!total) return 0
-  const paid = weekBills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0)
+  const paid = weekBills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0)
   return Math.round((paid / total) * 100)
 })
 const isThisWeek = computed(() => days.value[0] === weekDates(ui.today)[0])

@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { onLoad } from '@dcloudio/uni-app'
-import { money } from '@server-domain/billing'
+import { billNetAmount, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import type { ExpenseCategory } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
@@ -36,12 +36,17 @@ onLoad((query) => {
 
 const existing = computed(() => store.snapshot.expenses.find((item) => item.id === expenseId.value))
 const paid = computed(() => existing.value?.status === 'paid')
+const payments = computed(() =>
+  (store.snapshot.payments ?? [])
+    .filter((item) => item.expenseId === expenseId.value)
+    .slice()
+    .sort((a, b) => b.paidAt.localeCompare(a.paidAt) || b.id.localeCompare(a.id)),
+)
+const refundedTotal = computed(() => refundedAmountOf(expenseId.value, store.snapshot.payments ?? []))
+const netPaid = computed(() => existing.value ? billNetAmount(existing.value, store.snapshot.payments ?? []) : 0)
 const refundable = computed(() => {
-  const id = expenseId.value
-  const payments = store.snapshot.payments?.filter((item) => item.expenseId === id) ?? []
-  const received = payments.filter((item) => item.kind === 'payment').reduce((sum, item) => sum + item.amount, 0)
-  const refunded = payments.filter((item) => item.kind === 'refund').reduce((sum, item) => sum + item.amount, 0)
-  return Math.round((received - refunded) * 100) / 100
+  const received = payments.value.filter((item) => item.kind === 'payment').reduce((sum, item) => sum + item.amount, 0)
+  return Math.max(0, Math.round((received - refundedTotal.value) * 100) / 100)
 })
 
 async function create() {
@@ -85,8 +90,13 @@ async function markPaid() {
 
 async function refund() {
   if (!expenseId.value) return
+  const value = Number(refundAmount.value) || 0
+  if (value <= 0 || value > refundable.value) {
+    showCloudError(new Error(`退款金额应大于 0，且不超过 ${money(refundable.value)}`))
+    return
+  }
   try {
-    await store.refund(expenseId.value, Number(refundAmount.value) || 0, refundNote.value.trim())
+    await store.refund(expenseId.value, value, refundNote.value.trim())
     refundAmount.value = ''
     refundNote.value = ''
     uni.showToast({ icon: 'none', title: '退款已记录' })
@@ -140,25 +150,54 @@ function remove() {
     <template v-else-if="existing">
       <view class="h1">{{ existing.title }}</view>
       <view class="card">
-        <view class="row"><text>金额</text><text>{{ money(existing.amount) }}</text></view>
+        <view class="row"><text>账单金额</text><text>{{ money(existing.amount) }}</text></view>
+        <view v-if="paid" class="row">
+          <text>实际支付</text>
+          <text class="pay-paid">{{ money(netPaid) }}</text>
+        </view>
+        <view v-if="refundedTotal" class="row">
+          <text>已退金额</text>
+          <text class="refund-amount">−{{ money(refundedTotal) }}</text>
+        </view>
         <view class="row"><text>日期</text><text>{{ existing.dueDate }}</text></view>
         <view class="row">
           <text>状态</text>
-          <text :class="paid ? 'pay-paid' : 'pay-unpaid'">{{ paid ? '已支付' : '未支付' }}</text>
+          <text :class="paid ? 'pay-paid' : 'pay-unpaid'">{{ paid ? (refundedTotal >= existing.amount ? '已退完' : '已支付') : '未支付' }}</text>
         </view>
       </view>
       <button v-if="!paid" class="btn block" @click="markPaid">标记已支付</button>
-      <view v-else class="card">
-        <text class="muted">剩余可退 {{ money(refundable) }}</text>
-        <view class="field">
-          <text class="field-label">退款金额</text>
-          <input v-model="refundAmount" type="digit" placeholder-class="ph" />
+      <view v-else class="card refund-card">
+        <text class="section">支付与退款</text>
+        <view v-if="payments.length" class="history">
+          <view v-for="item in payments" :key="item.id" class="history-row">
+            <view class="history-copy">
+              <text>{{ item.kind === 'payment' ? '支付' : '退款' }}</text>
+              <text class="muted">{{ item.paidAt }}{{ item.note && item.kind === 'refund' ? ' · ' + item.note : '' }}</text>
+            </view>
+            <text :class="item.kind === 'refund' ? 'refund-amount' : 'pay-paid'">
+              {{ item.kind === 'refund' ? '−' : '+' }}{{ money(item.amount) }}
+            </text>
+          </view>
         </view>
-        <view class="field">
-          <text class="field-label">备注</text>
-          <input v-model="refundNote" placeholder="选填" placeholder-class="ph" />
+        <view class="row remain">
+          <text>剩余可退</text>
+          <text class="refundable">{{ money(refundable) }}</text>
         </view>
-        <button class="btn ghost block" @click="refund">记录退款</button>
+        <template v-if="refundable > 0">
+          <view class="field">
+            <text class="field-label">退款金额</text>
+            <view class="money">
+              <text>¥</text>
+              <input v-model="refundAmount" type="digit" placeholder-class="ph" />
+            </view>
+          </view>
+          <view class="field">
+            <text class="field-label">备注</text>
+            <input v-model="refundNote" placeholder="选填" placeholder-class="ph" />
+          </view>
+          <button class="btn ghost block refund-btn" @click="refund">记录退款</button>
+        </template>
+        <text v-else class="muted tip">该账单已全部退款，实际消费已扣减。</text>
       </view>
       <button v-if="!paid" class="btn danger block" style="margin-top: 16rpx" @click="remove">删除未付账单</button>
     </template>
@@ -168,4 +207,23 @@ function remove() {
 
 <style scoped>
 .edit { padding-bottom: 48rpx; }
+.section { display: block; margin-bottom: 12px; color: var(--ink); font-size: 16px; font-weight: 800; }
+.history { margin-bottom: 12px; }
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.history-copy { flex: 1; min-width: 0; }
+.history-copy text { display: block; }
+.history-copy .muted { margin-top: 3px; font-size: 11px; }
+.remain { margin-bottom: 12px; }
+.refundable { color: var(--accent-text); font-weight: 800; }
+.refund-amount { color: var(--unpaid); font-weight: 800; }
+.refund-btn { color: var(--unpaid); }
+.tip { display: block; margin-top: 4px; }
+.empty { padding: 28px 8px; color: var(--muted); text-align: center; }
 </style>

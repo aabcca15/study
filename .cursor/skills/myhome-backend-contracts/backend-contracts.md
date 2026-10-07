@@ -162,7 +162,7 @@
 - 固定周期费每个周/月最多生成一笔 Charge 和账单；旧版同课程同月 Expense 存在时不得重复出账。
 - 家长端在查看某周账单时，对覆盖该周的账期自动触发 `generateBillingStatements()`，不再提供手动汇总或账期选择。
 - 未支付账单对应课次取消时，负数 adjustment 直接并入原账单；已支付后取消保留原账单并等待退款。
-- 支付写入 `Payment(kind=payment)`；退款写入独立 `Payment(kind=refund, refundOfPaymentId)`，不能覆盖或删除原支付。退款总额不得超过原支付金额。
+- 支付写入 `Payment(kind=payment)`；退款写入独立 `Payment(kind=refund, refundOfPaymentId)`，不能覆盖或删除原支付。退款总额不得超过原支付金额。周/月总金额、已支付、分类汇总与课程账单对已支付记录使用 `billNetAmount`（支付减退款），未支付仍用账单金额。
 - 已支付账单不得恢复为未支付或物理删除。
 - 编辑某次课可创建或更新该日账单金额与支付状态（`upsertOccurrenceExpense`）。已支付记录金额与状态不可再改。
 

@@ -27,6 +27,7 @@ const ledger = computed(() => {
     store.overviewExpenses,
     store.overviewScheduleExceptions,
     store.overviewCharges,
+    store.overviewPayments,
   )
 })
 

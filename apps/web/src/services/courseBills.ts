@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
-import type { Charge, Course, Expense, ScheduleException } from '@/domain/types'
+import type { Charge, Course, Expense, Payment, ScheduleException } from '@/domain/types'
+import { billNetAmount } from '@/services/billing'
 import { WEEKDAY_SHORT } from '@/domain/constants'
 import { effectiveCourseSlots } from '@/services/courseSchedule'
 import { expectedUsageCharge, isUsagePriced, occurrenceIdFor, roundMoney } from '@/services/charges'
@@ -59,6 +60,7 @@ export function buildCourseBillLedger(
   expenses: Expense[],
   exceptions: ScheduleException[],
   charges: Charge[] = [],
+  payments: Payment[] = [],
 ): CourseBillLedger {
   const bills = courseExpenses(course.id, expenses)
 
@@ -94,7 +96,7 @@ export function buildCourseBillLedger(
     if (isPrepaid) {
       days.push({
         ...base,
-        amount: upfront?.amount ?? course.amount,
+        amount: upfront ? billNetAmount(upfront, payments) : course.amount,
         amountLabel: '已含总价',
         ...payFromExpense(upfront?.status ?? 'unpaid'),
         expenseId: upfront?.id,
@@ -108,8 +110,8 @@ export function buildCourseBillLedger(
     if (expense) {
       days.push({
         ...base,
-        amount: expense.amount,
-        amountLabel: moneyLabel(expense.amount),
+        amount: billNetAmount(expense, payments),
+        amountLabel: moneyLabel(billNetAmount(expense, payments)),
         ...payFromExpense(expense.status),
         expenseId: expense.id,
         kind: 'session',
@@ -144,8 +146,8 @@ export function buildCourseBillLedger(
       key: `bill-${bill.id}`,
       date: bill.dueDate,
       weekdayLabel: weekdayLabel(bill.dueDate),
-      amount: bill.amount,
-      amountLabel: moneyLabel(bill.amount),
+      amount: billNetAmount(bill, payments),
+      amountLabel: moneyLabel(billNetAmount(bill, payments)),
       ...payFromExpense(bill.status),
       expenseId: bill.id,
       kind: bill.source === 'course_upfront' || bill.billingMode === 'term' ? 'prepaid' : 'period',
@@ -158,7 +160,7 @@ export function buildCourseBillLedger(
   let paid = 0
   let unpaid = 0
   if (isPrepaid) {
-    total = roundMoney(upfront?.amount ?? course.amount)
+    total = roundMoney(upfront ? billNetAmount(upfront, payments) : course.amount)
     paid = upfront?.status === 'paid' ? total : 0
     unpaid = roundMoney(total - paid)
   } else {

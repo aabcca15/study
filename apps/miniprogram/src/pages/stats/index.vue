@@ -53,7 +53,7 @@ const periodBills = computed(() => {
   return store.overviewExpenses.filter((item) => item.status !== 'void' && item.dueDate >= start && item.dueDate <= end)
 })
 const feeBreakdown = computed(() =>
-  groupByCategory(periodBills.value).map((item, index) => ({
+  groupByCategory(periodBills.value, store.overviewPayments).map((item, index) => ({
     category: item.category,
     amount: item.amount,
     color: chartColors[index % chartColors.length],

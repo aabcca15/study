@@ -91,7 +91,7 @@ export function calculateLearningStatistics(
   const occurrences = occurrencesInRange(courses, start, end, exceptions)
   const scopedExpenses = expensesInRange(expenses, start, end)
   const periodBills = billsInDueRange(expenses, start, end)
-  const periodMoney = summarizeBills(periodBills)
+  const periodMoney = summarizeBills(periodBills, payments)
   const scopedPayments = payments.filter((item) => item.paidAt >= start && item.paidAt <= end)
   const openExpenses = scopedExpenses.filter((item) => item.status !== 'paid' && item.status !== 'void')
   const trend = createTrend(anchor, granularity)
@@ -158,7 +158,7 @@ export function calculateLearningStatistics(
       ? Math.round((course.amount * balance.consumed / balance.total) * 100) / 100
       : 0
     const courseBills = periodBills.filter((item) => item.courseId === course.id)
-    const courseMoney = summarizeBills(courseBills)
+    const courseMoney = summarizeBills(courseBills, payments)
     return {
       course,
       scheduledCount: schedule.count,

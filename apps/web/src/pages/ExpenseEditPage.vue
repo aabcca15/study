@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import { useAppStore } from '@/stores/app'
 import type { ExpenseCategory } from '@/domain/types'
 import { CATEGORY_LABEL } from '@/domain/constants'
-import { money } from '@/services/billing'
+import { billNetAmount, money } from '@/services/billing'
 import AppDatePicker from '@/components/AppDatePicker.vue'
 import AppPaySwitch from '@/components/AppPaySwitch.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -63,6 +63,7 @@ const refundableAmount = computed(() => {
   const paid = originalPayment.value?.amount ?? 0
   return Math.max(0, Math.round((paid - refundedTotal.value) * 100) / 100)
 })
+const netPaid = computed(() => existing.value ? billNetAmount(existing.value, store.payments) : 0)
 const isPaid = computed(() => existing.value?.status === 'paid')
 const paying = ref(false)
 const refundForm = reactive({
@@ -163,8 +164,16 @@ async function refund() {
             <dd>{{ CATEGORY_LABEL[existing.category] }}</dd>
           </div>
           <div>
-            <dt>金额</dt>
+            <dt>账单金额</dt>
             <dd>{{ money(existing.amount) }}</dd>
+          </div>
+          <div v-if="isPaid">
+            <dt>实际支付</dt>
+            <dd class="status-paid">{{ money(netPaid) }}</dd>
+          </div>
+          <div v-if="refundedTotal">
+            <dt>已退金额</dt>
+            <dd class="refund-amount">−{{ money(refundedTotal) }}</dd>
           </div>
           <div class="pay-fact">
             <dt>是否已支付</dt>
@@ -194,7 +203,7 @@ async function refund() {
         </div>
         <template v-if="refundableAmount > 0">
           <div class="field">
-            <label>退款金额（最多 {{ money(refundableAmount) }}）</label>
+            <label class="refundable-label">退款金额（剩余可退 {{ money(refundableAmount) }}）</label>
             <div class="money-input">
               <span>¥</span>
               <input v-model.number="refundForm.amount" type="number" min="0.01" step="0.01" :max="refundableAmount" />
@@ -335,6 +344,8 @@ async function refund() {
 }
 .payment-history strong { color: #2f9d70; }
 .payment-history strong.refund { color: #d35f6f; }
+.refund-amount { color: #d35f6f; }
+.refundable-label { color: var(--accent-text); }
 .refund-expense {
   width: 100%;
   min-height: 44px;

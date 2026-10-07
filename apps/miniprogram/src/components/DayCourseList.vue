@@ -64,7 +64,7 @@ function feeOf(item: DayOccurrence) {
 
 function totals(item: DayOccurrence) {
   if (item.course.billingPolicy?.pricingMode === 'free' || item.course.billingMode === 'free') return null
-  return buildCourseBillLedger(item.course, store.overviewExpenses, store.overviewScheduleExceptions, store.overviewCharges)
+  return buildCourseBillLedger(item.course, store.overviewExpenses, store.overviewScheduleExceptions, store.overviewCharges, store.overviewPayments)
 }
 
 function participants(item: DayOccurrence) {

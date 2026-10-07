@@ -42,6 +42,7 @@ const courseCards = computed(() => {
         store.charges,
         store.snapshot.occurrenceRecords ?? [],
         store.scheduleExceptions,
+        store.payments,
       ),
     }))
     .sort((a, b) => stateOrder[a.lifecycle.key] - stateOrder[b.lifecycle.key])

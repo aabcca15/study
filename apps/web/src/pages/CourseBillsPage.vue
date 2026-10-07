@@ -38,6 +38,7 @@ const ledger = computed(() => {
     store.snapshot.expenses,
     store.snapshot.scheduleExceptions,
     store.snapshot.charges ?? [],
+    store.snapshot.payments ?? [],
   )
 })
 

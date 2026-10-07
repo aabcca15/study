@@ -6,7 +6,7 @@ import { useAppStore } from '@/stores/app'
 import { useHomeDate } from '@/composables/useHomeDate'
 import ExpenseCard from '@/components/ExpenseCard.vue'
 import { CATEGORY_LABEL } from '@/domain/constants'
-import { money, groupByCategory } from '@/services/billing'
+import { billNetAmount, money, groupByCategory } from '@/services/billing'
 import PageHeader from '@/components/PageHeader.vue'
 import { useViewRefresh } from '@/composables/useViewRefresh'
 
@@ -35,14 +35,14 @@ const weekBills = computed(() => {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 })
 
-const weekTotal = computed(() => weekBills.value.reduce((sum, item) => sum + item.amount, 0))
+const weekTotal = computed(() => weekBills.value.reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0))
 const paid = computed(() =>
-  weekBills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0),
+  weekBills.value.filter((item) => item.status === 'paid').reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0),
 )
 const unpaid = computed(() =>
-  weekBills.value.filter((item) => item.status !== 'paid').reduce((sum, item) => sum + item.amount, 0),
+  weekBills.value.filter((item) => item.status !== 'paid').reduce((sum, item) => sum + billNetAmount(item, store.overviewPayments), 0),
 )
-const cats = computed(() => groupByCategory(weekBills.value))
+const cats = computed(() => groupByCategory(weekBills.value, store.overviewPayments))
 const categorySlices = computed(() =>
   cats.value.map((item, index) => ({
     category: item.category,
