@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
 import { WECHAT_LOGIN_ENABLED } from '@/config'
 import { showCloudError } from '@/cloud/call'
-import { hasDevSession } from '@/cloud/local'
+import { clearDevSession } from '@/cloud/local'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemePage } from '@/composables/useThemePage'
@@ -17,6 +17,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 const store = useFamilyStore()
 const themeClass = useThemePage()
 const statusBar = statusBarHeight()
+const avatarOptions = CHILD_AVATAR_OPTIONS
 const mode = ref<'create' | 'join'>('create')
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
@@ -39,7 +40,7 @@ onShow(() => {
   }
   if (booting.value || inviteCode.value) return
   if (!WECHAT_LOGIN_ENABLED) {
-    if (!hasDevSession()) return
+    if (!hasLocalSession()) return
     booting.value = true
     store.login('小U', 'boy-blue').then(() => {
       openTab('/pages/today/index')
@@ -61,8 +62,21 @@ onShow(() => {
   })
 })
 
-function setMode(next: 'create' | 'join') {
-  mode.value = next
+function showCreate() {
+  mode.value = 'create'
+}
+
+function showJoin() {
+  mode.value = 'join'
+}
+
+function resetLocalFamily() {
+  store.logout()
+  clearDevSession()
+  inviteCode.value = ''
+  displayName.value = ''
+  childName.value = ''
+  uni.showToast({ icon: 'none', title: '已清空本地家庭' })
 }
 
 function pickAvatar(key: ChildAvatarKey) {
@@ -72,15 +86,6 @@ function pickAvatar(key: ChildAvatarKey) {
 function onCodeInput(event: { detail?: { value?: string } }) {
   inviteCode.value = normalizeInviteCode(event.detail?.value || '')
 }
-
-const submitLabel = computed(() => {
-  if (mode.value === 'join') {
-    if (submitting.value) return '加入中…'
-    return WECHAT_LOGIN_ENABLED ? '微信登录并加入' : '加入家庭'
-  }
-  if (submitting.value) return '进入中…'
-  return WECHAT_LOGIN_ENABLED ? '微信登录并创建' : '创建并进入'
-})
 
 async function submit() {
   if (submitting.value) return
@@ -119,19 +124,20 @@ async function submit() {
     <view v-if="booting" class="boot">正在进入…</view>
     <view v-else class="panel">
       <view class="modes">
-        <view class="mode-tab" :class="{ on: mode === 'create' }" @tap="setMode('create')">创建家庭</view>
-        <view class="mode-tab" :class="{ on: mode === 'join' }" @tap="setMode('join')">加入家庭</view>
+        <view class="mode-tab" :class="{ on: mode === 'create' }" hover-class="mode-tab-hover" @click="showCreate">创建家庭</view>
+        <view class="mode-tab" :class="{ on: mode === 'join' }" hover-class="mode-tab-hover" @click="showJoin">加入家庭</view>
       </view>
 
       <template v-if="mode === 'create'">
         <view class="pick-title">选择小U</view>
         <view class="picks">
           <view
-            v-for="option in CHILD_AVATAR_OPTIONS"
+            v-for="option in avatarOptions"
             :key="option.key"
             class="pick"
             :class="{ on: avatarKey === option.key }"
-            @tap="pickAvatar(option.key)"
+            hover-class="pick-hover"
+            @click="pickAvatar(option.key)"
           >
             <ChildAvatar :avatar-key="option.key" :size="64" />
             <view>{{ option.label }}</view>
@@ -142,7 +148,9 @@ async function submit() {
           <view class="field-label">孩子名字</view>
           <input v-model="childName" maxlength="20" placeholder="小U" placeholder-class="ph" />
         </view>
-        <view class="submit" :class="{ busy: submitting }" @tap="submit">{{ submitLabel }}</view>
+        <view class="submit" :class="{ busy: submitting }" hover-class="submit-hover" @click="submit">
+          <text class="submit-label">{{ submitting ? '进入中…' : '创建并进入' }}</text>
+        </view>
       </template>
 
       <template v-else>
@@ -156,9 +164,12 @@ async function submit() {
           <view class="field-label">你的称呼</view>
           <input v-model="displayName" maxlength="16" placeholder="妈妈 / 爸爸 / 奶奶" placeholder-class="ph" />
         </view>
-        <view class="submit" :class="{ busy: submitting }" @tap="submit">{{ submitLabel }}</view>
+        <view class="submit" :class="{ busy: submitting }" hover-class="submit-hover" @click="submit">
+          <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
+        </view>
       </template>
-      <view v-if="!WECHAT_LOGIN_ENABLED" class="hint">本地模拟，不请求微信登录。两台真机共享需打开云开发。</view>
+      <view v-if="!WECHAT_LOGIN_ENABLED" class="hint">先创建家庭进入各页。要测家人只读：家庭页生成邀请码，退出后再到「加入家庭」粘贴。也可在家庭页用底部预览切换角色。</view>
+      <view v-if="!WECHAT_LOGIN_ENABLED" class="hint reset" @click="resetLocalFamily">清空本地家庭</view>
     </view>
   </view>
 </template>
@@ -271,22 +282,29 @@ async function submit() {
   text-align: center;
 }
 .submit {
-  display: flex;
   width: 100%;
-  min-height: 48px;
+  height: 48px;
   box-sizing: border-box;
-  align-items: center;
-  justify-content: center;
   border-radius: 14px;
   background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
-  color: #fff;
   box-shadow: 0 10px 24px -8px rgba(255, 122, 69, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  text-align: center;
+}
+.submit-label {
+  display: block;
+  height: 48px;
+  line-height: 48px;
+  color: #fff;
   font-size: 16px;
   font-weight: 700;
-  text-align: center;
 }
 .submit.busy {
   opacity: 0.6;
+}
+.submit-hover,
+.mode-tab-hover,
+.pick-hover {
+  opacity: 0.86;
 }
 
 .picks {
@@ -393,5 +411,9 @@ async function submit() {
   font-size: 12px;
   line-height: 1.5;
   text-align: center;
+}
+.hint.reset {
+  color: var(--accent-text);
+  font-weight: 700;
 }
 </style>

@@ -15,7 +15,6 @@ import type {
 } from '@server-domain/types'
 import { emptySnapshot } from '@server-domain/constants'
 import { callCloud } from '@/cloud/call'
-import { clearDevSession } from '@/cloud/local'
 import {
   canInviteRole,
   canRemoveMember,
@@ -205,7 +204,6 @@ export const useFamilyStore = defineStore('family', {
       this.rangeMonth = ''
       this.syncClientFlags()
       uni.removeStorageSync(LOGGED_KEY)
-      clearDevSession()
     },
     refresh() {
       if (inflight) return inflight

@@ -236,9 +236,15 @@ function joinFamily(payload: Record<string, unknown>) {
   }
   const snapshot = requireSnapshot()
   let user = currentUser(account)
-  if (user?.familyId === invite.familyId) return sessionOf(user, snapshot)
   const role = normalizeInviteRole(invite.role)
   const displayName = displayNameOf(payload, role)
+  if (user?.familyId === invite.familyId) {
+    user.role = role
+    user.displayName = displayName
+    invite.usedCount += 1
+    writeAccount(account)
+    return sessionOf(user, snapshot)
+  }
   if (user?.role === 'owner' && account.users.filter((item) => item.familyId === user.familyId).length > 1) {
     raise('OWNER_HAS_MEMBERS', '请先让其他成员退出后再加入别的家庭')
   }
