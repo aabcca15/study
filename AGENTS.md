@@ -1,21 +1,22 @@
 # AI 开发约定
 
-本仓库是「小树成长」单仓：H5 在 `apps/web/`，后期会加 Node.js 与微信小程序。改代码前先读本文件和 `docs/`。
+本仓库是「小树成长」单仓：网页 H5 在 `apps/web/`，NestJS 在 `server/`，微信小程序在 `apps/miniprogram/`。改代码前先读本文件。新对话先读 `.cursor/skills/myhome-project/SKILL.md` 了解产品功能和两端数据边界。
 
 ## 现在改哪里
 
 - **H5 UI / 路由 / Pinia**：`apps/web/`，技术栈保持 Vue3 + Vite + TS + Pinia + Vue Router。业务数据走 `/api`，不要再写 `myhome.v1`。
 - **NestJS API**：`server/`，本地 SQLite，`npm run dev:server`。
+- **微信小程序**：`apps/miniprogram/`。页面用 uni-app，登录和数据走微信云开发，不要改成调用 Nest API。上线步骤见 `docs/miniprogram-launch.md`。
+- **项目是什么、用户怎么走**：`.cursor/skills/myhome-project/`（`SKILL.md` 入口，`flows.md` 是小程序流程）。
 - **业务规则、能力地图、账号与接口**：`.cursor/skills/myhome-backend-contracts/`（`SKILL.md` 入口；`capability-map.md` / `product-map.md` / `account-model.md` / `data-and-api.md` / `backend-contracts.md` / `billing-model-v2.md` / `gaps-and-backlog.md`）。
 - **产品与口径说明**：`docs/prd/`、`docs/domain/`、`docs/design/`、`docs/architecture.md`。
 
 不要把级联删除、共享课、统计口径只写在页面组件里；Store 保持业务语义，契约保持与 `apps/web/src/domain/types.ts`、`apps/web/src/stores/app.ts` 一致。
 
-## 以后改哪里（尚未落地）
+## 还没做
 
-- Node API 放 `server/`，Web 与小程序打同一套接口。
-- 可复用类型与口径再抽到 `packages/domain/`。
-- 小程序只放 `apps/miniprogram/`，不要把 Vue 页面改成小程序语法。
+- 可复用类型与口径再抽到 `packages/domain/`。现在规则在 `server/src/domain`，云函数打包时引用它。
+- 网页和小程序不要合成同一套数据库。现在网页走 SQLite，小程序走微信云数据库。
 
 ## 明确不要做
 
