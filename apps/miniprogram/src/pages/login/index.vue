@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
@@ -61,9 +61,26 @@ onShow(() => {
   })
 })
 
+function setMode(next: 'create' | 'join') {
+  mode.value = next
+}
+
+function pickAvatar(key: ChildAvatarKey) {
+  avatarKey.value = key
+}
+
 function onCodeInput(event: { detail?: { value?: string } }) {
   inviteCode.value = normalizeInviteCode(event.detail?.value || '')
 }
+
+const submitLabel = computed(() => {
+  if (mode.value === 'join') {
+    if (submitting.value) return '加入中…'
+    return WECHAT_LOGIN_ENABLED ? '微信登录并加入' : '加入家庭'
+  }
+  if (submitting.value) return '进入中…'
+  return WECHAT_LOGIN_ENABLED ? '微信登录并创建' : '创建并进入'
+})
 
 async function submit() {
   if (submitting.value) return
@@ -95,57 +112,53 @@ async function submit() {
     </view>
     <view class="stage">
       <view class="mark">U</view>
-      <text class="word">Uday</text>
-      <text class="slogan">Plan Your Day. Grow Your Way.</text>
+      <view class="word">Uday</view>
+      <view class="slogan">Plan Your Day. Grow Your Way.</view>
     </view>
 
-    <view v-if="booting" class="muted boot">正在进入…</view>
+    <view v-if="booting" class="boot">正在进入…</view>
     <view v-else class="panel">
       <view class="modes">
-        <button :class="{ on: mode === 'create' }" @click="mode = 'create'">创建家庭</button>
-        <button :class="{ on: mode === 'join' }" @click="mode = 'join'">加入家庭</button>
+        <view class="mode-tab" :class="{ on: mode === 'create' }" @tap="setMode('create')">创建家庭</view>
+        <view class="mode-tab" :class="{ on: mode === 'join' }" @tap="setMode('join')">加入家庭</view>
       </view>
 
       <template v-if="mode === 'create'">
-        <text class="pick-title">选择小U</text>
+        <view class="pick-title">选择小U</view>
         <view class="picks">
           <view
             v-for="option in CHILD_AVATAR_OPTIONS"
             :key="option.key"
             class="pick"
             :class="{ on: avatarKey === option.key }"
-            @click="avatarKey = option.key"
+            @tap="pickAvatar(option.key)"
           >
             <ChildAvatar :avatar-key="option.key" :size="64" />
-            <text>{{ option.label }}</text>
+            <view>{{ option.label }}</view>
           </view>
         </view>
 
         <view class="field">
-          <text class="field-label">孩子名字</text>
+          <view class="field-label">孩子名字</view>
           <input v-model="childName" maxlength="20" placeholder="小U" placeholder-class="ph" />
         </view>
-        <button class="btn block" :disabled="submitting" @click="submit">
-          {{ submitting ? '进入中…' : (WECHAT_LOGIN_ENABLED ? '微信登录并创建' : '创建并进入') }}
-        </button>
+        <view class="submit" :class="{ busy: submitting }" @tap="submit">{{ submitLabel }}</view>
       </template>
 
       <template v-else>
-        <text class="pick-title">用邀请码加入</text>
-        <text class="join-lead">家长生成邀请码后发给你。加入后按邀请身份进入：家长可改课表，家人只能看安排和地点。</text>
+        <view class="pick-title">用邀请码加入</view>
+        <view class="join-lead">家长生成邀请码后发给你。加入后按邀请身份进入：家长可改课表，家人只能看安排和地点。</view>
         <view class="field">
-          <text class="field-label">邀请码</text>
+          <view class="field-label">邀请码</view>
           <input :value="inviteCode" maxlength="8" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
         </view>
         <view class="field">
-          <text class="field-label">你的称呼</text>
+          <view class="field-label">你的称呼</view>
           <input v-model="displayName" maxlength="16" placeholder="妈妈 / 爸爸 / 奶奶" placeholder-class="ph" />
         </view>
-        <button class="btn block" :disabled="submitting" @click="submit">
-          {{ submitting ? '加入中…' : (WECHAT_LOGIN_ENABLED ? '微信登录并加入' : '加入家庭') }}
-        </button>
+        <view class="submit" :class="{ busy: submitting }" @tap="submit">{{ submitLabel }}</view>
       </template>
-      <text v-if="!WECHAT_LOGIN_ENABLED" class="hint">本地模拟，不请求微信登录。两台真机共享需打开云开发。</text>
+      <view v-if="!WECHAT_LOGIN_ENABLED" class="hint">本地模拟，不请求微信登录。两台真机共享需打开云开发。</view>
     </view>
   </view>
 </template>
@@ -155,6 +168,7 @@ async function submit() {
   position: relative;
   box-sizing: border-box;
   display: flex;
+  width: 100%;
   min-height: 100vh;
   flex-direction: column;
   align-items: center;
@@ -164,15 +178,18 @@ async function submit() {
 
 .login-bar {
   position: absolute;
+  z-index: 2;
   top: 8px;
   right: 10px;
 }
 
 .stage {
   display: flex;
+  width: 100%;
   flex-direction: column;
   align-items: center;
   margin-bottom: 36px;
+  text-align: center;
 }
 
 .mark {
@@ -205,34 +222,41 @@ async function submit() {
 
 .boot {
   margin-top: 8px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .panel {
-  width: min(100%, 360px);
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
 }
 
 .modes {
   display: flex;
+  width: 100%;
   margin-bottom: 22px;
   padding: 4px;
+  box-sizing: border-box;
   border-radius: 16px;
   background: var(--paper);
   box-shadow: var(--elev-sm);
 }
-.modes button {
+.mode-tab {
   flex: 1;
   height: 36px;
+  line-height: 36px;
   color: var(--muted);
   border-radius: 12px;
   font-size: 13px;
   font-weight: 700;
+  text-align: center;
 }
-.modes button.on {
+.mode-tab.on {
   color: var(--accent-text);
   background: var(--accent-soft);
 }
 .pick-title {
-  display: block;
   margin-bottom: 14px;
   color: var(--ink);
   font-size: 15px;
@@ -240,12 +264,29 @@ async function submit() {
   text-align: center;
 }
 .join-lead {
-  display: block;
   margin: -6px 0 18px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.55;
   text-align: center;
+}
+.submit {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px -8px rgba(255, 122, 69, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+.submit.busy {
+  opacity: 0.6;
 }
 
 .picks {
@@ -347,10 +388,10 @@ async function submit() {
 }
 
 .hint {
-  display: block;
   margin-top: 12px;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.5;
   text-align: center;
 }
 </style>
