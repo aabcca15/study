@@ -3,7 +3,7 @@ import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'v
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon.vue'
 import { useFamilyStore } from '@/stores/family'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import { openTab } from '@/utils/nav'
 

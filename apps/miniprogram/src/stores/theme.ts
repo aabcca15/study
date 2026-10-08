@@ -3,7 +3,14 @@ import { setMixBase } from '@/utils/color'
 
 export type ThemeMode = 'light' | 'dark'
 
-const THEME_KEY = 'myhome.mp.theme'
+export const THEME_KEY = 'myhome.mp.theme'
+
+export function hasThemeStore() {
+  const app = getApp({ allowDefault: true }) as { globalData?: { hasThemeStore?: boolean } }
+  app.globalData = app.globalData || {}
+  app.globalData.hasThemeStore = true
+  return true
+}
 
 const LIGHT = {
   bg: '#f3f4fb',
@@ -65,3 +72,5 @@ export const useThemeStore = defineStore('theme', {
     },
   },
 })
+
+export default useThemeStore

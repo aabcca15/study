@@ -4,7 +4,7 @@ import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { WECHAT_LOGIN_ENABLED } from '@/config'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage } from '@/composables/useThemePage'
+import { useThemePage } from '@/utils/wx-theme'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   FAMILY_ROLE_LABEL,

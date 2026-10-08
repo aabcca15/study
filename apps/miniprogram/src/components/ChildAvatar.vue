@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { ChildAvatarKey } from '@server-domain/types'
 import { childAvatarOption } from '@server-domain/constants'
 import { storeToRefs } from 'pinia'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@/utils/wx-theme'
 import { currentMixBase, mix } from '@/utils/color'
 
 const props = withDefaults(defineProps<{

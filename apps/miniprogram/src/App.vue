@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app'
 import { CLOUD_ENV, WECHAT_LOGIN_ENABLED } from './config'
-import { useThemeStore } from './stores/theme'
+import { useThemeStore } from './utils/wx-theme'
 
 onLaunch(() => {
-  useThemeStore().apply()
+  try {
+    useThemeStore().apply()
+  } catch (error) {
+    console.warn('[theme] apply skipped', error)
+  }
   // #ifdef MP-WEIXIN
   if (WECHAT_LOGIN_ENABLED && wx.cloud) {
     wx.cloud.init({

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, nextTick, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@/utils/wx-theme'
 import { currentMixBase, isDarkMix, mix } from '@/utils/color'
 
 const props = defineProps<{

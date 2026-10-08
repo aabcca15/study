@@ -9,7 +9,7 @@
     { "path": "pages/course-edit/index", "style": { "navigationBarTitleText": "编辑课程" } },
     { "path": "pages/course-bills/index", "style": { "navigationBarTitleText": "课程账单" } },
     { "path": "pages/expense-edit/index", "style": { "navigationBarTitleText": "账单" } },
-    { "path": "pages/family/index", "style": { "navigationBarTitleText": "家庭", "enableShareAppMessage": true } }
+    { "path": "pages/family/index", "style": { "navigationBarTitleText": "家庭" } }
   ],
   "globalStyle": {
     "navigationStyle": "custom",

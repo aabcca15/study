@@ -1,7 +1,7 @@
 import { onShow } from '@dcloudio/uni-app'
 import { showCloudError } from '@/cloud/call'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 
 /**
