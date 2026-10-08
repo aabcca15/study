@@ -14,24 +14,25 @@ cloudfunctions/api/     微信云函数。src/index.ts 是源码，index.js 是�
 scripts/build-cloud.mjs 把家庭工作区打进云函数
 ```
 
-云数据库两个集合，由云函数创建：
+云数据库三个集合，由云函数创建：
 
-- `users`：`openid`、`unionid`、`familyId`
-- `families`：`snapshotJson`（与网页版家庭快照相同）、`version`、`timezone`
+- `users`：`openid`、`unionid`、`familyId`、`role`（`owner` / `parent` / `viewer`）、`displayName`
+- `families`：`snapshotJson`（与网页版家庭快照相同）、`version`、`timezone`、`ownerOpenid`
+- `invites`：邀请码做文档 ID，含 `familyId`、`role`、`expireAt`、`maxUses`、`usedCount`
 
-请在云开发控制台把这两个集合的权限设为「仅云函数可读写」，不要让小程序端直接改数据库。
+请在云开发控制台把这三个集合的权限设为「仅云函数可读写」，不要让小程序端直接改数据库。
 
 ## 本地运行
 
-1. 用自己的小程序 AppID 开通云开发。把 AppID 填进 `src/manifest.json` 的 `mp-weixin.appid`。环境 ID 可填进 `src/config.ts` 的 `CLOUD_ENV`；留空则用开发者工具当前环境。
+1. 用自己的小程序 AppID 开通云开发。把同一个 AppID 填进 `project.config.json` 的 `appid`，以及 `src/manifest.json` 的 `mp-weixin.appid`。环境 ID 可填进 `src/config.ts` 的 `CLOUD_ENV`；留空则用开发者工具当前环境。
 2. 在仓库根目录安装依赖：`npm install`
 3. 打包云函数：`npm run build:cloud`
 4. 安装云函数依赖：在微信开发者工具里对 `api` 选择「安装依赖」，或进入 `apps/miniprogram/cloudfunctions/api` 后执行 `npm install`
-5. 启动微信端：`npm run dev:mp`
-6. 用微信开发者工具导入 **`apps/miniprogram`**（这一层同时包含小程序和 `cloudfunctions/`）。把 `project.config.json` 里的 `appid` 换成你的小程序 AppID。只执行过 `build:mp` 时，把 `miniprogramRoot` 改成 `dist/build/mp-weixin/`。
-7. 在开发者工具中上传并部署云函数 `api`（云端安装依赖）。
+5. 启动微信端：`npm run dev:mp`。正式打包：`npm run build:mp`
+6. 用微信开发者工具导入 **`apps/miniprogram`**（这一层同时包含小程序和 `cloudfunctions/`）。只执行过 `build:mp` 时，`miniprogramRoot` 用 `dist/build/mp-weixin/`。
+7. 在开发者工具中上传并部署云函数 `api`（云端安装依赖），并用微信扫码预览。登录身份是真实 openid，数据写在云数据库。
 
-游客 AppID 不能使用云开发。本地模拟器请保持 `src/config.ts` 里的 `WECHAT_LOGIN_ENABLED = false`：第一次在登录页选择男孩或女孩并填写孩子名字（留空则为小U）后进入，之后会跳过登录页。数据写在本机。接上真实 AppID 和云环境后，把该开关改为 `true`。
+开发者工具不要再用游客 AppID。游客没有 openid，云函数会直接拒绝。
 
 抖音端编译：`npm run dev:mp-toutiao --prefix apps/miniprogram`
 

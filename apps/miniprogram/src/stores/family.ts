@@ -69,6 +69,8 @@ export const useFamilyStore = defineStore('family', {
     familyId: '',
     role: 'owner' as FamilyRole,
     displayName: '',
+    /** 家人只在本机切换正在看的孩子，不写进全家共用的快照。 */
+    preferredChildId: '',
     snapshot: frozen(emptySnapshot() as AppSnapshot),
     syncedAt: 0,
     rangeMonth: '',
@@ -93,7 +95,11 @@ export const useFamilyStore = defineStore('family', {
       return this.role === 'owner'
     },
     child(state): ChildProfile | undefined {
-      return state.snapshot.children.find((item) => item.id === state.snapshot.session.childId)
+      const preferred = state.preferredChildId
+      const id = state.snapshot.children.some((item) => item.id === preferred)
+        ? preferred
+        : state.snapshot.session.childId
+      return state.snapshot.children.find((item) => item.id === id)
         ?? state.snapshot.children[0]
     },
     childId(): string {
@@ -157,6 +163,7 @@ export const useFamilyStore = defineStore('family', {
       this.familyId = data.familyId
       this.role = data.role || 'owner'
       this.displayName = data.displayName || FAMILY_ROLE_LABEL[this.role]
+      if (canWriteFamily(this.role)) this.preferredChildId = ''
       this.applySnapshot(data.snapshot)
       this.rangeMonth = ''
       this.ready = true
@@ -171,6 +178,10 @@ export const useFamilyStore = defineStore('family', {
     async login(childName = '小U', avatarKey?: ChildAvatarKey, displayName?: string) {
       this.applySession(await callCloud<CloudSession>('login', { childName, avatarKey, displayName }))
     },
+    /** 这个微信号已经有家庭时直接进入。没有家庭时不创建，回到登录页让用户自己选。 */
+    async resume() {
+      this.applySession(await callCloud<CloudSession>('login', { resume: true }))
+    },
     async joinFamily(code: string, displayName?: string) {
       this.applySession(await callCloud<CloudSession>('joinFamily', { code, displayName }))
     },
@@ -183,12 +194,6 @@ export const useFamilyStore = defineStore('family', {
     removeMember(openid: string) {
       return this.dispatch('removeMember', { openid })
     },
-    async previewRole(role: FamilyRole) {
-      const result = await this.dispatch<{ role: FamilyRole; displayName: string }>('devSetRole', { role })
-      this.role = result.role
-      this.displayName = result.displayName
-      this.syncClientFlags()
-    },
     canRemove(member: FamilyMemberView) {
       return canRemoveMember(this.role, member.role, member.self)
     },
@@ -198,6 +203,7 @@ export const useFamilyStore = defineStore('family', {
       this.familyId = ''
       this.role = 'owner'
       this.displayName = ''
+      this.preferredChildId = ''
       snapshotJson = ''
       this.snapshot = frozen(emptySnapshot())
       this.syncedAt = 0
@@ -237,7 +243,15 @@ export const useFamilyStore = defineStore('family', {
       return this.dispatch('removeChild', { id })
     },
     selectChild(childId: string) {
-      return this.dispatch('selectChild', { childId })
+      if (!this.snapshot.children.some((item) => item.id === childId)) {
+        return Promise.reject(new Error('孩子不存在'))
+      }
+      if (!this.canWrite) {
+        this.preferredChildId = childId
+        return Promise.resolve(childId)
+      }
+      this.preferredChildId = ''
+      return this.dispatch<string>('selectChild', { childId })
     },
     saveCourse(course: Record<string, unknown>, paymentStatus: 'paid' | 'unpaid') {
       return this.dispatch<string>('saveCourse', { course, paymentStatus })

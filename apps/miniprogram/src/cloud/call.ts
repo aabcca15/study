@@ -1,7 +1,3 @@
-import { WECHAT_LOGIN_ENABLED } from '@/config'
-import { FamilyActionError } from '../../../../server/src/workspace/family-actions'
-import { callLocal } from './local'
-
 export class CloudError extends Error {
   code: string
 
@@ -14,16 +10,6 @@ export class CloudError extends Error {
 type CloudBody<T> = { ok: true; data: T } | { ok: false; code?: string; message?: string }
 
 export function callCloud<T>(action: string, payload?: Record<string, unknown>): Promise<T> {
-  if (!WECHAT_LOGIN_ENABLED) {
-    try {
-      return Promise.resolve(callLocal<T>(action, payload ?? {}))
-    } catch (error) {
-      if (error instanceof FamilyActionError) {
-        return Promise.reject(new CloudError(error.message, error.code))
-      }
-      return Promise.reject(error)
-    }
-  }
   return new Promise((resolve, reject) => {
     // #ifdef MP-WEIXIN
     if (!wx.cloud) {

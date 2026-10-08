@@ -3,9 +3,7 @@ import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
-import { WECHAT_LOGIN_ENABLED } from '@/config'
 import { showCloudError } from '@/cloud/call'
-import { clearDevSession } from '@/cloud/local'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemePage } from '@/utils/wx-theme'
@@ -38,22 +36,9 @@ onShow(() => {
     openTab('/pages/today/index')
     return
   }
-  if (booting.value || inviteCode.value) return
-  if (!WECHAT_LOGIN_ENABLED) {
-    if (!hasLocalSession()) return
-    booting.value = true
-    store.login('小U', 'boy-blue').then(() => {
-      openTab('/pages/today/index')
-    }).catch((error) => {
-      store.logout()
-      booting.value = false
-      showCloudError(error)
-    })
-    return
-  }
-  if (!hasLocalSession()) return
+  if (booting.value || inviteCode.value || !hasLocalSession()) return
   booting.value = true
-  store.login('小U').then(() => {
+  store.resume().then(() => {
     openTab('/pages/today/index')
   }).catch((error) => {
     store.logout()
@@ -68,15 +53,6 @@ function showCreate() {
 
 function showJoin() {
   mode.value = 'join'
-}
-
-function resetLocalFamily() {
-  store.logout()
-  clearDevSession()
-  inviteCode.value = ''
-  displayName.value = ''
-  childName.value = ''
-  uni.showToast({ icon: 'none', title: '已清空本地家庭' })
 }
 
 function pickAvatar(key: ChildAvatarKey) {
@@ -168,8 +144,6 @@ async function submit() {
           <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
         </view>
       </template>
-      <view v-if="!WECHAT_LOGIN_ENABLED" class="hint">先创建家庭进入各页。要测家人只读：家庭页生成邀请码，退出后再到「加入家庭」粘贴。也可在家庭页用底部预览切换角色。</view>
-      <view v-if="!WECHAT_LOGIN_ENABLED" class="hint reset" @click="resetLocalFamily">清空本地家庭</view>
     </view>
   </view>
 </template>
@@ -405,15 +379,4 @@ async function submit() {
   border-radius: 0 0 12px 12px;
 }
 
-.hint {
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-  text-align: center;
-}
-.hint.reset {
-  color: var(--accent-text);
-  font-weight: 700;
-}
 </style>

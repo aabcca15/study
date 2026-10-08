@@ -1889,7 +1889,7 @@ var FAMILY_ROLE_LABEL = {
 var INVITE_MAX_USES = 10;
 var INVITE_TTL_MS = 24 * 60 * 60 * 1e3;
 var INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-var WORKSPACE_READ_ACTIONS = /* @__PURE__ */ new Set(["snapshot", "selectChild"]);
+var WORKSPACE_READ_ACTIONS = /* @__PURE__ */ new Set(["snapshot"]);
 function isWorkspaceReadAction(action) {
   return WORKSPACE_READ_ACTIONS.has(action);
 }
@@ -1958,7 +1958,6 @@ var db = import_wx_server_sdk.default.database();
 var users = () => db.collection("users");
 var families = () => db.collection("families");
 var invites = () => db.collection("invites");
-var command = db.command;
 function fail(code, message) {
   return { ok: false, code, message };
 }
@@ -2052,6 +2051,9 @@ async function persistUserRole(user, role, displayName) {
 async function login(openid, unionid, payload) {
   var _a;
   const existing = await findUser(openid);
+  if (!existing && payload.resume === true) {
+    raise("UNAUTHENTICATED", "\u8BF7\u5148\u521B\u5EFA\u6216\u52A0\u5165\u5BB6\u5EAD");
+  }
   if (existing) {
     const family = await loadFamilyDoc(existing.familyId);
     const role = normalizeRole(existing.role, family.ownerOpenid === openid);
@@ -2116,26 +2118,39 @@ async function findInvite(code) {
 async function createInvite(user, payload) {
   const role = normalizeInviteRole(payload.role);
   if (!canInviteRole(user.role, role)) raise("INVITE_FORBIDDEN", "\u6CA1\u6709\u9080\u8BF7\u8FD9\u4E2A\u89D2\u8272\u7684\u6743\u9650");
-  let code = createInviteCode();
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const exists = await findInvite(code);
-    if (!exists) break;
-    code = createInviteCode();
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = createInviteCode();
+    const record = {
+      code,
+      familyId: user.familyId,
+      createdBy: user.openid,
+      role,
+      expireAt: inviteExpiresAt(),
+      maxUses: INVITE_MAX_USES,
+      usedCount: 0,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    try {
+      await db.runTransaction(async (transaction) => {
+        var _a;
+        const ref = transaction.collection("invites").doc(code);
+        let taken = false;
+        try {
+          const got = await ref.get();
+          taken = Boolean((_a = got.data) == null ? void 0 : _a.code);
+        } catch {
+          taken = false;
+        }
+        if (taken) throw new Error("INVITE_CODE_TAKEN");
+        await ref.set({ data: record });
+      });
+      return toInviteView(record);
+    } catch (error) {
+      if (error instanceof Error && error.message === "INVITE_CODE_TAKEN") continue;
+      throw error;
+    }
   }
-  const record = {
-    code,
-    familyId: user.familyId,
-    createdBy: user.openid,
-    role,
-    expireAt: inviteExpiresAt(),
-    maxUses: INVITE_MAX_USES,
-    usedCount: 0,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  await invites().doc(code).set({
-    data: record
-  });
-  return toInviteView(record);
+  raise("CLOUD_ERROR", "\u751F\u6210\u9080\u8BF7\u7801\u5931\u8D25\uFF0C\u8BF7\u518D\u8BD5\u4E00\u6B21");
 }
 async function listFamilyInvites(familyId) {
   const found = await invites().where({ familyId }).limit(50).get();
@@ -2199,31 +2214,54 @@ async function joinFamily(openid, unionid, payload) {
   const role = normalizeInviteRole(invite.role);
   const displayName = displayNameOf(payload, role);
   const now = (/* @__PURE__ */ new Date()).toISOString();
-  if (existing == null ? void 0 : existing._id) {
-    await users().doc(existing._id).update({
-      data: {
-        familyId: invite.familyId,
-        role,
-        displayName
-      }
+  const previousFamilyId = (existing == null ? void 0 : existing.role) === "owner" ? existing.familyId : "";
+  await db.runTransaction(async (transaction) => {
+    const inviteRef = transaction.collection("invites").doc(invite.code);
+    let current;
+    try {
+      const got = await inviteRef.get();
+      current = got.data;
+    } catch {
+      current = void 0;
+    }
+    if (!(current == null ? void 0 : current.familyId) || !current.code) raise("INVITE_INVALID", "\u9080\u8BF7\u7801\u65E0\u6548\u6216\u5DF2\u5931\u6548");
+    if (!isInviteActive(current)) {
+      if (Date.parse(current.expireAt) <= Date.now()) raise("INVITE_EXPIRED", "\u9080\u8BF7\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u8BA9\u5BB6\u957F\u91CD\u65B0\u751F\u6210");
+      raise("INVITE_USED_UP", "\u9080\u8BF7\u5DF2\u7528\u5B8C\uFF0C\u8BF7\u8BA9\u5BB6\u957F\u91CD\u65B0\u751F\u6210");
+    }
+    await inviteRef.update({
+      data: { usedCount: current.usedCount + 1 }
     });
-  } else {
-    await users().add({
-      data: {
-        openid,
-        unionid,
-        familyId: invite.familyId,
-        role,
-        displayName,
-        createdAt: now
-      }
-    });
-  }
-  await invites().doc(invite.code).update({
-    data: {
-      usedCount: command.inc(1)
+    if (existing == null ? void 0 : existing._id) {
+      await transaction.collection("users").doc(existing._id).update({
+        data: {
+          familyId: current.familyId,
+          role,
+          displayName
+        }
+      });
+    } else {
+      await transaction.collection("users").add({
+        data: {
+          openid,
+          unionid,
+          familyId: current.familyId,
+          role,
+          displayName,
+          createdAt: now
+        }
+      });
     }
   });
+  if (previousFamilyId) {
+    const left = await countFamilyMembers(previousFamilyId);
+    if (left === 0) {
+      try {
+        await families().doc(previousFamilyId).remove();
+      } catch {
+      }
+    }
+  }
   const snapshot = await loadSnapshot(invite.familyId);
   return sessionOf({
     openid,
@@ -2277,7 +2315,6 @@ async function main(event) {
     if (action === "joinFamily") {
       return { ok: true, data: await joinFamily(openid, context.UNIONID || "", payload) };
     }
-    if (action === "devSetRole") raise("INVALID_ACTION", "\u6B63\u5F0F\u73AF\u5883\u4E0D\u80FD\u5207\u6362\u89D2\u8272");
     const user = await requireUser(openid);
     if (action === "createInvite" || action === "listMembers" || action === "removeMember") {
       return { ok: true, data: await dispatchAccount(user, action, payload) };

@@ -28,7 +28,7 @@ Family（租户）
 ## 登录渠道
 
 1. **一期 H5（已落地）**：账号 + 密码。用户名 3–32 位字母数字下划线，密码至少 6 位。JWT payload 含 `sub=accountId`、`familyId`、`role`。注册时创建 Family + FamilyMember(parent) + 默认孩子「Uday」。
-2. **微信小程序（已落地云开发）**：`apps/miniprogram` 用云函数 `getWXContext().OPENID` 登录，并按 openid 创建或进入家庭。不使用网页版用户名密码。数据在微信云数据库，不与 H5 的 SQLite 互通。授权仍然只认云函数解析出的家庭，不信客户端传入的 `familyId`。本地游客模拟器没有 openid，`src/config.ts` 的 `WECHAT_LOGIN_ENABLED` 关闭时不调用云函数，用本机测试家庭进入；正式环境必须打开该开关。
+2. **微信小程序（已落地云开发）**：`apps/miniprogram` 用云函数 `getWXContext().OPENID` 登录，并按 openid 创建或进入家庭。不使用网页版用户名密码。数据在微信云数据库，不与 H5 的 SQLite 互通。授权仍然只认云函数解析出的家庭，不信客户端传入的 `familyId`。本地和线上都走真实 AppID 扫码；没有 openid 时云函数拒绝。已登录过的设备用本机标记恢复会话，恢复时不会新建家庭。
 3. **微信小程序家庭邀请（已落地）**：同一家庭可有多名微信用户。`users.role` 为 `owner`（创建者）/ `parent`（家长）/ `viewer`（家人，只读）。创建者与家长生成 6 位邀请码（24 小时、最多 10 次）；创建者可邀请家长和家人，家长只能邀请家人。被邀请人登录页填邀请码或打开分享链接 `pages/login/index?invite=CODE`，云函数把其 openid 绑到同一 `familyId`。家人看今日/日历/地点，不能改课、不能看账单；写操作服务端返回 `403 SCOPE_FORBIDDEN`。家人快照会去掉 `expenses` / `payments` / `charges`。
 4. **孩子端**：家长生成邀请码或一次性链接，孩子登录后绑定档案。在绑定完成前，孩子请求一律 `403`。这与小程序「家人」角色不同：家人仍是成人接送视角，不是孩子登录。
 
@@ -77,7 +77,7 @@ Family（租户）
 
 | action | 谁能调 | 作用 |
 |---|---|---|
-| `login` | 微信用户 | 已有用户回家庭；新用户建家庭并成为 `owner` |
+| `login` | 微信用户 | 已有用户回家庭。`resume: true` 且没有家庭时返回 `UNAUTHENTICATED`，不创建。否则新用户建家庭并成为 `owner` |
 | `joinFamily` `{ code, displayName? }` | 微信用户 | 按邀请码绑定家庭；创建者若家庭里还有别人则拒绝 `OWNER_HAS_MEMBERS` |
 | `createInvite` `{ role }` | owner：parent/viewer；parent：viewer | 生成邀请码 |
 | `listMembers` | 家庭成员 | 成员 + 未过期邀请 |
@@ -85,7 +85,7 @@ Family（租户）
 
 错误码：`INVITE_INVALID` `INVITE_EXPIRED` `INVITE_USED_UP` `INVITE_FORBIDDEN` `OWNER_HAS_MEMBERS` `MEMBER_REMOVE_FORBIDDEN` `CANNOT_REMOVE_OWNER` `CANNOT_REMOVE_SELF` `SCOPE_FORBIDDEN`。
 
-游客模式没有第二台微信，家庭页提供本地预览三角色；真机共享必须打开 `WECHAT_LOGIN_ENABLED` 并部署云函数、建 `invites` 集合。
+家人切换正在看的孩子只保存在本机，不改家庭快照里的默认孩子。邀请码占用次数在云数据库事务里递增，避免并发把同一个码用超。创建者若是家庭里唯一的人，加入别的家庭后会删掉空的旧家庭。
 
 ## 金额、时区、审计
 

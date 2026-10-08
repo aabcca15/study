@@ -54,15 +54,10 @@ export const INVITE_MAX_USES = 10
 export const INVITE_TTL_MS = 24 * 60 * 60 * 1000
 export const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
-const WORKSPACE_READ_ACTIONS = new Set(['snapshot', 'selectChild'])
-const ACCOUNT_ACTIONS = new Set(['createInvite', 'joinFamily', 'listMembers', 'removeMember', 'devSetRole'])
+const WORKSPACE_READ_ACTIONS = new Set(['snapshot'])
 
 export function isWorkspaceReadAction(action: string) {
   return WORKSPACE_READ_ACTIONS.has(action)
-}
-
-export function isAccountAction(action: string) {
-  return ACCOUNT_ACTIONS.has(action)
 }
 
 export function canWriteFamily(role: FamilyRole) {

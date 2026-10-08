@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
-import { WECHAT_LOGIN_ENABLED } from '@/config'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/utils/wx-theme'
@@ -12,7 +11,6 @@ import {
   INVITE_ROLE_HINT,
   type FamilyInviteView,
   type FamilyMemberView,
-  type FamilyRole,
   type InviteRole,
 } from '@/domain/family-account'
 
@@ -100,14 +98,6 @@ function remove(member: FamilyMemberView) {
   })
 }
 
-async function preview(role: FamilyRole) {
-  try {
-    await store.previewRole(role)
-    uni.showToast({ icon: 'none', title: `已预览${FAMILY_ROLE_LABEL[role]}视角` })
-  } catch (error) {
-    showCloudError(error)
-  }
-}
 </script>
 
 <template>
@@ -164,16 +154,6 @@ async function preview(role: FamilyRole) {
             <text class="muted">{{ expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
           </view>
           <button class="ghost" @click="copyCode(item.code)">复制</button>
-        </view>
-      </view>
-
-      <view v-if="!WECHAT_LOGIN_ENABLED" class="card preview">
-        <text class="eyebrow">本地预览</text>
-        <text class="muted">游客模式只有一台设备。可用下面按钮切换视角检查家人只读界面。</text>
-        <view class="invite-actions">
-          <button class="btn ghost-btn" :class="{ on: store.role === 'owner' }" @click="preview('owner')">创建者</button>
-          <button class="btn ghost-btn" :class="{ on: store.role === 'parent' }" @click="preview('parent')">家长</button>
-          <button class="btn ghost-btn" :class="{ on: store.role === 'viewer' }" @click="preview('viewer')">家人</button>
         </view>
       </view>
     </view>
@@ -239,10 +219,6 @@ async function preview(role: FamilyRole) {
   background: var(--bg);
   box-shadow: none;
 }
-.ghost-btn.on {
-  color: var(--accent-text);
-  background: var(--accent-soft);
-}
 .hint {
   display: block;
   margin-top: 12px;
@@ -277,7 +253,6 @@ async function preview(role: FamilyRole) {
   gap: 12px;
   margin-top: 12px;
 }
-.preview { margin-top: 22px; }
 .eyebrow {
   display: block;
   color: var(--accent-text);

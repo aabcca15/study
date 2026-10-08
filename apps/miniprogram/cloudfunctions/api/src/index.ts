@@ -31,8 +31,6 @@ const db = cloud.database()
 const users = () => db.collection('users')
 const families = () => db.collection('families')
 const invites = () => db.collection('invites')
-const command = db.command
-
 type FamilyDoc = {
   snapshotJson?: string
   version?: number
@@ -149,6 +147,9 @@ async function persistUserRole(user: UserDoc, role: FamilyRole, displayName: str
 
 async function login(openid: string, unionid: string, payload: Record<string, unknown>) {
   const existing = await findUser(openid)
+  if (!existing && payload.resume === true) {
+    raise('UNAUTHENTICATED', '请先创建或加入家庭')
+  }
   if (existing) {
     const family = await loadFamilyDoc(existing.familyId)
     const role = normalizeRole(existing.role, family.ownerOpenid === openid)
@@ -216,26 +217,38 @@ async function findInvite(code: string): Promise<FamilyInviteRecord | null> {
 async function createInvite(user: UserDoc, payload: Record<string, unknown>) {
   const role = normalizeInviteRole(payload.role)
   if (!canInviteRole(user.role, role)) raise('INVITE_FORBIDDEN', '没有邀请这个角色的权限')
-  let code = createInviteCode()
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const exists = await findInvite(code)
-    if (!exists) break
-    code = createInviteCode()
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = createInviteCode()
+    const record: FamilyInviteRecord = {
+      code,
+      familyId: user.familyId,
+      createdBy: user.openid,
+      role,
+      expireAt: inviteExpiresAt(),
+      maxUses: INVITE_MAX_USES,
+      usedCount: 0,
+      createdAt: new Date().toISOString(),
+    }
+    try {
+      await db.runTransaction(async (transaction) => {
+        const ref = transaction.collection('invites').doc(code)
+        let taken = false
+        try {
+          const got = await ref.get()
+          taken = Boolean((got.data as FamilyInviteRecord | undefined)?.code)
+        } catch {
+          taken = false
+        }
+        if (taken) throw new Error('INVITE_CODE_TAKEN')
+        await ref.set({ data: record })
+      })
+      return toInviteView(record)
+    } catch (error) {
+      if (error instanceof Error && error.message === 'INVITE_CODE_TAKEN') continue
+      throw error
+    }
   }
-  const record: FamilyInviteRecord = {
-    code,
-    familyId: user.familyId,
-    createdBy: user.openid,
-    role,
-    expireAt: inviteExpiresAt(),
-    maxUses: INVITE_MAX_USES,
-    usedCount: 0,
-    createdAt: new Date().toISOString(),
-  }
-  await invites().doc(code).set({
-    data: record,
-  })
-  return toInviteView(record)
+  raise('CLOUD_ERROR', '生成邀请码失败，请再试一次')
 }
 
 async function listFamilyInvites(familyId: string): Promise<FamilyInviteView[]> {
@@ -311,31 +324,55 @@ async function joinFamily(openid: string, unionid: string, payload: Record<strin
   const role = normalizeInviteRole(invite.role)
   const displayName = displayNameOf(payload, role)
   const now = new Date().toISOString()
-  if (existing?._id) {
-    await users().doc(existing._id).update({
-      data: {
-        familyId: invite.familyId,
-        role,
-        displayName,
-      },
+  const previousFamilyId = existing?.role === 'owner' ? existing.familyId : ''
+  await db.runTransaction(async (transaction) => {
+    const inviteRef = transaction.collection('invites').doc(invite.code)
+    let current: FamilyInviteRecord | undefined
+    try {
+      const got = await inviteRef.get()
+      current = got.data as FamilyInviteRecord | undefined
+    } catch {
+      current = undefined
+    }
+    if (!current?.familyId || !current.code) raise('INVITE_INVALID', '邀请码无效或已失效')
+    if (!isInviteActive(current)) {
+      if (Date.parse(current.expireAt) <= Date.now()) raise('INVITE_EXPIRED', '邀请已过期，请让家长重新生成')
+      raise('INVITE_USED_UP', '邀请已用完，请让家长重新生成')
+    }
+    await inviteRef.update({
+      data: { usedCount: current.usedCount + 1 },
     })
-  } else {
-    await users().add({
-      data: {
-        openid,
-        unionid,
-        familyId: invite.familyId,
-        role,
-        displayName,
-        createdAt: now,
-      },
-    })
-  }
-  await invites().doc(invite.code).update({
-    data: {
-      usedCount: command.inc(1),
-    },
+    if (existing?._id) {
+      await transaction.collection('users').doc(existing._id).update({
+        data: {
+          familyId: current.familyId,
+          role,
+          displayName,
+        },
+      })
+    } else {
+      await transaction.collection('users').add({
+        data: {
+          openid,
+          unionid,
+          familyId: current.familyId,
+          role,
+          displayName,
+          createdAt: now,
+        },
+      })
+    }
   })
+  if (previousFamilyId) {
+    const left = await countFamilyMembers(previousFamilyId)
+    if (left === 0) {
+      try {
+        await families().doc(previousFamilyId).remove()
+      } catch {
+        // 旧家庭已经空了；删不掉不影响这次加入
+      }
+    }
+  }
   const snapshot = await loadSnapshot(invite.familyId)
   return sessionOf({
     openid,
@@ -393,7 +430,6 @@ export async function main(event: { action?: string; payload?: Record<string, un
     if (action === 'joinFamily') {
       return { ok: true as const, data: await joinFamily(openid, context.UNIONID || '', payload) }
     }
-    if (action === 'devSetRole') raise('INVALID_ACTION', '正式环境不能切换角色')
     const user = await requireUser(openid)
     if (action === 'createInvite' || action === 'listMembers' || action === 'removeMember') {
       return { ok: true as const, data: await dispatchAccount(user, action, payload) }
