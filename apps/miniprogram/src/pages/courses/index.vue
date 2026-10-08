@@ -143,6 +143,14 @@ async function onChildChange(id: string) {
 }
 
 function more(course: Course) {
+  if (!store.canWrite) {
+    uni.showModal({
+      title: course.title,
+      content: [course.teacher || '老师待定', course.location || '地点待定'].join('\n'),
+      showCancel: false,
+    })
+    return
+  }
   uni.showActionSheet({
     itemList: ['编辑课程', course.archived ? '恢复课程' : '标记已结课', '查看账单', '删除课程'],
     success: async (res) => {
@@ -183,7 +191,7 @@ function more(course: Course) {
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page courses-page">
-      <PageHeader title="课程安排" :caption="`管理 ${store.child?.name || '孩子'} 的排课、进度与费用`">
+      <PageHeader title="课程安排" :caption="store.canWrite ? `管理 ${store.child?.name || '孩子'} 的排课、进度与费用` : `查看 ${store.child?.name || '孩子'} 的课程、老师和地点`">
         <template #actions>
           <view class="child-row">
             <view
@@ -196,7 +204,7 @@ function more(course: Course) {
               <ChildAvatar :avatar-key="child.avatarKey" :size="40" />
               <text>{{ child.name }}</text>
             </view>
-            <view class="manage" @click="managing = true">
+            <view v-if="store.canWrite" class="manage" @click="managing = true">
               <AppIcon name="plus" tone="accent" :size="18" />
             </view>
           </view>
@@ -229,18 +237,22 @@ function more(course: Course) {
           </view>
           <text class="meta">{{ card.progress.completed }}/{{ card.progress.total }} 课时 · {{ card.progress.percent }}%</text>
           <view class="foot">
-            <view>
+            <view v-if="store.canViewBills">
               <text class="price">{{ getCoursePricingLabel(card.course) }}</text>
               <text v-if="card.billing.key !== 'free'" class="bill-state" :class="`is-${card.billing.key}`">{{ card.billing.label }}</text>
             </view>
-            <view class="amount-col">
+            <view v-else>
+              <text class="price">{{ card.course.teacher || '老师待定' }}</text>
+              <text class="bill-state">{{ card.course.location || '地点待定' }}</text>
+            </view>
+            <view v-if="store.canViewBills" class="amount-col">
               <text class="amount">{{ getCourseAmountLabel(card.course) }}</text>
               <text v-if="card.billing.key === 'open'" class="pay" @click.stop="uni.navigateTo({ url: `/pages/course-bills/index?id=${card.course.id}` })">去支付</text>
             </view>
           </view>
           </view>
         </view>
-        <view class="course add" @click="uni.navigateTo({ url: '/pages/course-edit/index' })">
+        <view v-if="store.canWrite" class="course add" @click="uni.navigateTo({ url: '/pages/course-edit/index' })">
           <view class="plus"><AppIcon name="plus" tone="white" :size="22" /></view>
           <text class="name">新增课程</text>
           <text class="meta">创建新的课程与排课计划</text>

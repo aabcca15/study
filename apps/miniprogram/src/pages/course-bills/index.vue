@@ -5,6 +5,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { COURSE_TYPE_LABEL } from '@server-domain/constants'
 import { buildCourseBillLedger } from '@server-domain/courseBills'
 import { money } from '@server-domain/billing'
+import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/composables/useThemePage'
 import { cardBackground, tileBackground } from '@/utils/color'
@@ -16,6 +17,7 @@ const themeClass = useThemePage()
 const courseId = ref('')
 
 onLoad((query) => {
+  if (denyViewerBills()) return
   courseId.value = typeof query?.id === 'string' ? query.id : ''
 })
 

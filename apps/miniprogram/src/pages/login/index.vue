@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
 import { WECHAT_LOGIN_ENABLED } from '@/config'
@@ -9,6 +9,7 @@ import { hasDevSession } from '@/cloud/local'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemePage } from '@/composables/useThemePage'
+import { normalizeInviteCode } from '@/domain/family-account'
 import { openTab } from '@/utils/nav'
 import { statusBarHeight } from '@/utils/system'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -16,17 +17,27 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 const store = useFamilyStore()
 const themeClass = useThemePage()
 const statusBar = statusBarHeight()
+const mode = ref<'create' | 'join'>('create')
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
+const inviteCode = ref('')
+const displayName = ref('')
 const submitting = ref(false)
 const booting = ref(false)
+
+onLoad((query) => {
+  const invite = typeof query?.invite === 'string' ? normalizeInviteCode(query.invite) : ''
+  if (!invite) return
+  inviteCode.value = invite
+  mode.value = 'join'
+})
 
 onShow(() => {
   if (store.ready) {
     openTab('/pages/today/index')
     return
   }
-  if (booting.value) return
+  if (booting.value || inviteCode.value) return
   if (!WECHAT_LOGIN_ENABLED) {
     if (!hasDevSession()) return
     booting.value = true
@@ -50,11 +61,24 @@ onShow(() => {
   })
 })
 
+function onCodeInput(event: { detail?: { value?: string } }) {
+  inviteCode.value = normalizeInviteCode(event.detail?.value || '')
+}
+
 async function submit() {
   if (submitting.value) return
   submitting.value = true
   try {
-    await store.login(childName.value.trim() || '小U', avatarKey.value)
+    if (mode.value === 'join') {
+      const code = normalizeInviteCode(inviteCode.value)
+      if (code.length < 6) {
+        uni.showToast({ icon: 'none', title: '请填写邀请码' })
+        return
+      }
+      await store.joinFamily(code, displayName.value.trim())
+    } else {
+      await store.login(childName.value.trim() || '小U', avatarKey.value)
+    }
     openTab('/pages/today/index')
   } catch (error) {
     showCloudError(error)
@@ -77,28 +101,51 @@ async function submit() {
 
     <view v-if="booting" class="muted boot">正在进入…</view>
     <view v-else class="panel">
-      <text class="pick-title">选择小U</text>
-      <view class="picks">
-        <view
-          v-for="option in CHILD_AVATAR_OPTIONS"
-          :key="option.key"
-          class="pick"
-          :class="{ on: avatarKey === option.key }"
-          @click="avatarKey = option.key"
-        >
-          <ChildAvatar :avatar-key="option.key" :size="64" />
-          <text>{{ option.label }}</text>
-        </view>
+      <view class="modes">
+        <button :class="{ on: mode === 'create' }" @click="mode = 'create'">创建家庭</button>
+        <button :class="{ on: mode === 'join' }" @click="mode = 'join'">加入家庭</button>
       </view>
 
-      <view class="field">
-        <text class="field-label">孩子名字</text>
-        <input v-model="childName" maxlength="20" placeholder="小U" placeholder-class="ph" />
-      </view>
-      <button class="btn block" :disabled="submitting" @click="submit">
-        {{ submitting ? '进入中…' : (WECHAT_LOGIN_ENABLED ? '微信一键登录' : '进入') }}
-      </button>
-      <text v-if="!WECHAT_LOGIN_ENABLED" class="hint">本地模拟，不请求微信登录</text>
+      <template v-if="mode === 'create'">
+        <text class="pick-title">选择小U</text>
+        <view class="picks">
+          <view
+            v-for="option in CHILD_AVATAR_OPTIONS"
+            :key="option.key"
+            class="pick"
+            :class="{ on: avatarKey === option.key }"
+            @click="avatarKey = option.key"
+          >
+            <ChildAvatar :avatar-key="option.key" :size="64" />
+            <text>{{ option.label }}</text>
+          </view>
+        </view>
+
+        <view class="field">
+          <text class="field-label">孩子名字</text>
+          <input v-model="childName" maxlength="20" placeholder="小U" placeholder-class="ph" />
+        </view>
+        <button class="btn block" :disabled="submitting" @click="submit">
+          {{ submitting ? '进入中…' : (WECHAT_LOGIN_ENABLED ? '微信登录并创建' : '创建并进入') }}
+        </button>
+      </template>
+
+      <template v-else>
+        <text class="pick-title">用邀请码加入</text>
+        <text class="join-lead">家长生成邀请码后发给你。加入后按邀请身份进入：家长可改课表，家人只能看安排和地点。</text>
+        <view class="field">
+          <text class="field-label">邀请码</text>
+          <input :value="inviteCode" maxlength="8" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
+        </view>
+        <view class="field">
+          <text class="field-label">你的称呼</text>
+          <input v-model="displayName" maxlength="16" placeholder="妈妈 / 爸爸 / 奶奶" placeholder-class="ph" />
+        </view>
+        <button class="btn block" :disabled="submitting" @click="submit">
+          {{ submitting ? '加入中…' : (WECHAT_LOGIN_ENABLED ? '微信登录并加入' : '加入家庭') }}
+        </button>
+      </template>
+      <text v-if="!WECHAT_LOGIN_ENABLED" class="hint">本地模拟，不请求微信登录。两台真机共享需打开云开发。</text>
     </view>
   </view>
 </template>
@@ -164,12 +211,40 @@ async function submit() {
   width: min(100%, 360px);
 }
 
+.modes {
+  display: flex;
+  margin-bottom: 22px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: var(--elev-sm);
+}
+.modes button {
+  flex: 1;
+  height: 36px;
+  color: var(--muted);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.modes button.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
 .pick-title {
   display: block;
   margin-bottom: 14px;
   color: var(--ink);
   font-size: 15px;
   font-weight: 700;
+  text-align: center;
+}
+.join-lead {
+  display: block;
+  margin: -6px 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
   text-align: center;
 }
 

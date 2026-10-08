@@ -2,6 +2,7 @@
 import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon.vue'
+import { useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
 import { openTab } from '@/utils/nav'
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const ui = useUiStore()
 const theme = useThemeStore()
+const family = useFamilyStore()
 const open = ref(false)
 const travel = ref(false)
 const ready = ref(false)
@@ -74,7 +76,19 @@ function go(key: typeof tabs[number]['key'], url: string) {
   openTab(url)
 }
 
+function toggleFab() {
+  if (!family.canWrite) {
+    uni.showToast({ icon: 'none', title: '家人只能查看课表' })
+    return
+  }
+  open.value = !open.value
+}
+
 function quick(url: string) {
+  if (!family.canWrite) {
+    uni.showToast({ icon: 'none', title: '家人只能查看课表' })
+    return
+  }
   open.value = false
   if (url.startsWith('/pages/today')) {
     ui.pendingAdd = true
@@ -141,7 +155,7 @@ onShow(measureSoon)
       <text class="tab-label">{{ tab.label }}</text>
     </view>
     <view class="tabbar-center">
-      <button class="tabbar-fab" :class="{ open }" @click="open = !open">
+      <button class="tabbar-fab" :class="{ open }" @click="toggleFab">
         <text class="fab-mark">＋</text>
       </button>
     </view>

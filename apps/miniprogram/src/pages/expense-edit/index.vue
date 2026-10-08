@@ -6,6 +6,7 @@ import { billNetAmount, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import type { ExpenseCategory } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
+import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/composables/useThemePage'
 import DateField from '@/components/DateField.vue'
@@ -31,6 +32,7 @@ const categoryOptions = (Object.keys(CATEGORY_LABEL) as ExpenseCategory[]).map((
 }))
 
 onLoad((query) => {
+  if (denyViewerBills()) return
   expenseId.value = typeof query?.id === 'string' ? query.id : ''
 })
 

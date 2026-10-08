@@ -8,6 +8,7 @@ import TimeField from './TimeField.vue'
 
 const props = defineProps<{
   item: DayOccurrence | null
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -113,30 +114,36 @@ function cancelOnce() {
         <text class="close" @click="emit('close')">×</text>
       </view>
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
-        <text class="muted">{{ item.date }}</text>
-        <view class="row" style="margin-top: 16px">
-          <view class="field" style="flex: 1">
-            <text class="field-label">开始</text>
-            <TimeField v-model="startTime" />
-          </view>
-          <view class="field" style="flex: 1">
-            <text class="field-label">结束</text>
-            <TimeField v-model="endTime" />
-          </view>
+        <text class="muted">{{ item.date }} · {{ item.course.teacher || '老师待定' }}</text>
+        <text class="place">{{ item.course.location || '地点待定' }}</text>
+        <view v-if="readonly" class="readonly-time">
+          <text>{{ startTime }}–{{ endTime }}</text>
         </view>
-        <view v-if="!free" class="field">
-          <text class="field-label">金额</text>
-          <view class="money">
-            <text>¥</text>
-            <input v-model="amount" type="digit" placeholder-class="ph" :disabled="locked" />
+        <template v-else>
+          <view class="row" style="margin-top: 16px">
+            <view class="field" style="flex: 1">
+              <text class="field-label">开始</text>
+              <TimeField v-model="startTime" />
+            </view>
+            <view class="field" style="flex: 1">
+              <text class="field-label">结束</text>
+              <TimeField v-model="endTime" />
+            </view>
           </view>
-        </view>
-        <view v-if="!free" class="row pay-row">
-          <text>是否已支付</text>
-          <switch :checked="paid" :disabled="locked" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
-        </view>
+          <view v-if="!free" class="field">
+            <text class="field-label">金额</text>
+            <view class="money">
+              <text>¥</text>
+              <input v-model="amount" type="digit" placeholder-class="ph" :disabled="locked" />
+            </view>
+          </view>
+          <view v-if="!free" class="row pay-row">
+            <text>是否已支付</text>
+            <switch :checked="paid" :disabled="locked" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
+          </view>
+        </template>
       </scroll-view>
-      <view class="sheet-foot action-row">
+      <view v-if="!readonly" class="sheet-foot action-row">
         <button class="btn danger" @click="cancelOnce">取消课程</button>
         <button class="btn" :disabled="saving" @click="save">{{ saving ? '保存中…' : '确认修改' }}</button>
       </view>
@@ -156,6 +163,8 @@ function cancelOnce() {
   line-height: 34px;
   font-size: 22px;
 }
+.place { display: block; margin-top: 8px; color: var(--ink); font-size: 15px; font-weight: 700; }
+.readonly-time { margin-top: 16px; color: var(--ink); font-size: 20px; font-weight: 800; }
 .pay-row { align-items: center; margin-bottom: 8px; }
 .action-row { display: flex; gap: 10px; }
 .action-row .btn { flex: 1; min-height: 48px; }

@@ -5,6 +5,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { billNetAmount, billsInDueRange, groupByCategory, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { showCloudError } from '@/cloud/call'
+import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/composables/useThemePage'
 import { weekDates, weekLabel } from '@/utils/view'
@@ -27,6 +28,7 @@ onLoad((query) => {
 
 onShow(() => {
   if (!store.ready) return
+  if (denyViewerBills()) return
   const period = anchor.value.slice(0, 7)
   store.generateBills(period).catch((error) => showCloudError(error))
 })

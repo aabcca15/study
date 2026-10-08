@@ -130,6 +130,8 @@ async function undoCancel() {
       <DayCourseList
         :title="listTitle"
         :items="items"
+        :readonly="!store.canWrite"
+        :hide-fee="!store.canViewBills"
         @add="addOpen = true"
         @edit="editing = $event"
       />
@@ -137,8 +139,8 @@ async function undoCancel() {
         <text>已取消“{{ cancelled.course.title }}”</text>
         <button @click="undoCancel">撤销</button>
       </view>
-      <AddSheet :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
-      <OccurrenceSheet :item="editing" @close="editing = null" @cancelled="cancelled = $event" />
+      <AddSheet v-if="store.canWrite" :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
+      <OccurrenceSheet :item="editing" :readonly="!store.canWrite" @close="editing = null" @cancelled="cancelled = $event" />
     </view>
   </view>
 </template>

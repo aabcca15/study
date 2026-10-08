@@ -13,6 +13,7 @@ import {
 import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, CourseType } from '@server-domain/types'
 import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
+import { denyViewerWrite } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useThemePage } from '@/composables/useThemePage'
 import TimeField from '@/components/TimeField.vue'
@@ -95,6 +96,7 @@ const batchConflict = computed(() => {
 })
 
 onLoad((query) => {
+  if (denyViewerWrite()) return
   courseId.value = typeof query?.id === 'string' ? query.id : ''
   const course = store.snapshot.courses.find((item) => item.id === courseId.value)
   form.childIds = course?.childIds?.length

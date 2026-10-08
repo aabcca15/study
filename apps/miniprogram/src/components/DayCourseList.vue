@@ -18,8 +18,12 @@ const props = withDefaults(defineProps<{
   title: string
   items: DayOccurrence[]
   actionLabel?: string
+  readonly?: boolean
+  hideFee?: boolean
 }>(), {
   actionLabel: '新增',
+  readonly: false,
+  hideFee: false,
 })
 
 const emit = defineEmits<{
@@ -137,7 +141,7 @@ const rows = computed(() => {
   <view class="schedule">
     <view class="schedule-head">
       <text class="schedule-title">{{ title }}</text>
-      <button class="add" @click="emit('add')">
+      <button v-if="!readonly" class="add" @click="emit('add')">
         <AppIcon name="plus" tone="accent" :size="14" />
         <text>{{ actionLabel }}</text>
       </button>
@@ -186,7 +190,7 @@ const rows = computed(() => {
               <button class="more" @click="emit('edit', row.item)">
                 <AppIcon name="dots" tone="muted" :size="18" />
               </button>
-              <view class="fee-row">
+              <view v-if="!hideFee" class="fee-row">
                 <text class="fee">{{ row.fee.label }}</text>
                 <text
                   v-if="row.fee.paid !== undefined"
@@ -211,9 +215,9 @@ const rows = computed(() => {
     </view>
 
     <view v-else class="empty-state">
-      <button class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
+      <button v-if="!readonly" class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
       <text class="empty-title">这一天没有课程</text>
-      <text class="empty-desc">计划有变化也没关系，好好享受空闲时间。</text>
+      <text class="empty-desc">{{ readonly ? '今天没有需要接送的安排。' : '计划有变化也没关系，好好享受空闲时间。' }}</text>
     </view>
   </view>
 </template>

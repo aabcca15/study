@@ -30,7 +30,7 @@ let undoTimer: ReturnType<typeof setTimeout> | undefined
 const clock = ref(dayjs().format('HH:mm'))
 
 onLoad((query) => {
-  if (query?.add === '1') addOpen.value = true
+  if (query?.add === '1' && store.canWrite) addOpen.value = true
   const app = getApp() as { globalData?: { openTodayAdd?: () => void } }
   app.globalData = app.globalData || {}
   app.globalData.openTodayAdd = () => {
@@ -49,11 +49,11 @@ onShow(() => {
   const app = getApp() as { globalData?: { pendingAdd?: boolean } }
   if (app?.globalData?.pendingAdd) {
     app.globalData.pendingAdd = false
-    addOpen.value = true
+    if (store.canWrite) addOpen.value = true
   }
   if (!ui.pendingAdd) return
   ui.pendingAdd = false
-  addOpen.value = true
+  if (store.canWrite) addOpen.value = true
 })
 
 const days = computed(() => weekDates(ui.selectedDate))
@@ -189,7 +189,7 @@ async function undoCancel() {
             </view>
           </view>
         </view>
-        <view class="overview-card is-bill" @click="uni.navigateTo({ url: '/pages/bills/index?from=today' })">
+        <view v-if="store.canViewBills" class="overview-card is-bill" @click="uni.navigateTo({ url: '/pages/bills/index?from=today' })">
           <view class="overview-head">
             <view class="mark bill"><AppIcon name="bill" tone="white" :size="15" /></view>
             <text>本周课程账单</text>
@@ -210,6 +210,8 @@ async function undoCancel() {
       <DayCourseList
         :title="isToday ? '今日安排' : selectedLabel + '安排'"
         :items="items"
+        :readonly="!store.canWrite"
+        :hide-fee="!store.canViewBills"
         @add="addOpen = true"
         @edit="editing = $event"
       />
@@ -218,8 +220,8 @@ async function undoCancel() {
         <text>已取消“{{ cancelled.course.title }}”</text>
         <button @click="undoCancel">撤销</button>
       </view>
-      <AddSheet :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
-      <OccurrenceSheet :item="editing" @close="editing = null" @cancelled="rememberCancel" />
+      <AddSheet v-if="store.canWrite" :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
+      <OccurrenceSheet :item="editing" :readonly="!store.canWrite" @close="editing = null" @cancelled="rememberCancel" />
     </view>
   </view>
 </template>

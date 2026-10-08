@@ -121,10 +121,10 @@
 
 ## 账号与同步
 
-- 状态：部分已处理
-- 现状：H5 已接 NestJS，账号+密码注册/登录，家庭数据在服务端 SQLite。前端 token 在 `myhome.tokens`。
-- 未做：短信/微信登录、多家长邀请、孩子端、从旧 `myhome.v1` 导入、刷新令牌。
-- 见 [account-model.md](account-model.md)。
+- 状态：部分已处理（小程序邀请已落地，H5 仍是单家长）
+- 现状：H5 已接 NestJS，账号+密码注册/登录，家庭数据在服务端 SQLite。前端 token 在 `myhome.tokens`。小程序用邀请码把多个 openid 绑到同一 `familyId`，角色 `owner` / `parent` / `viewer`，家人只读且看不到账单。
+- 未做：短信登录、H5 多家长邀请、孩子端、从旧 `myhome.v1` 导入、刷新令牌。
+- 见 [account-model.md](account-model.md)#小程序家庭邀请。
 
 ## 小程序与 H5 数据不互通
 

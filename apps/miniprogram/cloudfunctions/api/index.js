@@ -1880,35 +1880,140 @@ function createFamilyWorkspace(initial) {
   };
 }
 
+// src/domain/family-account.ts
+var FAMILY_ROLE_LABEL = {
+  owner: "\u521B\u5EFA\u8005",
+  parent: "\u5BB6\u957F",
+  viewer: "\u5BB6\u4EBA"
+};
+var INVITE_MAX_USES = 10;
+var INVITE_TTL_MS = 24 * 60 * 60 * 1e3;
+var INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var WORKSPACE_READ_ACTIONS = /* @__PURE__ */ new Set(["snapshot", "selectChild"]);
+function isWorkspaceReadAction(action) {
+  return WORKSPACE_READ_ACTIONS.has(action);
+}
+function canWriteFamily(role) {
+  return role === "owner" || role === "parent";
+}
+function canViewBills(role) {
+  return role === "owner" || role === "parent";
+}
+function canInviteRole(actor, target) {
+  if (actor === "owner") return target === "parent" || target === "viewer";
+  if (actor === "parent") return target === "viewer";
+  return false;
+}
+function canRemoveMember(actor, target, self2) {
+  return actor === "owner" && !self2 && target !== "owner";
+}
+function normalizeRole(role, isOwner = false) {
+  if (role === "owner" || role === "parent" || role === "viewer") return role;
+  return isOwner ? "owner" : "parent";
+}
+function normalizeInviteRole(role) {
+  return role === "parent" ? "parent" : "viewer";
+}
+function defaultDisplayName(role) {
+  return FAMILY_ROLE_LABEL[role];
+}
+function createInviteCode() {
+  let code = "";
+  for (let index = 0; index < 6; index += 1) {
+    code += INVITE_ALPHABET[Math.floor(Math.random() * INVITE_ALPHABET.length)];
+  }
+  return code;
+}
+function normalizeInviteCode(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+}
+function inviteExpiresAt(from = Date.now()) {
+  return new Date(from + INVITE_TTL_MS).toISOString();
+}
+function isInviteActive(invite, now = Date.now()) {
+  return Date.parse(invite.expireAt) > now && invite.usedCount < invite.maxUses;
+}
+function toInviteView(invite, now = Date.now()) {
+  return {
+    code: invite.code,
+    role: invite.role,
+    expireAt: invite.expireAt,
+    maxUses: invite.maxUses,
+    usedCount: invite.usedCount,
+    expired: !isInviteActive(invite, now)
+  };
+}
+function maskSnapshotForRole(snapshot, role) {
+  if (canViewBills(role)) return snapshot;
+  const next = JSON.parse(JSON.stringify(snapshot));
+  next.expenses = [];
+  next.payments = [];
+  next.charges = [];
+  return next;
+}
+
 // cloudfunctions/api/src/index.ts
 import_wx_server_sdk.default.init({ env: import_wx_server_sdk.default.DYNAMIC_CURRENT_ENV });
 var db = import_wx_server_sdk.default.database();
 var users = () => db.collection("users");
 var families = () => db.collection("families");
+var invites = () => db.collection("invites");
+var command = db.command;
 function fail(code, message) {
   return { ok: false, code, message };
 }
 function cloneSnapshot(snapshot) {
   return JSON.parse(JSON.stringify(snapshot));
 }
+function raise(code, message) {
+  throw new FamilyActionError(code, message);
+}
+function displayNameOf(payload, role) {
+  const name = String(payload.displayName || "").trim().slice(0, 16);
+  return name || defaultDisplayName(role);
+}
 async function findUser(openid) {
   var _a;
   const found = await users().where({ openid }).limit(1).get();
   const user = (_a = found.data) == null ? void 0 : _a[0];
   if (!(user == null ? void 0 : user.familyId)) return null;
-  return user;
+  return {
+    ...user,
+    _id: user._id ? String(user._id) : void 0,
+    role: normalizeRole(user.role),
+    displayName: user.displayName || defaultDisplayName(normalizeRole(user.role))
+  };
 }
 async function requireUser(openid) {
   const user = await findUser(openid);
-  if (!user) throw new FamilyActionError("UNAUTHENTICATED", "\u8BF7\u5148\u4F7F\u7528\u5FAE\u4FE1\u767B\u5F55");
+  if (!user) raise("UNAUTHENTICATED", "\u8BF7\u5148\u4F7F\u7528\u5FAE\u4FE1\u767B\u5F55");
   return user;
+}
+async function loadFamilyDoc(familyId) {
+  const got = await families().doc(familyId).get();
+  const raw = got.data;
+  if (!(raw == null ? void 0 : raw.snapshotJson)) raise("FAMILY_MISMATCH", "\u5BB6\u5EAD\u4E0D\u5B58\u5728\u6216\u65E0\u6743\u8BBF\u95EE");
+  return raw;
+}
+async function loadSnapshot(familyId) {
+  return JSON.parse((await loadFamilyDoc(familyId)).snapshotJson);
+}
+function sessionOf(user, snapshot) {
+  const role = normalizeRole(user.role);
+  return {
+    openid: user.openid,
+    familyId: user.familyId,
+    role,
+    displayName: user.displayName || defaultDisplayName(role),
+    snapshot: maskSnapshotForRole(cloneSnapshot(snapshot), role)
+  };
 }
 async function withFamily(familyId, apply) {
   return db.runTransaction(async (transaction) => {
     const ref = transaction.collection("families").doc(familyId);
     const got = await ref.get();
     const raw = got.data;
-    if (!(raw == null ? void 0 : raw.snapshotJson)) throw new FamilyActionError("FAMILY_MISMATCH", "\u5BB6\u5EAD\u4E0D\u5B58\u5728\u6216\u65E0\u6743\u8BBF\u95EE");
+    if (!(raw == null ? void 0 : raw.snapshotJson)) raise("FAMILY_MISMATCH", "\u5BB6\u5EAD\u4E0D\u5B58\u5728\u6216\u65E0\u6743\u8BBF\u95EE");
     const workspace = createFamilyWorkspace(JSON.parse(raw.snapshotJson));
     const result = await apply(workspace);
     const nextJson = JSON.stringify(workspace.snapshot.value);
@@ -1927,15 +2032,39 @@ async function withFamily(familyId, apply) {
     };
   });
 }
+async function countFamilyMembers(familyId) {
+  const counted = await users().where({ familyId }).count();
+  return counted.total || 0;
+}
+async function listFamilyUsers(familyId) {
+  const found = await users().where({ familyId }).limit(50).get();
+  return found.data || [];
+}
+async function persistUserRole(user, role, displayName) {
+  if (!user._id) return;
+  if (user.role === role && user.displayName === displayName) return;
+  await users().doc(user._id).update({
+    data: { role, displayName }
+  });
+  user.role = role;
+  user.displayName = displayName;
+}
 async function login(openid, unionid, payload) {
   var _a;
   const existing = await findUser(openid);
   if (existing) {
-    const data = await withFamily(existing.familyId, (workspace) => {
-      applyFamilyAction(workspace, "snapshot", {});
-      return null;
-    });
-    return { openid, familyId: existing.familyId, snapshot: data.snapshot };
+    const family = await loadFamilyDoc(existing.familyId);
+    const role = normalizeRole(existing.role, family.ownerOpenid === openid);
+    const displayName2 = existing.displayName || defaultDisplayName(role);
+    await persistUserRole(existing, role, displayName2);
+    if (canWriteFamily(role)) {
+      const data = await withFamily(existing.familyId, (workspace) => {
+        applyFamilyAction(workspace, "snapshot", {});
+        return null;
+      });
+      return sessionOf({ ...existing, role, displayName: displayName2 }, data.snapshot);
+    }
+    return sessionOf({ ...existing, role, displayName: displayName2 }, JSON.parse(family.snapshotJson));
   }
   const childName = String(payload.childName || "").trim().slice(0, 20) || "\u5C0FU";
   const avatarKey = typeof payload.avatarKey === "string" ? payload.avatarKey : void 0;
@@ -1952,20 +2081,188 @@ async function login(openid, unionid, payload) {
     }
   });
   const familyId = String(created._id || created.id || "");
-  if (!familyId) throw new FamilyActionError("CLOUD_ERROR", "\u521B\u5EFA\u5BB6\u5EAD\u5931\u8D25");
+  if (!familyId) raise("CLOUD_ERROR", "\u521B\u5EFA\u5BB6\u5EAD\u5931\u8D25");
+  const displayName = displayNameOf(payload, "owner");
   await users().add({
     data: {
       openid,
       unionid,
       familyId,
+      role: "owner",
+      displayName,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     }
   });
-  return { openid, familyId, snapshot: cloneSnapshot(snapshot) };
+  return sessionOf({
+    openid,
+    familyId,
+    role: "owner",
+    displayName,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  }, snapshot);
 }
-async function dispatch(openid, action, payload) {
-  const user = await requireUser(openid);
-  return withFamily(user.familyId, (workspace) => applyFamilyAction(workspace, action, payload));
+async function findInvite(code) {
+  const normalized = normalizeInviteCode(code);
+  if (!normalized) return null;
+  try {
+    const got = await invites().doc(normalized).get();
+    const invite = got.data;
+    if (!(invite == null ? void 0 : invite.familyId) || !invite.code) return null;
+    return invite;
+  } catch {
+    return null;
+  }
+}
+async function createInvite(user, payload) {
+  const role = normalizeInviteRole(payload.role);
+  if (!canInviteRole(user.role, role)) raise("INVITE_FORBIDDEN", "\u6CA1\u6709\u9080\u8BF7\u8FD9\u4E2A\u89D2\u8272\u7684\u6743\u9650");
+  let code = createInviteCode();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const exists = await findInvite(code);
+    if (!exists) break;
+    code = createInviteCode();
+  }
+  const record = {
+    code,
+    familyId: user.familyId,
+    createdBy: user.openid,
+    role,
+    expireAt: inviteExpiresAt(),
+    maxUses: INVITE_MAX_USES,
+    usedCount: 0,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  await invites().doc(code).set({
+    data: record
+  });
+  return toInviteView(record);
+}
+async function listFamilyInvites(familyId) {
+  const found = await invites().where({ familyId }).limit(50).get();
+  const now = Date.now();
+  return (found.data || []).map((invite) => toInviteView(invite, now)).filter((invite) => !invite.expired).sort((left, right) => left.expireAt.localeCompare(right.expireAt));
+}
+function toMemberViews(records, openid) {
+  const rank = { owner: 0, parent: 1, viewer: 2 };
+  return records.map((item) => {
+    const role = normalizeRole(item.role);
+    return {
+      openid: item.openid,
+      role,
+      displayName: item.displayName || defaultDisplayName(role),
+      self: item.openid === openid,
+      createdAt: item.createdAt || ""
+    };
+  }).sort((left, right) => rank[left.role] - rank[right.role] || left.displayName.localeCompare(right.displayName, "zh"));
+}
+async function listMembers(user) {
+  const [members, inviteViews] = await Promise.all([
+    listFamilyUsers(user.familyId),
+    listFamilyInvites(user.familyId)
+  ]);
+  return {
+    members: toMemberViews(members, user.openid),
+    invites: inviteViews
+  };
+}
+async function removeMember(actor, payload) {
+  const targetOpenid = String(payload.openid || "");
+  if (!targetOpenid) raise("INVALID_INPUT", "\u8BF7\u9009\u62E9\u8981\u79FB\u9664\u7684\u6210\u5458");
+  const members = await listFamilyUsers(actor.familyId);
+  const target = members.find((item) => item.openid === targetOpenid);
+  if (!target) raise("MEMBER_NOT_FOUND", "\u8BE5\u6210\u5458\u5DF2\u4E0D\u5728\u5BB6\u5EAD\u4E2D");
+  const targetRole = normalizeRole(target.role);
+  if (!canRemoveMember(actor.role, targetRole, target.openid === actor.openid)) {
+    if (target.openid === actor.openid) raise("CANNOT_REMOVE_SELF", "\u4E0D\u80FD\u79FB\u9664\u81EA\u5DF1");
+    if (targetRole === "owner") raise("CANNOT_REMOVE_OWNER", "\u4E0D\u80FD\u79FB\u9664\u521B\u5EFA\u8005");
+    raise("MEMBER_REMOVE_FORBIDDEN", "\u53EA\u6709\u521B\u5EFA\u8005\u53EF\u4EE5\u79FB\u9664\u6210\u5458");
+  }
+  if (target._id) await users().doc(String(target._id)).remove();
+  return null;
+}
+async function joinFamily(openid, unionid, payload) {
+  const code = normalizeInviteCode(String(payload.code || ""));
+  const invite = await findInvite(code);
+  if (!invite) raise("INVITE_INVALID", "\u9080\u8BF7\u7801\u65E0\u6548\u6216\u5DF2\u5931\u6548");
+  if (!isInviteActive(invite)) {
+    if (Date.parse(invite.expireAt) <= Date.now()) raise("INVITE_EXPIRED", "\u9080\u8BF7\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u8BA9\u5BB6\u957F\u91CD\u65B0\u751F\u6210");
+    raise("INVITE_USED_UP", "\u9080\u8BF7\u5DF2\u7528\u5B8C\uFF0C\u8BF7\u8BA9\u5BB6\u957F\u91CD\u65B0\u751F\u6210");
+  }
+  const existing = await findUser(openid);
+  if ((existing == null ? void 0 : existing.familyId) === invite.familyId) {
+    const snapshot2 = await loadSnapshot(existing.familyId);
+    return sessionOf(existing, snapshot2);
+  }
+  if (existing && existing.role === "owner" && await countFamilyMembers(existing.familyId) > 1) {
+    raise("OWNER_HAS_MEMBERS", "\u8BF7\u5148\u8BA9\u5176\u4ED6\u6210\u5458\u9000\u51FA\u540E\u518D\u52A0\u5165\u522B\u7684\u5BB6\u5EAD");
+  }
+  const role = normalizeInviteRole(invite.role);
+  const displayName = displayNameOf(payload, role);
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  if (existing == null ? void 0 : existing._id) {
+    await users().doc(existing._id).update({
+      data: {
+        familyId: invite.familyId,
+        role,
+        displayName
+      }
+    });
+  } else {
+    await users().add({
+      data: {
+        openid,
+        unionid,
+        familyId: invite.familyId,
+        role,
+        displayName,
+        createdAt: now
+      }
+    });
+  }
+  await invites().doc(invite.code).update({
+    data: {
+      usedCount: command.inc(1)
+    }
+  });
+  const snapshot = await loadSnapshot(invite.familyId);
+  return sessionOf({
+    openid,
+    familyId: invite.familyId,
+    role,
+    displayName,
+    createdAt: (existing == null ? void 0 : existing.createdAt) || now
+  }, snapshot);
+}
+async function dispatchWorkspace(user, action, payload) {
+  if (!canWriteFamily(user.role) && !isWorkspaceReadAction(action)) {
+    raise("SCOPE_FORBIDDEN", "\u5BB6\u4EBA\u53EA\u80FD\u67E5\u770B\u8BFE\u8868\u548C\u5730\u70B9");
+  }
+  if (!canWriteFamily(user.role) && action === "snapshot") {
+    return {
+      snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role),
+      result: null
+    };
+  }
+  const data = await withFamily(user.familyId, (workspace) => applyFamilyAction(workspace, action, payload));
+  return {
+    snapshot: maskSnapshotForRole(data.snapshot, user.role),
+    result: data.result
+  };
+}
+async function dispatchAccount(user, action, payload) {
+  if (action === "createInvite") {
+    const result = await createInvite(user, payload);
+    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result };
+  }
+  if (action === "listMembers") {
+    const result = await listMembers(user);
+    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result };
+  }
+  if (action === "removeMember") {
+    await removeMember(user, payload);
+    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result: null };
+  }
+  raise("INVALID_ACTION", "\u4E0D\u652F\u6301\u7684\u64CD\u4F5C");
 }
 async function main(event) {
   const context = import_wx_server_sdk.default.getWXContext();
@@ -1973,12 +2270,19 @@ async function main(event) {
   if (!openid) return fail("UNAUTHENTICATED", "\u8BF7\u5728\u5FAE\u4FE1\u5185\u6253\u5F00\u5C0F\u7A0B\u5E8F");
   try {
     const action = (event == null ? void 0 : event.action) || "";
+    const payload = event.payload ?? {};
     if (action === "login") {
-      const data2 = await login(openid, context.UNIONID || "", event.payload ?? {});
-      return { ok: true, data: data2 };
+      return { ok: true, data: await login(openid, context.UNIONID || "", payload) };
     }
-    const data = await dispatch(openid, action, event.payload ?? {});
-    return { ok: true, data };
+    if (action === "joinFamily") {
+      return { ok: true, data: await joinFamily(openid, context.UNIONID || "", payload) };
+    }
+    if (action === "devSetRole") raise("INVALID_ACTION", "\u6B63\u5F0F\u73AF\u5883\u4E0D\u80FD\u5207\u6362\u89D2\u8272");
+    const user = await requireUser(openid);
+    if (action === "createInvite" || action === "listMembers" || action === "removeMember") {
+      return { ok: true, data: await dispatchAccount(user, action, payload) };
+    }
+    return { ok: true, data: await dispatchWorkspace(user, action, payload) };
   } catch (error) {
     const code = error instanceof FamilyActionError ? error.code : "CLOUD_ERROR";
     const message = error instanceof Error ? error.message : "\u4E91\u51FD\u6570\u6267\u884C\u5931\u8D25";

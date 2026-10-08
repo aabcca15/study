@@ -94,7 +94,7 @@ AuditLog                        familyId, actorAccountId, action, payload
 
 ## 接口目录
 
-认证与家庭邀请见 [account-model.md](account-model.md)#建议认证 API。下面按聚合根列出业务接口；规则与错误码在 [backend-contracts.md](backend-contracts.md) 对应节。
+认证与家庭邀请见 [account-model.md](account-model.md)。H5 仍走下方 HTTP；微信小程序邀请走云函数 `createInvite` / `joinFamily` / `listMembers` / `removeMember`，集合 `users` `families` `invites`。下面按聚合根列出业务接口；规则与错误码在 [backend-contracts.md](backend-contracts.md) 对应节。
 
 ### 家庭与偏好
 

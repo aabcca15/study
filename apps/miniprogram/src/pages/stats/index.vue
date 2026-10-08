@@ -96,7 +96,7 @@ function formatTrendHours(hours: number) {
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page stats-page">
-      <PageHeader eyebrow="账单数据" title="课程统计">
+      <PageHeader :eyebrow="store.canViewBills ? '账单数据' : '课程数据'" title="课程统计">
         <template #actions>
           <view class="nav">
             <button :class="{ on: granularity === 'month' }" @click="setGranularity('month')">月度</button>
@@ -111,7 +111,7 @@ function formatTrendHours(hours: number) {
         <button @click="shift(1)">›</button>
       </view>
 
-      <view class="card stats">
+      <view v-if="store.canViewBills" class="card stats">
         <view class="mini">
           <text class="muted">{{ periodTotalLabel }}</text>
           <text class="strong">{{ money(stats.periodTotal) }}</text>
@@ -126,7 +126,7 @@ function formatTrendHours(hours: number) {
         </view>
       </view>
 
-      <view class="card cats">
+      <view v-if="store.canViewBills" class="card cats">
         <text class="section">按类型</text>
         <view v-if="feeBreakdown.length" class="fee-content">
           <view class="donut">
@@ -178,7 +178,7 @@ function formatTrendHours(hours: number) {
             :key="item.course.id"
             class="course-report"
             :style="{ width: reportCardWidth + 'px', background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, currentMixBase(), 0.84)} 0%, ${currentMixBase()} 78%)` }"
-            @click="uni.navigateTo({ url: `/pages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
+            @click="store.canViewBills && uni.navigateTo({ url: `/pages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
           >
             <view class="report-head">
               <view class="report-icon" :style="{ background: tileBackground(item.course.color) }">
@@ -195,7 +195,7 @@ function formatTrendHours(hours: number) {
                 <text>{{ item.completion }}%</text>
               </view>
             </view>
-            <view class="course-values">
+            <view v-if="store.canViewBills" class="course-values">
               <view><text>总费用</text><text class="val">{{ money(item.totalFee) }}</text></view>
               <view><text>已支付</text><text class="val pay-paid">{{ money(item.paidFee) }}</text></view>
               <view><text>未支付</text><text class="val pay-unpaid">{{ money(item.unpaidFee) }}</text></view>
@@ -214,6 +214,7 @@ function formatTrendHours(hours: number) {
         :value-formatter="formatTrendHours"
       />
       <TrendChart
+        v-if="store.canViewBills"
         title="支付趋势"
         :caption="granularity === 'year' ? '按实际支付月份统计' : '按实际支付日期统计'"
         :points="expenseTrend"
@@ -221,7 +222,7 @@ function formatTrendHours(hours: number) {
         :value-formatter="money"
       />
 
-      <view class="card link" @click="uni.navigateTo({ url: '/pages/bills/index' })">
+      <view v-if="store.canViewBills" class="card link" @click="uni.navigateTo({ url: '/pages/bills/index' })">
         <view class="row"><text>本周账单</text><text class="muted">查看 ›</text></view>
       </view>
     </view>

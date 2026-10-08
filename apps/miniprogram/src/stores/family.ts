@@ -16,6 +16,17 @@ import type {
 import { emptySnapshot } from '@server-domain/constants'
 import { callCloud } from '@/cloud/call'
 import { clearDevSession } from '@/cloud/local'
+import {
+  canInviteRole,
+  canRemoveMember,
+  canViewBills,
+  canWriteFamily,
+  FAMILY_ROLE_LABEL,
+  type FamilyInviteView,
+  type FamilyMemberView,
+  type FamilyRole,
+  type InviteRole,
+} from '@/domain/family-account'
 
 const LOGGED_KEY = 'myhome.mp.logged'
 /** 数据只由本人录入，切页不必重拉；超过这个时长回到前台时再对一次，兼顾多台设备登录同一账号。 */
@@ -42,7 +53,14 @@ export interface CloudMutation<T> {
 export interface CloudSession {
   openid: string
   familyId: string
+  role?: FamilyRole
+  displayName?: string
   snapshot: AppSnapshot
+}
+
+export interface FamilyRoster {
+  members: FamilyMemberView[]
+  invites: FamilyInviteView[]
 }
 
 export const useFamilyStore = defineStore('family', {
@@ -50,11 +68,31 @@ export const useFamilyStore = defineStore('family', {
     ready: false,
     openid: '',
     familyId: '',
+    role: 'owner' as FamilyRole,
+    displayName: '',
     snapshot: frozen(emptySnapshot() as AppSnapshot),
     syncedAt: 0,
     rangeMonth: '',
   }),
   getters: {
+    roleLabel(state): string {
+      return FAMILY_ROLE_LABEL[state.role]
+    },
+    canWrite(): boolean {
+      return canWriteFamily(this.role)
+    },
+    canViewBills(): boolean {
+      return canViewBills(this.role)
+    },
+    canInviteParent(): boolean {
+      return canInviteRole(this.role, 'parent')
+    },
+    canInviteViewer(): boolean {
+      return canInviteRole(this.role, 'viewer')
+    },
+    canManageMembers(): boolean {
+      return this.role === 'owner'
+    },
     child(state): ChildProfile | undefined {
       return state.snapshot.children.find((item) => item.id === state.snapshot.session.childId)
         ?? state.snapshot.children[0]
@@ -96,6 +134,16 @@ export const useFamilyStore = defineStore('family', {
   },
   actions: {
     /** 缓存着的 tab 页都会跟着快照重新计算；内容没变就不替换，避免白白重绘。 */
+    syncClientFlags() {
+      try {
+        const app = getApp() as { globalData?: Record<string, unknown> }
+        app.globalData = app.globalData || {}
+        app.globalData.canWrite = this.ready && this.canWrite
+        app.globalData.role = this.ready ? this.role : ''
+      } catch {
+        // 非小程序运行时没有 getApp
+      }
+    },
     applySnapshot(snapshot: AppSnapshot) {
       const json = JSON.stringify(snapshot)
       if (json !== snapshotJson) {
@@ -103,6 +151,17 @@ export const useFamilyStore = defineStore('family', {
         this.snapshot = frozen(snapshot)
       }
       this.syncedAt = Date.now()
+      this.syncClientFlags()
+    },
+    applySession(data: CloudSession) {
+      this.openid = data.openid
+      this.familyId = data.familyId
+      this.role = data.role || 'owner'
+      this.displayName = data.displayName || FAMILY_ROLE_LABEL[this.role]
+      this.applySnapshot(data.snapshot)
+      this.rangeMonth = ''
+      this.ready = true
+      uni.setStorageSync(LOGGED_KEY, '1')
     },
     async dispatch<T>(action: string, payload?: Record<string, unknown>) {
       const data = await callCloud<CloudMutation<T>>(action, payload)
@@ -110,23 +169,41 @@ export const useFamilyStore = defineStore('family', {
       this.ready = true
       return data.result
     },
-    async login(childName = '小U', avatarKey?: ChildAvatarKey) {
-      const data = await callCloud<CloudSession>('login', { childName, avatarKey })
-      this.openid = data.openid
-      this.familyId = data.familyId
-      this.applySnapshot(data.snapshot)
-      this.rangeMonth = ''
-      this.ready = true
-      uni.setStorageSync(LOGGED_KEY, '1')
+    async login(childName = '小U', avatarKey?: ChildAvatarKey, displayName?: string) {
+      this.applySession(await callCloud<CloudSession>('login', { childName, avatarKey, displayName }))
+    },
+    async joinFamily(code: string, displayName?: string) {
+      this.applySession(await callCloud<CloudSession>('joinFamily', { code, displayName }))
+    },
+    listMembers() {
+      return this.dispatch<FamilyRoster>('listMembers')
+    },
+    createInvite(role: InviteRole) {
+      return this.dispatch<FamilyInviteView>('createInvite', { role })
+    },
+    removeMember(openid: string) {
+      return this.dispatch('removeMember', { openid })
+    },
+    async previewRole(role: FamilyRole) {
+      const result = await this.dispatch<{ role: FamilyRole; displayName: string }>('devSetRole', { role })
+      this.role = result.role
+      this.displayName = result.displayName
+      this.syncClientFlags()
+    },
+    canRemove(member: FamilyMemberView) {
+      return canRemoveMember(this.role, member.role, member.self)
     },
     logout() {
       this.ready = false
       this.openid = ''
       this.familyId = ''
+      this.role = 'owner'
+      this.displayName = ''
       snapshotJson = ''
       this.snapshot = frozen(emptySnapshot())
       this.syncedAt = 0
       this.rangeMonth = ''
+      this.syncClientFlags()
       uni.removeStorageSync(LOGGED_KEY)
       clearDevSession()
     },

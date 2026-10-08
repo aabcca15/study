@@ -157,12 +157,20 @@ Component({
       this.go(index)
     },
     toggle() {
+      if (appData().canWrite === false) {
+        wx.showToast({ icon: 'none', title: '家人只能查看课表' })
+        return
+      }
       this.setData({ open: !this.data.open })
     },
     close() {
       this.setData({ open: false })
     },
     quick(event) {
+      if (appData().canWrite === false) {
+        wx.showToast({ icon: 'none', title: '家人只能查看课表' })
+        return
+      }
       const kind = event.currentTarget.dataset.kind
       this.setData({ open: false })
       if (kind === 'add') {
