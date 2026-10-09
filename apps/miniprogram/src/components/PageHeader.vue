@@ -22,7 +22,7 @@ function back() {
 <template>
   <view :style="{ paddingTop: safe ? statusBar + 'px' : '0px' }">
     <view class="page-header">
-      <button v-if="showBack" class="page-back" @click="back">‹</button>
+      <button hover-class="press-on" hover-stay-time="80" v-if="showBack" class="page-back" @click="back">‹</button>
       <view class="page-header-copy">
         <text v-if="eyebrow" class="eyebrow">{{ eyebrow }}</text>
         <view class="h1">{{ title }}</view>

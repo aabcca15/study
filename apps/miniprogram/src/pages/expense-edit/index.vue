@@ -146,7 +146,7 @@ function remove() {
         <text class="field-label">日期</text>
         <DateField v-model="form.date" />
       </view>
-      <button class="btn block" :disabled="saving" @click="create">保存</button>
+      <button hover-class="press-on" hover-stay-time="80" class="btn block" :disabled="saving" @click="create">保存</button>
     </template>
 
     <template v-else-if="existing">
@@ -167,7 +167,7 @@ function remove() {
           <text :class="paid ? 'pay-paid' : 'pay-unpaid'">{{ paid ? (refundedTotal >= existing.amount ? '已退完' : '已支付') : '未支付' }}</text>
         </view>
       </view>
-      <button v-if="!paid" class="btn block" @click="markPaid">标记已支付</button>
+      <button hover-class="press-on" hover-stay-time="80" v-if="!paid" class="btn block" @click="markPaid">标记已支付</button>
       <view v-else class="card refund-card">
         <text class="section">支付与退款</text>
         <view v-if="payments.length" class="history">
@@ -197,11 +197,11 @@ function remove() {
             <text class="field-label">备注</text>
             <input v-model="refundNote" placeholder="选填" placeholder-class="ph" />
           </view>
-          <button class="btn ghost block refund-btn" @click="refund">记录退款</button>
+          <button hover-class="press-on" hover-stay-time="80" class="btn ghost block refund-btn" @click="refund">记录退款</button>
         </template>
         <text v-else class="muted tip">该账单已全部退款，实际消费已扣减。</text>
       </view>
-      <button v-if="!paid" class="btn danger block" style="margin-top: 16rpx" @click="remove">删除未付账单</button>
+      <button hover-class="press-on" hover-stay-time="80" v-if="!paid" class="btn danger block" style="margin-top: 16rpx" @click="remove">删除未付账单</button>
     </template>
     <view v-else class="empty">账单不存在</view>
   </view>

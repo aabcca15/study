@@ -118,21 +118,21 @@ onShow(measureSoon)
 <template>
   <view class="quick-backdrop" :class="{ show: open, dark: theme.isDark }" @click="open = false" />
   <view class="quick-menu" :class="{ show: open, dark: theme.isDark }">
-    <button class="quick-item" @click="quick('/pages/today/index?add=1')">
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/today/index?add=1')">
       <text class="quick-badge accent">＋</text>
       <view>
         <text class="title">快速新增安排</text>
         <text class="desc">选择日期、已有课程或临时安排</text>
       </view>
     </button>
-    <button class="quick-item" @click="quick('/pages/course-edit/index')">
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/course-edit/index')">
       <text class="quick-badge amber">✦</text>
       <view>
         <text class="title">新增课程</text>
         <text class="desc">建立新的课程预设</text>
       </view>
     </button>
-    <button class="quick-item" @click="quick('/pages/expense-edit/index')">
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/expense-edit/index')">
       <text class="quick-badge teal">¥</text>
       <view>
         <text class="title">记一笔账单</text>
@@ -149,13 +149,15 @@ onShow(measureSoon)
       :key="tab.key"
       class="tab"
       :class="{ active: tab.key === ui.tab }"
+      hover-class="press-on"
+      hover-stay-time="80"
       @click="go(tab.key, tab.url)"
     >
       <AppIcon :name="tab.icon" :tone="tab.key === ui.tab ? 'accent' : 'muted'" :size="21" />
       <text class="tab-label">{{ tab.label }}</text>
     </view>
     <view class="tabbar-center">
-      <button class="tabbar-fab" :class="{ open }" @click="toggleFab">
+      <button hover-class="press-on" hover-stay-time="80" class="tabbar-fab" :class="{ open }" @click="toggleFab">
         <text class="fab-mark">＋</text>
       </button>
     </view>
@@ -165,6 +167,8 @@ onShow(measureSoon)
       :key="tab.key"
       class="tab"
       :class="{ active: tab.key === ui.tab }"
+      hover-class="press-on"
+      hover-stay-time="80"
       @click="go(tab.key, tab.url)"
     >
       <AppIcon :name="tab.icon" :tone="tab.key === ui.tab ? 'accent' : 'muted'" :size="21" />
@@ -230,7 +234,11 @@ onShow(measureSoon)
   border-radius: 18px;
   color: #8c93a3;
   background: transparent;
-  transition: transform .2s ease;
+  transition: transform 0.46s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.tab.press-on {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: scale(0.94);
 }
 
 .tab.active {
@@ -280,11 +288,19 @@ onShow(measureSoon)
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 14px 26px -8px rgba(255, 122, 69, 0.75);
   backdrop-filter: blur(8px);
-  transition: transform .34s cubic-bezier(.2,.8,.2,1), box-shadow .24s ease;
+  transition: transform 0.46s cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow .24s ease;
+}
+.tabbar-fab.press-on {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: scale(0.92);
 }
 
 .tabbar-fab.open {
   transform: rotate(135deg) scale(0.96);
+}
+.tabbar-fab.open.press-on {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: rotate(135deg) scale(0.88);
 }
 
 .fab-mark {

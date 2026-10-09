@@ -1,4 +1,4 @@
-# 小树成长：用户流程
+# Uday家庭课表计划：用户流程
 
 页面事实以代码为准。网页路由见 `myhome-backend-contracts/product-map.md`。下面是微信小程序现在的走法。
 

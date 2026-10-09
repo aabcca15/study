@@ -23,6 +23,6 @@ function onChange(event: { detail: { value: number | string } }) {
 
 <template>
   <picker mode="selector" :range="labels" :value="index" @change="onChange">
-    <view class="control">{{ current || placeholder || '请选择' }}</view>
+    <view class="control press" hover-class="press-on" hover-stay-time="80">{{ current || placeholder || '请选择' }}</view>
   </picker>
 </template>

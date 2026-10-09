@@ -80,12 +80,12 @@ function shift(delta: number) {
       <PageHeader show-back eyebrow="全家账单" :title="weekLabel(anchor)">
         <template #actions>
           <view class="nav">
-            <button @click="shift(-1)">‹</button>
-            <button class="add" @click="uni.navigateTo({ url: '/pages/expense-edit/index' })">
+            <button hover-class="press-on" hover-stay-time="80" @click="shift(-1)">‹</button>
+            <button hover-class="press-on" hover-stay-time="80" class="add" @click="uni.navigateTo({ url: '/pages/expense-edit/index' })">
               <AppIcon name="plus" tone="white" :size="14" />
               <text>记一笔</text>
             </button>
-            <button @click="shift(1)">›</button>
+            <button hover-class="press-on" hover-stay-time="80" @click="shift(1)">›</button>
           </view>
         </template>
       </PageHeader>
@@ -122,7 +122,9 @@ function shift(delta: number) {
       <view
         v-for="bill in bills"
         :key="bill.id"
-        class="card bill"
+        class="card bill press"
+        hover-class="press-on"
+        hover-stay-time="80"
         @click="uni.navigateTo({ url: `/pages/expense-edit/index?id=${bill.id}` })"
       >
         <view

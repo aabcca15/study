@@ -141,7 +141,7 @@ const rows = computed(() => {
   <view class="schedule">
     <view class="schedule-head">
       <text class="schedule-title">{{ title }}</text>
-      <button v-if="!readonly" class="add" @click="emit('add')">
+      <button hover-class="press-on" hover-stay-time="80" v-if="!readonly" class="add" @click="emit('add')">
         <AppIcon name="plus" tone="accent" :size="14" />
         <text>{{ actionLabel }}</text>
       </button>
@@ -187,7 +187,7 @@ const rows = computed(() => {
               </text>
             </view>
             <view class="lesson-side">
-              <button class="more" @click="emit('edit', row.item)">
+              <button hover-class="press-on" hover-stay-time="80" class="more" @click="emit('edit', row.item)">
                 <AppIcon name="dots" tone="muted" :size="18" />
               </button>
               <view v-if="!hideFee" class="fee-row">
@@ -215,7 +215,7 @@ const rows = computed(() => {
     </view>
 
     <view v-else class="empty-state">
-      <button v-if="!readonly" class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
+      <button hover-class="press-on" hover-stay-time="80" v-if="!readonly" class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
       <text class="empty-title">这一天没有课程</text>
       <text class="empty-desc">{{ readonly ? '今天没有需要接送的安排。' : '计划有变化也没关系，好好享受空闲时间。' }}</text>
     </view>

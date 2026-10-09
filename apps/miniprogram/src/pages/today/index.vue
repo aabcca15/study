@@ -152,12 +152,12 @@ async function undoCancel() {
     <view class="page today-page">
       <view class="week-picker">
         <view class="week-toolbar">
-          <button @click="shiftWeek(-1)"><AppIcon name="chevron-left" tone="muted" :size="18" /></button>
+          <button hover-class="press-on" hover-stay-time="80" @click="shiftWeek(-1)"><AppIcon name="chevron-left" tone="muted" :size="18" /></button>
           <text>{{ isThisWeek ? '本周' : weekLabel(ui.selectedDate) }}</text>
-          <button @click="shiftWeek(1)"><AppIcon name="chevron-right" tone="muted" :size="18" /></button>
+          <button hover-class="press-on" hover-stay-time="80" @click="shiftWeek(1)"><AppIcon name="chevron-right" tone="muted" :size="18" /></button>
         </view>
         <view class="date-strip">
-          <button
+          <button hover-class="press-on" hover-stay-time="80"
             v-for="day in dayViews"
             :key="day.date"
             :class="{ active: day.date === ui.selectedDate, today: day.date === ui.today }"
@@ -173,7 +173,7 @@ async function undoCancel() {
       </view>
 
       <view class="overview">
-        <view class="overview-card" @click="openTab('/pages/calendar/index')">
+        <view class="overview-card press" hover-class="press-on" hover-stay-time="80" @click="openTab('/pages/calendar/index')">
           <view class="overview-head">
             <view class="mark"><AppIcon name="calendar" tone="white" :size="15" /></view>
             <text>{{ isToday ? '今日课程' : selectedLabel + '课程' }}</text>
@@ -189,7 +189,7 @@ async function undoCancel() {
             </view>
           </view>
         </view>
-        <view v-if="store.canViewBills" class="overview-card is-bill" @click="uni.navigateTo({ url: '/pages/bills/index?from=today' })">
+        <view v-if="store.canViewBills" class="overview-card is-bill press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/pages/bills/index?from=today' })">
           <view class="overview-head">
             <view class="mark bill"><AppIcon name="bill" tone="white" :size="15" /></view>
             <text>本周课程账单</text>
@@ -218,7 +218,7 @@ async function undoCancel() {
 
       <view v-if="cancelled" class="undo">
         <text>已取消“{{ cancelled.course.title }}”</text>
-        <button @click="undoCancel">撤销</button>
+        <button hover-class="press-on" hover-stay-time="80" @click="undoCancel">撤销</button>
       </view>
       <AddSheet v-if="store.canWrite" :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
       <OccurrenceSheet :item="editing" :readonly="!store.canWrite" @close="editing = null" @cancelled="rememberCancel" />

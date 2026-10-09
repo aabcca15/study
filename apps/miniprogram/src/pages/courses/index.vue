@@ -196,14 +196,16 @@ function more(course: Course) {
             <view
               v-for="child in store.snapshot.children"
               :key="child.id"
-              class="child-pill"
+              class="child-pill press"
               :class="{ on: child.id === store.childId }"
+              hover-class="press-on"
+              hover-stay-time="80"
               @click="onChildChange(child.id)"
             >
               <ChildAvatar :avatar-key="child.avatarKey" :size="40" />
               <text>{{ child.name }}</text>
             </view>
-            <view v-if="store.canWrite" class="manage" @click="managing = true">
+            <view v-if="store.canWrite" class="manage press" hover-class="press-on" hover-stay-time="80" @click="managing = true">
               <AppIcon name="plus" tone="accent" :size="18" />
             </view>
           </view>
@@ -226,7 +228,7 @@ function more(course: Course) {
             </view>
             <view class="course-actions" @click.stop>
               <text class="badge" :class="`is-${card.lifecycle.key}`">{{ card.lifecycle.label }}</text>
-              <button class="more" @click="more(card.course)"><AppIcon name="dots" tone="muted" :size="18" /></button>
+              <button hover-class="press-on" hover-stay-time="80" class="more" @click="more(card.course)"><AppIcon name="dots" tone="muted" :size="18" /></button>
             </view>
           </view>
           <text class="type" :style="{ color: card.lifecycle.inactive ? '#8b93a5' : deepTone(card.course.color), background: card.lifecycle.inactive ? (card.dark ? '#2a3142' : '#eef0f4') : mix(card.course.color, currentMixBase(), card.dark ? 0.72 : 0.82) }">{{ COURSE_TYPE_LABEL[card.course.type] }}</text>
@@ -246,12 +248,12 @@ function more(course: Course) {
             </view>
             <view v-if="store.canViewBills" class="amount-col">
               <text class="amount">{{ getCourseAmountLabel(card.course) }}</text>
-              <text v-if="card.billing.key === 'open'" class="pay" @click.stop="uni.navigateTo({ url: `/pages/course-bills/index?id=${card.course.id}` })">去支付</text>
+              <text v-if="card.billing.key === 'open'" class="pay press" hover-class="press-on" hover-stay-time="80" @click.stop="uni.navigateTo({ url: `/pages/course-bills/index?id=${card.course.id}` })">去支付</text>
             </view>
           </view>
           </view>
         </view>
-        <view v-if="store.canWrite" class="course add" @click="uni.navigateTo({ url: '/pages/course-edit/index' })">
+        <view v-if="store.canWrite" class="course add press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/pages/course-edit/index' })">
           <view class="plus"><AppIcon name="plus" tone="white" :size="22" /></view>
           <text class="name">新增课程</text>
           <text class="meta">创建新的课程与排课计划</text>
@@ -266,18 +268,21 @@ function more(course: Course) {
             <text class="eyebrow">家庭成员</text>
             <text class="sheet-title">孩子资料管理</text>
           </view>
-          <text class="close" @click="managing = false">×</text>
+          <text class="close press" hover-class="press-on" hover-stay-time="80" @click="managing = false">×</text>
         </view>
         <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
           <view v-for="child in store.snapshot.children" :key="child.id" class="profile">
-            <view v-if="editingAvatarId !== child.id" @click="editingAvatarId = child.id">
+            <view v-if="editingAvatarId !== child.id" class="press" hover-class="press-on" hover-stay-time="80" @click="editingAvatarId = child.id">
               <ChildAvatar :avatar-key="child.avatarKey" :size="42" />
             </view>
             <view v-else class="avatar-choices">
               <view
                 v-for="option in CHILD_AVATAR_OPTIONS"
                 :key="option.key"
+                class="press"
                 :class="{ on: child.avatarKey === option.key }"
+                hover-class="press-on"
+                hover-stay-time="80"
                 @click="setAvatar(child.id, option.key)"
               >
                 <ChildAvatar :avatar-key="option.key" :size="36" />
@@ -287,14 +292,17 @@ function more(course: Course) {
               <text class="field-label">孩子名称</text>
               <input v-model="names[child.id]" maxlength="8" placeholder-class="ph" @blur="saveName(child.id)" />
             </view>
-            <text class="delete" @click="removeCurrentChild(child.id, child.name)">删除</text>
+            <text class="delete press" hover-class="press-on" hover-stay-time="80" @click="removeCurrentChild(child.id, child.name)">删除</text>
           </view>
           <text class="field-label">选择头像</text>
           <view class="avatar-choices new">
             <view
               v-for="option in CHILD_AVATAR_OPTIONS"
               :key="option.key"
+              class="press"
               :class="{ on: newAvatar === option.key }"
+              hover-class="press-on"
+              hover-stay-time="80"
               @click="newAvatar = option.key"
             >
               <ChildAvatar :avatar-key="option.key" :size="48" />
@@ -302,7 +310,7 @@ function more(course: Course) {
           </view>
           <view class="new-row">
             <input v-model="newName" maxlength="8" placeholder="输入新孩子名字" placeholder-class="ph" />
-            <button class="btn" @click="addChild">添加</button>
+            <button hover-class="press-on" hover-stay-time="80" class="btn" @click="addChild">添加</button>
           </view>
           <text v-if="childError" class="form-error">{{ childError }}</text>
         </scroll-view>

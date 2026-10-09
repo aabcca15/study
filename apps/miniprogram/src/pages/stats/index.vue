@@ -98,16 +98,16 @@ function formatTrendHours(hours: number) {
       <PageHeader :eyebrow="store.canViewBills ? '账单数据' : '课程数据'" title="课程统计">
         <template #actions>
           <view class="nav">
-            <button :class="{ on: granularity === 'month' }" @click="setGranularity('month')">月度</button>
-            <button :class="{ on: granularity === 'year' }" @click="setGranularity('year')">年度</button>
+            <button hover-class="press-on" hover-stay-time="80" :class="{ on: granularity === 'month' }" @click="setGranularity('month')">月度</button>
+            <button hover-class="press-on" hover-stay-time="80" :class="{ on: granularity === 'year' }" @click="setGranularity('year')">年度</button>
           </view>
         </template>
       </PageHeader>
 
       <view class="scope-nav">
-        <button @click="shift(-1)">‹</button>
+        <button hover-class="press-on" hover-stay-time="80" @click="shift(-1)">‹</button>
         <text>{{ scopeLabel }}</text>
-        <button @click="shift(1)">›</button>
+        <button hover-class="press-on" hover-stay-time="80" @click="shift(1)">›</button>
       </view>
 
       <view v-if="store.canViewBills" class="card stats">
@@ -175,8 +175,10 @@ function formatTrendHours(hours: number) {
           <view
             v-for="item in stats.courseStats"
             :key="item.course.id"
-            class="course-report"
+            class="course-report press"
             :style="{ width: reportCardWidth + 'px', background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, currentMixBase(), 0.84)} 0%, ${currentMixBase()} 78%)` }"
+            hover-class="press-on"
+            hover-stay-time="80"
             @click="store.canViewBills && uni.navigateTo({ url: `/pages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
           >
             <view class="report-head">
@@ -221,7 +223,7 @@ function formatTrendHours(hours: number) {
         :value-formatter="money"
       />
 
-      <view v-if="store.canViewBills" class="card link" @click="uni.navigateTo({ url: '/pages/bills/index' })">
+      <view v-if="store.canViewBills" class="card link press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/pages/bills/index' })">
         <view class="row"><text>本周账单</text><text class="muted">查看 ›</text></view>
       </view>
     </view>

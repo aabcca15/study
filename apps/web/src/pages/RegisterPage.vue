@@ -49,7 +49,7 @@ async function submit() {
 <template>
   <main class="page auth-page">
     <section class="auth-hero">
-      <p class="eyebrow">小树成长</p>
+      <p class="eyebrow">Uday家庭课表计划</p>
       <h1>注册家庭账号</h1>
       <p class="muted">第一期用账号和密码创建家庭。注册后会自动生成一个孩子档案，可再改名。</p>
     </section>

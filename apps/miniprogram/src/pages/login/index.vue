@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
@@ -16,6 +16,12 @@ const store = useFamilyStore()
 const themeClass = useThemePage()
 const statusBar = statusBarHeight()
 const avatarOptions = CHILD_AVATAR_OPTIONS
+const avatarName: Record<ChildAvatarKey, string> = {
+  'boy-blue': '小Y',
+  'boy-cap': '小I',
+  'girl-flower': '小M',
+  'girl-bow': '小U',
+}
 const mode = ref<'create' | 'join'>('create')
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
@@ -23,6 +29,7 @@ const inviteCode = ref('')
 const displayName = ref('')
 const submitting = ref(false)
 const booting = ref(false)
+const childPlaceholder = computed(() => avatarName[avatarKey.value] || '小Y')
 
 onLoad((query) => {
   const invite = typeof query?.invite === 'string' ? normalizeInviteCode(query.invite) : ''
@@ -75,7 +82,7 @@ async function submit() {
       }
       await store.joinFamily(code, displayName.value.trim())
     } else {
-      await store.login(childName.value.trim() || '小U', avatarKey.value)
+      await store.login(childName.value.trim() || childPlaceholder.value, avatarKey.value)
     }
     openTab('/pages/today/index')
   } catch (error) {
@@ -100,50 +107,49 @@ async function submit() {
     <view v-if="booting" class="boot">正在进入…</view>
     <view v-else class="panel">
       <view class="modes">
-        <view class="mode-tab" :class="{ on: mode === 'create' }" hover-class="mode-tab-hover" @click="showCreate">创建家庭</view>
-        <view class="mode-tab" :class="{ on: mode === 'join' }" hover-class="mode-tab-hover" @click="showJoin">加入家庭</view>
+        <view class="mode-thumb" :class="{ join: mode === 'join' }" />
+        <view class="mode-tab press" :class="{ on: mode === 'create' }" hover-class="press-on" hover-stay-time="80" @click="showCreate">创建家庭</view>
+        <view class="mode-tab press" :class="{ on: mode === 'join' }" hover-class="press-on" hover-stay-time="80" @click="showJoin">加入家庭</view>
       </view>
 
-      <template v-if="mode === 'create'">
-        <view class="pick-title">选择小U</view>
-        <view class="picks">
-          <view
-            v-for="option in avatarOptions"
-            :key="option.key"
-            class="pick"
-            :class="{ on: avatarKey === option.key }"
-            hover-class="pick-hover"
-            @click="pickAvatar(option.key)"
-          >
-            <ChildAvatar :avatar-key="option.key" :size="64" />
-            <view>{{ option.label }}</view>
+      <view class="forms">
+        <view class="form" :class="{ show: mode === 'create' }">
+          <view class="picks">
+            <view
+              v-for="option in avatarOptions"
+              :key="option.key"
+              class="pick press"
+              :class="{ on: avatarKey === option.key }"
+              hover-class="press-on"
+              hover-stay-time="80"
+              @click="pickAvatar(option.key)"
+            >
+              <ChildAvatar :avatar-key="option.key" :size="56" />
+            </view>
+          </view>
+          <view class="field">
+            <view class="field-label">孩子名字</view>
+            <input v-model="childName" maxlength="20" :placeholder="childPlaceholder" placeholder-class="ph" />
+          </view>
+          <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
+            <text class="submit-label">{{ submitting ? '进入中…' : '创建并进入' }}</text>
           </view>
         </view>
 
-        <view class="field">
-          <view class="field-label">孩子名字</view>
-          <input v-model="childName" maxlength="20" placeholder="小U" placeholder-class="ph" />
+        <view class="form" :class="{ show: mode === 'join' }">
+          <view class="field">
+            <view class="field-label">邀请码</view>
+            <input :value="inviteCode" maxlength="8" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
+          </view>
+          <view class="field">
+            <view class="field-label">你的称呼</view>
+            <input v-model="displayName" maxlength="16" placeholder="爸爸/妈妈/爷爷/奶奶" placeholder-class="ph" />
+          </view>
+          <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
+            <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
+          </view>
         </view>
-        <view class="submit" :class="{ busy: submitting }" hover-class="submit-hover" @click="submit">
-          <text class="submit-label">{{ submitting ? '进入中…' : '创建并进入' }}</text>
-        </view>
-      </template>
-
-      <template v-else>
-        <view class="pick-title">用邀请码加入</view>
-        <view class="join-lead">家长生成邀请码后发给你。加入后按邀请身份进入：家长可改课表，家人只能看安排和地点。</view>
-        <view class="field">
-          <view class="field-label">邀请码</view>
-          <input :value="inviteCode" maxlength="8" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
-        </view>
-        <view class="field">
-          <view class="field-label">你的称呼</view>
-          <input v-model="displayName" maxlength="16" placeholder="妈妈 / 爸爸 / 奶奶" placeholder-class="ph" />
-        </view>
-        <view class="submit" :class="{ busy: submitting }" hover-class="submit-hover" @click="submit">
-          <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
-        </view>
-      </template>
+      </view>
     </view>
   </view>
 </template>
@@ -218,6 +224,7 @@ async function submit() {
 }
 
 .modes {
+  position: relative;
   display: flex;
   width: 100%;
   margin-bottom: 22px;
@@ -227,7 +234,22 @@ async function submit() {
   background: var(--paper);
   box-shadow: var(--elev-sm);
 }
+.mode-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: 36px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.mode-thumb.join {
+  transform: translateX(100%);
+}
 .mode-tab {
+  position: relative;
+  z-index: 1;
   flex: 1;
   height: 36px;
   line-height: 36px;
@@ -239,25 +261,33 @@ async function submit() {
 }
 .mode-tab.on {
   color: var(--accent-text);
-  background: var(--accent-soft);
 }
-.pick-title {
-  margin-bottom: 14px;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 700;
-  text-align: center;
+.forms {
+  position: relative;
+  min-height: 240px;
 }
-.join-lead {
-  margin: -6px 0 18px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
-  text-align: center;
+.form {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  min-height: 240px;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+.form.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 .submit {
   width: 100%;
   height: 48px;
+  margin-top: auto;
   box-sizing: border-box;
   border-radius: 14px;
   background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
@@ -275,108 +305,34 @@ async function submit() {
 .submit.busy {
   opacity: 0.6;
 }
-.submit-hover,
-.mode-tab-hover,
-.pick-hover {
-  opacity: 0.86;
-}
 
 .picks {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 22px;
+  justify-content: space-between;
+  margin-bottom: 18px;
 }
 
 .pick {
   display: flex;
-  width: calc(50% - 6px);
-  box-sizing: border-box;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 8px 10px;
-  border-radius: 22px;
-  background: var(--paper);
-  box-shadow: var(--elev-sm);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.pick.on {
-  color: var(--ink);
-  box-shadow: 0 0 0 2px #ff7a45, var(--elev-sm);
-}
-
-.xiao {
-  position: relative;
   width: 72px;
   height: 72px;
-  overflow: hidden;
-  border-radius: 50%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24px;
+  background: var(--paper);
+  box-shadow: var(--elev-sm);
 }
-
-.boy { background: #d7e6ff; }
-.girl { background: #ffd6e4; }
-
-.hair {
-  position: absolute;
-  z-index: 1;
-  top: 6px;
-  right: 12px;
-  left: 12px;
-  height: 22px;
-  border-radius: 14px 14px 8px 8px;
-  background: #3d4f73;
+.pick.on {
+  box-shadow: 0 0 0 2px #ff7a45, var(--elev-sm);
+  transform: scale(1.04);
 }
-
-.girl .hair {
-  top: 8px;
-  height: 26px;
-  background: #6a3d52;
-}
-
-.bow {
-  position: absolute;
-  z-index: 2;
-  top: 10px;
-  right: 8px;
-  width: 16px;
-  height: 12px;
-  border-radius: 4px 8px 4px 8px;
-  background: #ff7a45;
-}
-
-.face {
-  position: absolute;
-  right: 14px;
-  bottom: 12px;
-  left: 14px;
-  z-index: 2;
-}
-
-.eyes {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 6px;
-}
-
-.eyes view {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #243056;
-}
-
-.mouth {
-  width: 12px;
-  height: 6px;
-  margin: 6px auto 0;
-  border: 2px solid #243056;
-  border-top: 0;
-  border-radius: 0 0 12px 12px;
+.mode-tab.press-on,
+.submit.press-on,
+.pick.press-on,
+.pick.on.press-on {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: scale(0.94);
 }
 
 </style>

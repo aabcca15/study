@@ -298,8 +298,10 @@ function pickIcon(icon: CourseIcon) {
         <view
           v-for="child in store.snapshot.children"
           :key="child.id"
-          class="child-pick"
+          class="child-pick press"
           :class="{ on: form.childIds.includes(child.id) }"
+          hover-class="press-on"
+          hover-stay-time="80"
           @click="toggleChild(child.id)"
         >
           <ChildAvatar :avatar-key="child.avatarKey" :size="52" />
@@ -342,8 +344,10 @@ function pickIcon(icon: CourseIcon) {
           <view
             v-for="option in pricingPlans"
             :key="option.value"
-            class="plan"
+            class="plan press"
             :class="{ on: paymentPlan === option.value }"
+            hover-class="press-on"
+            hover-stay-time="80"
             @click="choosePlan(option.value)"
           >
             <text class="plan-name">{{ option.label }}</text>
@@ -354,8 +358,10 @@ function pickIcon(icon: CourseIcon) {
           <text
             v-for="option in usageUnits"
             :key="option.value"
-            class="unit"
+            class="unit press"
             :class="{ on: form.pricingMode === option.value }"
+            hover-class="press-on"
+            hover-stay-time="80"
             @click="setUsageUnit(option.value)"
           >{{ option.label }}</text>
         </view>
@@ -405,13 +411,13 @@ function pickIcon(icon: CourseIcon) {
         </view>
       </view>
       <text class="hint" :class="{ warn: batchConflict }">{{ batchConflict || '选择日期后，可一次改完全部上课时间。' }}</text>
-      <button class="btn ghost block" :disabled="!slots.length || !!batchConflict" @click="applyBatchTime">
+      <button hover-class="press-on" hover-stay-time="80" class="btn ghost block" :disabled="!slots.length || !!batchConflict" @click="applyBatchTime">
         应用到已选 {{ slots.length }} 个日期
       </button>
     </view>
 
     <view v-if="sortedSlots.length" class="editor-card">
-      <view class="section-heading slot-toggle" @click="slotsOpen = !slotsOpen">
+      <view class="section-heading slot-toggle press" hover-class="press-on" hover-stay-time="80" @click="slotsOpen = !slotsOpen">
         <text>04</text>
         <view class="slot-toggle-copy">
           <text class="h2">逐日调整</text>
@@ -425,7 +431,9 @@ function pickIcon(icon: CourseIcon) {
         <view
           v-for="slot in sortedSlots"
           :key="slot.date"
-          class="slot"
+          class="slot press"
+          hover-class="press-on"
+          hover-stay-time="80"
           @click="openSlot(slot)"
         >
           <view>
@@ -445,8 +453,10 @@ function pickIcon(icon: CourseIcon) {
           <view
             v-for="option in COURSE_ICON_OPTIONS"
             :key="option.value"
-            class="icon-option"
+            class="icon-option press"
             :class="{ on: form.icon === option.value }"
+            hover-class="press-on"
+            hover-stay-time="80"
             @click="pickIcon(option.value)"
           >
             <AppIcon :name="option.value" :tone="form.icon === option.value ? 'violet' : 'ink'" :size="21" />
@@ -460,9 +470,11 @@ function pickIcon(icon: CourseIcon) {
           <view
             v-for="color in COURSE_COLORS"
             :key="color"
-            class="swatch"
+            class="swatch press"
             :class="{ on: form.color.toUpperCase() === color.toUpperCase() }"
             :style="{ background: color }"
+            hover-class="press-on"
+            hover-stay-time="80"
             @click="form.color = color"
           />
         </view>
@@ -477,8 +489,8 @@ function pickIcon(icon: CourseIcon) {
   </view>
 
   <view class="save-dock">
-    <button class="btn block" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存当前课程' }}</button>
-    <button v-if="courseId" class="btn ghost block" style="margin-top: 8px" @click="archive">
+    <button hover-class="press-on" hover-stay-time="80" class="btn block" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存当前课程' }}</button>
+    <button hover-class="press-on" hover-stay-time="80" v-if="courseId" class="btn ghost block" style="margin-top: 8px" @click="archive">
       {{ existing?.archived ? '恢复课程' : '标记已结课' }}
     </button>
   </view>
@@ -490,7 +502,7 @@ function pickIcon(icon: CourseIcon) {
           <text class="eyebrow">单独调整</text>
           <text class="sheet-title">{{ dayjs(editingSlot.date).format('M月D日') }}</text>
         </view>
-        <text class="close" @click="editingSlot = null">×</text>
+        <text class="close press" hover-class="press-on" hover-stay-time="80" @click="editingSlot = null">×</text>
       </view>
       <view class="row">
         <view class="field" style="flex: 1">
@@ -504,7 +516,7 @@ function pickIcon(icon: CourseIcon) {
       </view>
       <text v-if="slotError" class="form-error">{{ slotError }}</text>
       <view class="sheet-foot">
-        <button class="btn block" @click="saveSlotTime">保存当天时间</button>
+        <button hover-class="press-on" hover-stay-time="80" class="btn block" @click="saveSlotTime">保存当天时间</button>
         <text class="hint">只修改这一天，不影响其他已选日期。</text>
       </view>
     </view>

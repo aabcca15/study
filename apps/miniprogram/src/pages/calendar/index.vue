@@ -102,9 +102,9 @@ async function undoCancel() {
       <PageHeader eyebrow="课程日历" :title="monthTitle">
         <template #actions>
           <view class="nav">
-            <button @click="shiftMonth(-1)">‹</button>
-            <button class="today" @click="pick(ui.today)">今</button>
-            <button @click="shiftMonth(1)">›</button>
+            <button hover-class="press-on" hover-stay-time="80" @click="shiftMonth(-1)">‹</button>
+            <button hover-class="press-on" hover-stay-time="80" class="today" @click="pick(ui.today)">今</button>
+            <button hover-class="press-on" hover-stay-time="80" @click="shiftMonth(1)">›</button>
           </view>
         </template>
       </PageHeader>
@@ -113,7 +113,7 @@ async function undoCancel() {
           <text v-for="label in ['一', '二', '三', '四', '五', '六', '日']" :key="label">{{ label }}</text>
         </view>
         <view class="days">
-          <button
+          <button hover-class="press-on" hover-stay-time="80"
             v-for="(cell, index) in cellViews"
             :key="index"
             class="day"
@@ -137,7 +137,7 @@ async function undoCancel() {
       />
       <view v-if="cancelled" class="undo">
         <text>已取消“{{ cancelled.course.title }}”</text>
-        <button @click="undoCancel">撤销</button>
+        <button hover-class="press-on" hover-stay-time="80" @click="undoCancel">撤销</button>
       </view>
       <AddSheet v-if="store.canWrite" :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
       <OccurrenceSheet :item="editing" :readonly="!store.canWrite" @close="editing = null" @cancelled="cancelled = $event" />

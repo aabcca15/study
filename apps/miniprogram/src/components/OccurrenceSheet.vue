@@ -111,7 +111,7 @@ function cancelOnce() {
           <text class="eyebrow">这次安排</text>
           <text class="sheet-title">{{ item.course.title }}</text>
         </view>
-        <text class="close" @click="emit('close')">×</text>
+        <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
         <text class="muted">{{ item.date }} · {{ item.course.teacher || '老师待定' }}</text>
@@ -144,8 +144,8 @@ function cancelOnce() {
         </template>
       </scroll-view>
       <view v-if="!readonly" class="sheet-foot action-row">
-        <button class="btn danger" @click="cancelOnce">取消课程</button>
-        <button class="btn" :disabled="saving" @click="save">{{ saving ? '保存中…' : '确认修改' }}</button>
+        <button hover-class="press-on" hover-stay-time="80" class="btn danger" @click="cancelOnce">取消课程</button>
+        <button hover-class="press-on" hover-stay-time="80" class="btn" :disabled="saving" @click="save">{{ saving ? '保存中…' : '确认修改' }}</button>
       </view>
     </view>
   </view>

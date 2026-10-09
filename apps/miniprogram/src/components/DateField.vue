@@ -15,6 +15,6 @@ function onChange(event: { detail: { value: string } }) {
 
 <template>
   <picker mode="date" :value="modelValue" @change="onChange">
-    <view class="control">{{ modelValue || placeholder || '选择日期' }}</view>
+    <view class="control press" hover-class="press-on" hover-stay-time="80">{{ modelValue || placeholder || '选择日期' }}</view>
   </picker>
 </template>

@@ -41,7 +41,7 @@ async function submit() {
 <template>
   <main class="page auth-page">
     <section class="auth-hero">
-      <p class="eyebrow">小树成长</p>
+      <p class="eyebrow">Uday家庭课表计划</p>
       <h1>登录家庭账本</h1>
       <p class="muted">用账号和密码进入已有家庭，课表和账单会从服务器同步。</p>
     </section>

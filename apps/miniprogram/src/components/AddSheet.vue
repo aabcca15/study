@@ -181,21 +181,21 @@ async function submit() {
           <text class="eyebrow">新增安排</text>
           <text class="sheet-title">安排课程</text>
         </view>
-        <text class="close" @click="emit('close')">×</text>
+        <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
 
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
         <view class="field">
           <text class="field-label">安排日期</text>
-          <view class="date-trigger" @click="pickerOpen = true">
+          <view class="date-trigger press" hover-class="press-on" hover-stay-time="80" @click="pickerOpen = true">
             <text class="date-text">{{ dateLabel }}</text>
             <text class="date-count">{{ sortedDates.length ? `${sortedDates.length} 天` : '' }}</text>
           </view>
         </view>
 
         <view class="mode-tabs">
-          <text :class="{ on: mode === 'preset' }" @click="mode = 'preset'">选择已有课程</text>
-          <text :class="{ on: mode === 'temporary' }" @click="mode = 'temporary'">临时新增安排</text>
+          <text class="press" :class="{ on: mode === 'preset' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'preset'">选择已有课程</text>
+          <text class="press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">临时新增安排</text>
         </view>
 
         <template v-if="mode === 'preset'">
@@ -204,8 +204,10 @@ async function submit() {
             <view
               v-for="course in courses"
               :key="course.id"
-              class="preset"
+              class="preset press"
               :class="{ on: courseId === course.id, off: courseScheduledOnAllDates(course.id) }"
+              hover-class="press-on"
+              hover-stay-time="80"
               @click="selectCourse(course.id)"
             >
               <view class="dot" :style="{ background: course.color }" />
@@ -218,7 +220,7 @@ async function submit() {
           </view>
           <view v-else class="empty-course">
             <text>还没有课程预设，请先新增课程。</text>
-            <button class="btn ghost" @click="goCreateCourse">新增课程</button>
+            <button hover-class="press-on" hover-stay-time="80" class="btn ghost" @click="goCreateCourse">新增课程</button>
           </view>
         </template>
 
@@ -256,7 +258,7 @@ async function submit() {
       </scroll-view>
 
       <view class="sheet-foot">
-        <button class="btn block" :disabled="saving" @click="submit">{{ saving ? '保存中…' : '确认' }}</button>
+        <button hover-class="press-on" hover-stay-time="80" class="btn block" :disabled="saving" @click="submit">{{ saving ? '保存中…' : '确认' }}</button>
       </view>
     </view>
   </view>
@@ -264,12 +266,12 @@ async function submit() {
     <view class="sheet picker-sheet" @click.stop>
       <view class="sheet-head">
         <text class="sheet-title">选择安排日期</text>
-        <text class="close" @click="pickerOpen = false">×</text>
+        <text class="close press" hover-class="press-on" hover-stay-time="80" @click="pickerOpen = false">×</text>
       </view>
       <text class="tip">点选或按住滑动，可连续多选、取消。</text>
       <DateDragGrid :selected="dates" @update:selected="dates = $event" />
       <view class="sheet-foot">
-        <button class="btn block" @click="pickerOpen = false">完成 · {{ dates.length }} 天</button>
+        <button hover-class="press-on" hover-stay-time="80" class="btn block" @click="pickerOpen = false">完成 · {{ dates.length }} 天</button>
       </view>
     </view>
   </view>

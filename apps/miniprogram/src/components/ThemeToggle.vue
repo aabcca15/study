@@ -7,7 +7,7 @@ const { isDark } = storeToRefs(theme)
 </script>
 
 <template>
-  <button class="theme-toggle" :class="{ dark: isDark }" @click="theme.toggle()">
+  <button hover-class="press-on" hover-stay-time="80" class="theme-toggle" :class="{ dark: isDark }" @click="theme.toggle()">
     <view class="glyph">
       <view class="ray a" />
       <view class="ray b" />

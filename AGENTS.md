@@ -1,6 +1,6 @@
 # AI 开发约定
 
-本仓库是「小树成长」单仓：网页 H5 在 `apps/web/`，NestJS 在 `server/`，微信小程序在 `apps/miniprogram/`。改代码前先读本文件。新对话先读 `.cursor/skills/myhome-project/SKILL.md` 了解产品功能和两端数据边界。
+本仓库是「Uday家庭课表计划」单仓：网页 H5 在 `apps/web/`，NestJS 在 `server/`，微信小程序在 `apps/miniprogram/`。改代码前先读本文件。新对话先读 `.cursor/skills/myhome-project/SKILL.md` 了解产品功能和两端数据边界。
 
 ## 现在改哪里
 

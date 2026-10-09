@@ -109,9 +109,9 @@ defineExpose({ shift })
 <template>
   <view class="drag-cal">
     <view class="month-nav">
-      <text @click="shift(-1)">‹</text>
+      <text class="press" hover-class="press-on" hover-stay-time="80" @click="shift(-1)">‹</text>
       <text class="month-label">{{ month.format('YYYY年 M月') }}</text>
-      <text @click="shift(1)">›</text>
+      <text class="press" hover-class="press-on" hover-stay-time="80" @click="shift(1)">›</text>
     </view>
     <view class="week-row">
       <text v-for="day in WEEKDAY_SHORT" :key="day">{{ day }}</text>

@@ -122,7 +122,7 @@ function remove(member: FamilyMemberView) {
             <text class="name">{{ member.displayName }}{{ member.self ? ' · 我' : '' }}</text>
             <text class="muted">{{ FAMILY_ROLE_LABEL[member.role] }}</text>
           </view>
-          <button v-if="store.canRemove(member)" class="ghost" @click="remove(member)">移出</button>
+          <button hover-class="press-on" hover-stay-time="80" v-if="store.canRemove(member)" class="ghost" @click="remove(member)">移出</button>
         </view>
       </view>
 
@@ -131,21 +131,21 @@ function remove(member: FamilyMemberView) {
       </view>
       <view v-if="store.canInviteParent || store.canInviteViewer" class="card">
         <view class="invite-actions">
-          <button v-if="store.canInviteParent" class="btn" :disabled="Boolean(inviting)" @click="invite('parent')">
+          <button hover-class="press-on" hover-stay-time="80" v-if="store.canInviteParent" class="btn" :disabled="Boolean(inviting)" @click="invite('parent')">
             {{ inviting === 'parent' ? '生成中…' : '邀请家长' }}
           </button>
-          <button v-if="store.canInviteViewer" class="btn ghost-btn" :disabled="Boolean(inviting)" @click="invite('viewer')">
+          <button hover-class="press-on" hover-stay-time="80" v-if="store.canInviteViewer" class="btn ghost-btn" :disabled="Boolean(inviting)" @click="invite('viewer')">
             {{ inviting === 'viewer' ? '生成中…' : '邀请家人' }}
           </button>
         </view>
         <text class="hint">{{ store.canInviteParent ? INVITE_ROLE_HINT.parent + '；' : '' }}{{ INVITE_ROLE_HINT.viewer }}。邀请码 24 小时内有效，最多用 10 次。</text>
         <view v-if="latest" class="code-box">
           <text class="code-label">最新邀请码 · {{ FAMILY_ROLE_LABEL[latest.role] }}</text>
-          <text class="code" @click="copyCode(latest.code)">{{ formatInviteCode(latest.code) }}</text>
+          <text class="code press" hover-class="press-on" hover-stay-time="80" @click="copyCode(latest.code)">{{ formatInviteCode(latest.code) }}</text>
           <text class="muted">{{ expireLabel(latest.expireAt) }}</text>
           <view class="invite-actions">
-            <button class="btn" @click="copyCode(latest.code)">复制</button>
-            <button class="btn ghost-btn" open-type="share">发给微信好友</button>
+            <button hover-class="press-on" hover-stay-time="80" class="btn" @click="copyCode(latest.code)">复制</button>
+            <button hover-class="press-on" hover-stay-time="80" class="btn ghost-btn" open-type="share">发给微信好友</button>
           </view>
         </view>
         <view v-for="item in invites.filter((invite) => invite.code !== latest?.code)" :key="item.code" class="invite-row">
@@ -153,7 +153,7 @@ function remove(member: FamilyMemberView) {
             <text class="name">{{ formatInviteCode(item.code) }} · {{ FAMILY_ROLE_LABEL[item.role] }}</text>
             <text class="muted">{{ expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
           </view>
-          <button class="ghost" @click="copyCode(item.code)">复制</button>
+          <button hover-class="press-on" hover-stay-time="80" class="ghost" @click="copyCode(item.code)">复制</button>
         </view>
       </view>
     </view>

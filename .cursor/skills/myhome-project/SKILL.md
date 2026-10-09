@@ -1,14 +1,14 @@
 ---
 name: myhome-project
 description: >-
-  介绍「小树成长 / myhome」是做什么的、用户怎么走完今日课表、课程、账单、统计和家庭邀请，以及 H5 与微信小程序各自的数据落在哪里。
+  介绍「Uday家庭课表计划 / myhome」是做什么的、用户怎么走完今日课表、课程、账单、统计和家庭邀请，以及 H5 与微信小程序各自的数据落在哪里。
   换电脑、新开对话、用户问项目功能、页面流程、小程序和网页的区别，或准备部署上线时使用。
   改孩子、课程、排课、账单、登录或接口时，同时读 myhome-backend-contracts。
 ---
 
-# 小树成长：项目入口
+# Uday家庭课表计划：项目入口
 
-家长用来管孩子的学校课、兴趣班、上课地点和费用。仓库名 `myhome`。产品名「小树成长」，登录页品牌字是 Uday。
+家长用来管孩子的学校课、兴趣班、上课地点和费用。仓库名 `myhome`。产品名「Uday家庭课表计划」，登录页品牌字是 Uday。
 
 先读本文件建立整体图。改业务规则、接口或表时再读 [myhome-backend-contracts](../myhome-backend-contracts/SKILL.md)。用户怎么一步步操作，见 [flows.md](flows.md)。小程序从注册到发布，见 [docs/miniprogram-launch.md](../../../docs/miniprogram-launch.md)。
 

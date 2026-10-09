@@ -11,7 +11,7 @@ const statusBar = statusBarHeight()
 <template>
   <view class="app-brand-header" :style="{ paddingTop: statusBar + 'px' }">
     <view class="app-brand-inner">
-      <view class="brand" @click="openTab('/pages/today/index')">
+      <view class="brand press" hover-class="press-on" hover-stay-time="80" @click="openTab('/pages/today/index')">
         <text class="brand-mark">U</text>
         <view class="brand-copy">
           <text>Uday</text>
@@ -19,7 +19,7 @@ const statusBar = statusBarHeight()
         </view>
       </view>
       <view class="app-actions">
-        <button v-if="store.ready" class="logout" @click="uni.navigateTo({ url: '/pages/family/index' })">家庭</button>
+        <button hover-class="press-on" hover-stay-time="80" v-if="store.ready" class="logout" @click="uni.navigateTo({ url: '/pages/family/index' })">家庭</button>
         <ThemeToggle />
       </view>
     </view>
