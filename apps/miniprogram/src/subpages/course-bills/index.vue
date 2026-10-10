@@ -7,13 +7,14 @@ import { buildCourseBillLedger } from '@server-domain/courseBills'
 import { money } from '@server-domain/billing'
 import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import { cardBackground, tileBackground } from '@/utils/color'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const courseId = ref('')
 
 onLoad((query) => {
@@ -35,7 +36,7 @@ const ledger = computed(() => {
 
 function openBill(expenseId?: string) {
   if (!expenseId) return
-  uni.navigateTo({ url: `/pages/expense-edit/index?id=${expenseId}` })
+  uni.navigateTo({ url: `/subpages/expense-edit/index?id=${expenseId}` })
 }
 
 function subOf(day: { startTime?: string; endTime?: string; kind?: string }) {
@@ -45,6 +46,7 @@ function subOf(day: { startTime?: string; endTime?: string; kind?: string }) {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root page edit sub" :class="themeClass">
     <PageHeader safe show-back title="课程账单" :caption="course ? COURSE_TYPE_LABEL[course.type] + ' · ' + course.title : ''" />
     <view v-if="!course" class="empty">课程不存在</view>

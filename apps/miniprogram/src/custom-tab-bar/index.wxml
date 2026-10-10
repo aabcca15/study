@@ -1,35 +1,46 @@
-<view class="tab-host {{covered ? 'covered' : ''}} {{dark ? 'dark' : ''}}">
+<view class="tab-host {{covered ? 'covered' : ''}} {{dark ? 'dark' : ''}} {{instant ? 'instant' : ''}}">
 <view class="quick-backdrop {{open ? 'show' : ''}}" bindtap="close" />
 <view class="quick-menu {{open ? 'show' : ''}}">
-  <view class="quick-item" data-kind="add" bindtap="quick">
+  <view wx:if="{{canWrite}}" class="quick-item" hover-class="quick-press" hover-stay-time="80" data-kind="add" bindtap="quick">
     <text class="quick-badge accent">＋</text>
     <view>
       <text class="title">快速新增安排</text>
       <text class="desc">选择日期、已有课程或临时安排</text>
     </view>
   </view>
-  <view class="quick-item" data-kind="course" bindtap="quick">
+  <view wx:if="{{canWrite}}" class="quick-item" hover-class="quick-press" hover-stay-time="80" data-kind="course" bindtap="quick">
     <text class="quick-badge amber">✦</text>
     <view>
       <text class="title">新增课程</text>
       <text class="desc">建立新的课程预设</text>
     </view>
   </view>
-  <view class="quick-item" data-kind="bill" bindtap="quick">
+  <view wx:if="{{canWrite}}" class="quick-item" hover-class="quick-press" hover-stay-time="80" data-kind="bill" bindtap="quick">
     <text class="quick-badge teal">¥</text>
     <view>
       <text class="title">记一笔账单</text>
       <text class="desc">登记一次课程费用</text>
     </view>
   </view>
+  <view class="quick-item" hover-class="quick-press" hover-stay-time="80" data-kind="family" bindtap="quick">
+    <view class="quick-badge violet">
+      <image class="badge-ico" src="/static/icons/family-white.png" mode="aspectFit" />
+    </view>
+    <view>
+      <text class="title">{{canWrite ? '邀请家人' : '家庭成员'}}</text>
+      <text class="desc">{{canWrite ? '邀请家长或家人一起看课表' : '看看家里有谁在用'}}</text>
+    </view>
+  </view>
 </view>
 
 <view id="glass-tabbar" class="tabbar">
-  <view class="indicator {{instant ? 'instant' : ''}} {{travel ? 'travel' : ''}} {{jelly ? 'jelly' : ''}}" style="{{indicator}}" />
+  <view class="indicator {{travel ? 'travel' : ''}} {{jelly ? 'jelly' : ''}}" style="{{indicator}}" />
   <view
     wx:for="{{left}}"
     wx:key="key"
     class="tab {{selected === index ? 'active' : ''}} {{jelly && selected === index ? 'jelly' : ''}}"
+    hover-class="tab-press"
+    hover-stay-time="60"
     data-index="{{index}}"
     bindtap="onTab"
   >
@@ -37,7 +48,7 @@
     <text class="tab-label">{{item.text}}</text>
   </view>
   <view class="tabbar-center">
-    <view class="tabbar-fab {{open ? 'open' : ''}}" bindtap="toggle">
+    <view class="tabbar-fab {{open ? 'open' : ''}}" hover-class="fab-press" hover-stay-time="80" bindtap="toggle">
       <text class="fab-mark">＋</text>
     </view>
   </view>
@@ -45,6 +56,8 @@
     wx:for="{{right}}"
     wx:key="key"
     class="tab {{selected === index + 2 ? 'active' : ''}} {{jelly && selected === index + 2 ? 'jelly' : ''}}"
+    hover-class="tab-press"
+    hover-stay-time="60"
     data-index="{{index + 2}}"
     bindtap="onTab"
   >

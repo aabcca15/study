@@ -8,13 +8,14 @@ import type { ExpenseCategory } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import DateField from '@/components/DateField.vue'
 import SelectField from '@/components/SelectField.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const expenseId = ref('')
 const saving = ref(false)
 const refundAmount = ref('')
@@ -126,6 +127,7 @@ function remove() {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root page edit sub" :class="themeClass">
     <PageHeader safe show-back :title="expenseId ? '账单详情' : '记一笔支出'" />
     <template v-if="!expenseId">

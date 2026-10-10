@@ -19,3 +19,29 @@ export function statusBarHeight() {
 export function windowWidth() {
   return readInfo().windowWidth
 }
+
+let capsule: { inset: number; top: number; height: number } | undefined
+
+function readCapsule() {
+  if (!capsule) {
+    const fallback = { inset: 96, top: readInfo().statusBar + 4, height: 32 }
+    try {
+      const rect = uni.getMenuButtonBoundingClientRect()
+      capsule = rect && rect.left > 0
+        ? { inset: readInfo().windowWidth - rect.left, top: rect.top, height: rect.height }
+        : fallback
+    } catch {
+      capsule = fallback
+    }
+  }
+  return capsule
+}
+
+/** 右上角胶囊（···/关闭）左边缘到屏幕右侧的距离，顶栏右侧控件要让开它。 */
+export function capsuleInset() {
+  return readCapsule().inset
+}
+
+export function capsuleBox() {
+  return readCapsule()
+}

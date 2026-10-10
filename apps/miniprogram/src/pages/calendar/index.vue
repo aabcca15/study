@@ -6,7 +6,7 @@ import { occurrencesOnDate } from '@server-domain/schedule'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import { setTabCover, syncVisibleTab } from '@/utils/nav'
 import { monthMatrix, occurrenceDots } from '@/utils/view'
@@ -18,6 +18,7 @@ import OccurrenceSheet from '@/components/OccurrenceSheet.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const ui = useUiStore()
 const cursor = ref(dayjs().format('YYYY-MM'))
 const addOpen = ref(false)
@@ -96,6 +97,7 @@ async function undoCancel() {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page">

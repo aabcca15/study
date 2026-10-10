@@ -5,6 +5,10 @@ const tabs = [
   { key: 'stats', text: '统计', icon: '/static/icons/bars-muted.png', iconOn: '/static/icons/bars-accent.png', url: '/pages/stats/index' },
 ]
 
+// 指示块先在当前页滑到目标位置，快到终点时再切页，新页面直接停在终点。
+const SLIDE_MS = 360
+const SWITCH_AFTER_MS = 200
+
 function appData() {
   const app = getApp()
   app.globalData = app.globalData || {}
@@ -39,27 +43,26 @@ function place(index) {
 }
 
 // 微信给每个 tab 页各建一份底栏实例，页面被缓存时实例也被缓存。
-// 每份实例只显示自己所属页面的下标（owner），从不被别的页面改写。
+// 每份实例只显示自己所属页面的下标（owner）。
 Component({
   data: {
     selected: -1,
     open: false,
-    instant: false,
+    instant: true,
     travel: false,
     jelly: false,
     covered: false,
     dark: false,
+    canWrite: true,
     indicator: 'opacity:0;',
     left: tabs.slice(0, 2),
     right: tabs.slice(2),
   },
   lifetimes: {
-    ready() {
-      this.syncTheme()
-      if (this.owner === undefined) {
-        const guess = routeIndex()
-        if (guess >= 0) this.own(guess)
-      }
+    attached() {
+      this.syncState()
+      const guess = routeIndex()
+      if (guess >= 0) this.own(guess)
     },
     detached() {
       this.clearTimers()
@@ -67,43 +70,35 @@ Component({
   },
   pageLifetimes: {
     show() {
-      this.syncTheme()
+      this.syncState()
       if (this.owner !== undefined) this.own(this.owner)
     },
   },
   methods: {
-    syncTheme() {
-      const dark = appData().theme === 'dark'
-      if (this.data.dark !== dark) this.setData({ dark })
+    syncState() {
+      const data = appData()
+      const dark = data.theme === 'dark'
+      const canWrite = data.canWrite !== false
+      if (this.data.dark !== dark || this.data.canWrite !== canWrite) this.setData({ dark, canWrite })
     },
     clearTimers() {
-      clearTimeout(this._slideTimer)
       clearTimeout(this._travelTimer)
+      clearTimeout(this._switchTimer)
+      clearTimeout(this._settleTimer)
       clearTimeout(this._refineTimer)
     },
+    /** 停在自己页面的下标上，不带动画。 */
     own(index) {
       if (index < 0 || index > 3) return
       this.owner = index
-      const data = appData()
-      const from = data.tabFrom
-      const recent = data.tabStamp && Date.now() - data.tabStamp < 1200
-      const slide = recent && typeof from === 'number' && from !== index && from >= 0
-      if (!slide && this.data.selected === index) {
+      this.navigating = false
+      if (this.data.selected === index && !this.data.travel) {
         if (this.data.open) this.setData({ open: false })
         return
       }
-      data.tabFrom = undefined
       this.clearTimers()
-      if (slide) {
-        this.setData({ selected: index, open: false, instant: true, travel: false, indicator: place(from) })
-        this._slideTimer = setTimeout(() => {
-          this.setData({ instant: false, travel: true, indicator: place(index) })
-          this._travelTimer = setTimeout(() => this.setData({ travel: false }), 240)
-          this.refine(index)
-        }, 30)
-        return
-      }
-      this.setData({ selected: index, open: false, instant: false, travel: false, indicator: place(index) })
+      this.setData({ selected: index, open: false, instant: true, travel: false, indicator: place(index) })
+      this._settleTimer = setTimeout(() => this.setData({ instant: false }), 60)
       this.refine(index)
     },
     refine(index) {
@@ -113,7 +108,7 @@ Component({
         query.select('#glass-tabbar').boundingClientRect()
         query.selectAll('.tab').boundingClientRect()
         query.exec((res) => {
-          if (this.data.selected !== index || this.data.instant) return
+          if (this.data.selected !== index) return
           const bar = res?.[0]
           const tab = res?.[1]?.[index]
           if (!bar?.width || !tab?.width) return
@@ -121,7 +116,7 @@ Component({
             indicator: `left:${tab.left - bar.left}px;top:${tab.top - bar.top}px;width:${tab.width}px;height:${tab.height}px;opacity:1;`,
           })
         })
-      }, 520)
+      }, SLIDE_MS + 120)
     },
     bounce() {
       this.setData({ jelly: false })
@@ -132,46 +127,58 @@ Component({
         }, 480)
       })
     },
+    slideTo(index) {
+      this.clearTimers()
+      this.setData({ selected: index, open: false, instant: false, travel: true, indicator: place(index) })
+      this._travelTimer = setTimeout(() => this.setData({ travel: false }), SLIDE_MS)
+    },
     go(index) {
-      const data = appData()
-      data.tabFrom = this.owner
-      data.tabStamp = Date.now()
+      const home = this.owner
       wx.switchTab({
         url: tabs[index].url,
+        success: () => {
+          // 离开后把这份底栏悄悄放回自己的位置，下次回来不会先看到上一次的位置。
+          setTimeout(() => {
+            if (home !== undefined) this.own(home)
+          }, SLIDE_MS)
+        },
         fail: () => {
-          data.tabFrom = undefined
+          this.navigating = false
           wx.reLaunch({ url: tabs[index].url })
         },
       })
     },
     onTab(event) {
       const index = Number(event.currentTarget.dataset.index)
-      if (!tabs[index]) return
+      if (!tabs[index] || this.navigating) return
       const current = this.owner !== undefined ? this.owner : routeIndex()
       if (index === current) {
         this.setData({ open: false })
         this.bounce()
         return
       }
-      this.setData({ open: false })
-      this.go(index)
+      this.navigating = true
+      this.slideTo(index)
+      this._switchTimer = setTimeout(() => this.go(index), SWITCH_AFTER_MS)
     },
     toggle() {
-      if (appData().canWrite === false) {
-        wx.showToast({ icon: 'none', title: '家人只能查看课表' })
-        return
-      }
+      this.syncState()
       this.setData({ open: !this.data.open })
     },
     close() {
       this.setData({ open: false })
     },
     quick(event) {
+      const kind = event.currentTarget.dataset.kind
+      if (kind === 'family') {
+        this.setData({ open: false })
+        wx.navigateTo({ url: '/subpages/family/index' })
+        return
+      }
       if (appData().canWrite === false) {
         wx.showToast({ icon: 'none', title: '家人只能查看课表' })
         return
       }
-      const kind = event.currentTarget.dataset.kind
       this.setData({ open: false })
       if (kind === 'add') {
         const data = appData()
@@ -180,10 +187,12 @@ Component({
           return
         }
         data.pendingAdd = true
-        this.go(0)
+        this.navigating = true
+        this.slideTo(0)
+        this._switchTimer = setTimeout(() => this.go(0), SWITCH_AFTER_MS)
         return
       }
-      wx.navigateTo({ url: kind === 'course' ? '/pages/course-edit/index' : '/pages/expense-edit/index' })
+      wx.navigateTo({ url: kind === 'course' ? '/subpages/course-edit/index' : '/subpages/expense-edit/index' })
     },
   },
 })

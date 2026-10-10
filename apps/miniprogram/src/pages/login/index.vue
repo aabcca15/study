@@ -6,22 +6,23 @@ import type { ChildAvatarKey } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import { normalizeInviteCode } from '@/domain/family-account'
+import { avatarDefaultName } from '@/domain/avatar-names'
 import { openTab } from '@/utils/nav'
-import { statusBarHeight } from '@/utils/system'
+import { capsuleBox, statusBarHeight } from '@/utils/system'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const store = useFamilyStore()
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const statusBar = statusBarHeight()
-const avatarOptions = CHILD_AVATAR_OPTIONS
-const avatarName: Record<ChildAvatarKey, string> = {
-  'boy-blue': '小Y',
-  'boy-cap': '小I',
-  'girl-flower': '小M',
-  'girl-bow': '小U',
+const capsule = capsuleBox()
+const toggleStyle = {
+  top: `${capsule.top + capsule.height / 2 - 19}px`,
+  right: `${capsule.inset + 6}px`,
 }
+const avatarOptions = CHILD_AVATAR_OPTIONS
 const mode = ref<'create' | 'join'>('create')
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
@@ -29,7 +30,7 @@ const inviteCode = ref('')
 const displayName = ref('')
 const submitting = ref(false)
 const booting = ref(false)
-const childPlaceholder = computed(() => avatarName[avatarKey.value] || '小Y')
+const childPlaceholder = computed(() => avatarDefaultName(avatarKey.value))
 
 onLoad((query) => {
   const invite = typeof query?.invite === 'string' ? normalizeInviteCode(query.invite) : ''
@@ -94,8 +95,9 @@ async function submit() {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root login" :class="themeClass" :style="{ paddingTop: statusBar + 'px' }">
-    <view class="login-bar">
+    <view class="login-bar" :style="toggleStyle">
       <ThemeToggle />
     </view>
     <view class="stage">
@@ -113,7 +115,7 @@ async function submit() {
       </view>
 
       <view class="forms">
-        <view class="form" :class="{ show: mode === 'create' }">
+        <view v-if="mode === 'create'" class="form">
           <view class="picks">
             <view
               v-for="option in avatarOptions"
@@ -136,7 +138,7 @@ async function submit() {
           </view>
         </view>
 
-        <view class="form" :class="{ show: mode === 'join' }">
+        <view v-else class="form">
           <view class="field">
             <view class="field-label">邀请码</view>
             <input :value="inviteCode" maxlength="8" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
@@ -170,8 +172,6 @@ async function submit() {
 .login-bar {
   position: absolute;
   z-index: 2;
-  top: 8px;
-  right: 10px;
 }
 
 .stage {
@@ -262,27 +262,15 @@ async function submit() {
 .mode-tab.on {
   color: var(--accent-text);
 }
-.forms {
-  position: relative;
-  min-height: 240px;
-}
 .form {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
   display: flex;
-  min-height: 240px;
+  height: 240px;
   flex-direction: column;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.28s ease;
+  animation: form-in 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
-.form.show {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
+@keyframes form-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .submit {
   width: 100%;

@@ -14,7 +14,8 @@ const course = {
   swimming: '<circle cx="17" cy="5" r="2"/><path d="m5 13 4-4 4 3 3-2 3 3M3 16c2 0 2 1.5 4 1.5S9 16 11 16s2 1.5 4 1.5S17 16 19 16s2 1.5 2 1.5M3 20c2 0 2 1.5 4 1.5S9 20 11 20s2 1.5 4 1.5S17 20 19 20s2 1.5 2 1.5"/>',
   english: '<path d="M5 19 10 5l5 14M7 14h6m3-5h4m-2-2v8m-2 4 4-4"/>',
   calligraphy: '<path d="m16 3 5 5L10 19l-6 2 2-6L16 3Zm-8.5 11.5 5 5M14 5l5 5"/>',
-  generic: '<path d="M8 9V7.2A4 4 0 0 1 16 7.2V9"/><path d="M7 9h10a2.4 2.4 0 0 1 2.4 2.4v7.2A2.4 2.4 0 0 1 17 21H7a2.4 2.4 0 0 1-2.4-2.4v-7.2A2.4 2.4 0 0 1 7 9Z"/><path d="M9.5 13.5h5M12 13.5v3.2"/><path d="M7 9v2.2M17 9v2.2"/>',
+  homework: '<path d="M12.5 21H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7l4 4v4.5M14 3v4h4M9 11h5M9 15h3"/><path d="m15.5 20.5 5-5a1.4 1.4 0 0 0-2-2l-5 5-.5 2.5 2.5-.5Z"/>',
+  generic: '<path d="M10 4.6a2 2 0 0 1 4 0V5"/><path d="M6 11a6 6 0 0 1 12 0v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-8Z"/><path d="M6 13.5H4.6v4.5H6M18 13.5h1.4v4.5H18"/><path d="M10 10.6v2.6a2 2 0 0 0 4 0v-2.6M8.8 17.8h6.4"/>',
 }
 
 const ui = {
@@ -27,6 +28,8 @@ const ui = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   'chevron-left': '<path d="m15 18-6-6 6-6"/>',
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  family: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19.5c.6-3.1 2.8-5.2 5.5-5.2s4.9 2.1 5.5 5.2"/><circle cx="16.8" cy="9.6" r="2.3"/><path d="M15.6 14.4c2.6-.4 4.5 1.4 4.9 4.4"/>',
+  share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/>',
 }
 
 const tones = {
@@ -47,13 +50,17 @@ function dots(color) {
 
 await mkdir(outDir, { recursive: true })
 
+// 传图标名只重画这几个：node scripts/render-icons.mjs generic share
+const only = new Set(process.argv.slice(2))
 const jobs = []
 for (const [name, body] of Object.entries({ ...course, ...ui })) {
+  if (only.size && !only.has(name)) continue
   for (const [tone, color] of Object.entries(tones)) {
     jobs.push([`${name}-${tone}`, svg(body, color)])
   }
 }
 for (const [tone, color] of Object.entries(tones)) {
+  if (only.size && !only.has('dots')) continue
   jobs.push([`dots-${tone}`, dots(color)])
 }
 

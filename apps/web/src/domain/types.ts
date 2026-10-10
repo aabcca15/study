@@ -92,6 +92,7 @@ export type CourseIcon =
   | 'swimming'
   | 'english'
   | 'calligraphy'
+  | 'homework'
   | 'generic'
 
 export type ChildAvatarKey = 'boy-blue' | 'boy-cap' | 'girl-flower' | 'girl-bow'

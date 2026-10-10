@@ -6,7 +6,7 @@ import { groupByCategory, money } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { calculateLearningStatistics } from '@server-domain/statistics'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage, useThemeStore } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage, useThemeStore } from '@/utils/wx-theme'
 import { currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
 import { syncVisibleTab } from '@/utils/nav'
 import { windowWidth } from '@/utils/system'
@@ -17,6 +17,7 @@ import TrendChart from '@/components/TrendChart.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const theme = useThemeStore()
 /** 与 web 一致：卡片接近整行，右侧露出下一张方便左右滑。 */
 const reportCardWidth = Math.max(280, windowWidth() - 88)
@@ -92,6 +93,7 @@ function formatTrendHours(hours: number) {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page stats-page">
@@ -179,7 +181,7 @@ function formatTrendHours(hours: number) {
             :style="{ width: reportCardWidth + 'px', background: `radial-gradient(120% 90% at 0% 0%, ${mix(item.course.color, currentMixBase(), 0.84)} 0%, ${currentMixBase()} 78%)` }"
             hover-class="press-on"
             hover-stay-time="80"
-            @click="store.canViewBills && uni.navigateTo({ url: `/pages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
+            @click="store.canViewBills && uni.navigateTo({ url: `/subpages/course-bills/index?id=${item.course.id}&returnTo=stats` })"
           >
             <view class="report-head">
               <view class="report-icon" :style="{ background: tileBackground(item.course.color) }">
@@ -223,7 +225,7 @@ function formatTrendHours(hours: number) {
         :value-formatter="money"
       />
 
-      <view v-if="store.canViewBills" class="card link press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/pages/bills/index' })">
+      <view v-if="store.canViewBills" class="card link press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/subpages/bills/index' })">
         <view class="row"><text>本周账单</text><text class="muted">查看 ›</text></view>
       </view>
     </view>

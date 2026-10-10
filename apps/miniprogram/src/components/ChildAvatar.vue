@@ -25,7 +25,7 @@ const faceStyle = computed(() => ({
 
 <template>
   <view class="child-face" :class="`is-${option.key}`" :style="faceStyle">
-    <image class="sprite" src="/static/user_icon.png" mode="scaleToFill" />
+    <image class="sprite" src="/static/user_icon.jpg" mode="scaleToFill" />
   </view>
 </template>
 

@@ -128,7 +128,7 @@
 | `/bills/edit/:id?` | `ExpenseEditPage` | 记一笔或账单详情（支付/退款/删未付） | 当前孩子 | 无 |
 | `/login` | `LoginPage` | 账号密码登录 | 无家庭数据 | 无 |
 | `/register` | `RegisterPage` | 注册账号并创建家庭 | 创建 Family | 无 |
-| 小程序 `pages/family/index` | 家庭成员 | 邀请码、成员、移出 | 云集合 `users` `invites` | 无 |
+| 小程序 `subpages/family/index` | 家庭成员 | 邀请码、成员、移出 | 云集合 `users` `invites` | 无 |
 | 小程序 `pages/login/index` | 登录 | 创建家庭或邀请码加入 | 不信客户端 familyId | 无 |
 
 导航壳：`App.vue` + `AppHeader`（主题，本地 `myhome.theme`）+ `TabBar`（＋菜单：快速安排 / 新增课程 / 记一笔）。

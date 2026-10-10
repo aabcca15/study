@@ -6,6 +6,9 @@ dist
 .env
 .env.*
 !.env.example
+# 小程序环境文件只放 AppID、云环境 ID 这类公开标识，需要入库
+!apps/miniprogram/.env.development
+!apps/miniprogram/.env.production
 *.log
 dev.log
 server/prisma/dev.db

@@ -1,6 +1,7 @@
 declare module 'wx-server-sdk' {
   interface CloudDatabase {
     collection(name: string): any
+    createCollection(name: string): Promise<unknown>
     serverDate(): Date
     runTransaction<T>(handler: (transaction: any) => Promise<T>): Promise<T>
   }

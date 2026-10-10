@@ -7,8 +7,28 @@
     "enhance": true,
     "postcss": true,
     "minified": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
     "newFeature": true,
+    "ignoreUploadUnusedFiles": true,
     "bigPackageSizeSupport": true
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "cloudfunctions"
+      },
+      {
+        "type": "suffix",
+        "value": ".ts"
+      },
+      {
+        "type": "suffix",
+        "value": ".map"
+      }
+    ],
+    "include": []
   },
   "appid": "",
   "projectname": "Uday家庭课表计划",

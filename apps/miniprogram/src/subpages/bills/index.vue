@@ -7,7 +7,7 @@ import { CATEGORY_LABEL } from '@server-domain/constants'
 import { showCloudError } from '@/cloud/call'
 import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage, useThemeStore } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage, useThemeStore } from '@/utils/wx-theme'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
 import TabBar from '@/components/TabBar.vue'
@@ -17,6 +17,7 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const theme = useThemeStore()
 const anchor = ref(dayjs().format('YYYY-MM-DD'))
 const fromToday = ref(false)
@@ -74,6 +75,7 @@ function shift(delta: number) {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page">
@@ -81,7 +83,7 @@ function shift(delta: number) {
         <template #actions>
           <view class="nav">
             <button hover-class="press-on" hover-stay-time="80" @click="shift(-1)">‹</button>
-            <button hover-class="press-on" hover-stay-time="80" class="add" @click="uni.navigateTo({ url: '/pages/expense-edit/index' })">
+            <button hover-class="press-on" hover-stay-time="80" class="add" @click="uni.navigateTo({ url: '/subpages/expense-edit/index' })">
               <AppIcon name="plus" tone="white" :size="14" />
               <text>记一笔</text>
             </button>
@@ -125,7 +127,7 @@ function shift(delta: number) {
         class="card bill press"
         hover-class="press-on"
         hover-stay-time="80"
-        @click="uni.navigateTo({ url: `/pages/expense-edit/index?id=${bill.id}` })"
+        @click="uni.navigateTo({ url: `/subpages/expense-edit/index?id=${bill.id}` })"
       >
         <view
           class="bill-icon"

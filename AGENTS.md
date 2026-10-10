@@ -6,7 +6,7 @@
 
 - **H5 UI / 路由 / Pinia**：`apps/web/`，技术栈保持 Vue3 + Vite + TS + Pinia + Vue Router。业务数据走 `/api`，不要再写 `myhome.v1`。
 - **NestJS API**：`server/`，本地 SQLite，`npm run dev:server`。
-- **微信小程序**：`apps/miniprogram/`。页面用 uni-app，登录和数据走微信云开发，不要改成调用 Nest API。上线步骤见 `docs/miniprogram-launch.md`。
+- **微信小程序**：`apps/miniprogram/`。页面用 uni-app，登录和数据走微信云开发，不要改成调用 Nest API。上线步骤见 `docs/miniprogram-launch.md`，日常打包与体验版 / 正式版发布见 `docs/miniprogram-deploy.md`。二级页面放 `src/subpages/` 分包，主包限制 2MB。云环境 ID 和 AppID 写在 `apps/miniprogram/.env.development` / `.env.production`，不要手改 `project.config.json` 的 `miniprogramRoot`。
 - **项目是什么、用户怎么走**：`.cursor/skills/myhome-project/`（`SKILL.md` 入口，`flows.md` 是小程序流程）。
 - **业务规则、能力地图、账号与接口**：`.cursor/skills/myhome-backend-contracts/`（`SKILL.md` 入口；`capability-map.md` / `product-map.md` / `account-model.md` / `data-and-api.md` / `backend-contracts.md` / `billing-model-v2.md` / `gaps-and-backlog.md`）。
 - **产品与口径说明**：`docs/prd/`、`docs/domain/`、`docs/design/`、`docs/architecture.md`。
@@ -21,5 +21,5 @@
 ## 明确不要做
 
 - 不要修改本机全局 Git `user.name` / `user.email`。本仓库本地身份是 `jj` / `jj@admin.com`。
-- 不要提交 `node_modules/`、`dist/`、`.env`、日志或密钥。
+- 不要提交 `node_modules/`、`dist/`、`.env`、日志或密钥。例外：`apps/miniprogram/.env.development` / `.env.production` 入库，但只能放 AppID、云环境 ID 这类公开标识。
 - 不要为了小程序提前重写现有 H5 业务逻辑。

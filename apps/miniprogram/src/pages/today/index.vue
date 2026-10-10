@@ -10,7 +10,7 @@ import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import { openTab, setTabCover, syncVisibleTab } from '@/utils/nav'
 import { occurrenceDots, weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
@@ -21,6 +21,7 @@ import OccurrenceSheet from '@/components/OccurrenceSheet.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const ui = useUiStore()
 const addOpen = ref(false)
 const editing = ref<DayOccurrence | null>(null)
@@ -147,6 +148,7 @@ async function undoCancel() {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page today-page">
@@ -189,7 +191,7 @@ async function undoCancel() {
             </view>
           </view>
         </view>
-        <view v-if="store.canViewBills" class="overview-card is-bill press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/pages/bills/index?from=today' })">
+        <view v-if="store.canViewBills" class="overview-card is-bill press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/subpages/bills/index?from=today' })">
           <view class="overview-head">
             <view class="mark bill"><AppIcon name="bill" tone="white" :size="15" /></view>
             <text>本周课程账单</text>

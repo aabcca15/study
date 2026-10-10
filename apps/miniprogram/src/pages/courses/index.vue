@@ -6,8 +6,9 @@ import type { ChildAvatarKey, Course } from '@server-domain/types'
 import { getCourseAmountLabel, getCourseBillingSummary, getCourseLifecycle, getCoursePricingLabel } from '@server-domain/courseOverview'
 import { courseScheduleProgress } from '@server-domain/courseSchedule'
 import { showCloudError } from '@/cloud/call'
+import { avatarDefaultName } from '@/domain/avatar-names'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage, useThemeStore } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage, useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import AppIcon from '@/components/AppIcon.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
@@ -18,6 +19,7 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const theme = useThemeStore()
 
 onShow(() => {
@@ -29,6 +31,7 @@ const newName = ref('')
 const newAvatar = ref<ChildAvatarKey>('boy-blue')
 const names = reactive<Record<string, string>>({})
 const childError = ref('')
+const newChildPlaceholder = computed(() => avatarDefaultName(newAvatar.value))
 
 watch(managing, (open) => {
   setTabCover(open)
@@ -100,17 +103,14 @@ async function setAvatar(id: string, key: ChildAvatarKey) {
 
 async function addChild() {
   childError.value = ''
-  if (!newName.value.trim()) {
-    childError.value = '请先填写孩子名字'
-    return
-  }
+  const name = newName.value.trim() || newChildPlaceholder.value
   try {
-    const id = await store.addChild(newName.value, newAvatar.value)
+    const id = await store.addChild(name, newAvatar.value)
     if (!id) {
       childError.value = '请先填写孩子名字'
       return
     }
-    names[id] = newName.value.trim()
+    names[id] = name
     newName.value = ''
     newAvatar.value = 'boy-blue'
   } catch (error) {
@@ -155,14 +155,14 @@ function more(course: Course) {
     success: async (res) => {
       try {
         if (res.tapIndex === 0) {
-          uni.navigateTo({ url: `/pages/course-edit/index?id=${course.id}` })
+          uni.navigateTo({ url: `/subpages/course-edit/index?id=${course.id}` })
         }
         if (res.tapIndex === 1) {
           if (course.archived) await store.restoreCourse(course.id)
           else await store.archiveCourse(course.id)
         }
         if (res.tapIndex === 2) {
-          uni.navigateTo({ url: `/pages/course-bills/index?id=${course.id}` })
+          uni.navigateTo({ url: `/subpages/course-bills/index?id=${course.id}` })
         }
         if (res.tapIndex === 3) {
           uni.showModal({
@@ -187,6 +187,7 @@ function more(course: Course) {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page courses-page">
@@ -248,12 +249,12 @@ function more(course: Course) {
             </view>
             <view v-if="store.canViewBills" class="amount-col">
               <text class="amount">{{ getCourseAmountLabel(card.course) }}</text>
-              <text v-if="card.billing.key === 'open'" class="pay press" hover-class="press-on" hover-stay-time="80" @click.stop="uni.navigateTo({ url: `/pages/course-bills/index?id=${card.course.id}` })">去支付</text>
+              <text v-if="card.billing.key === 'open'" class="pay press" hover-class="press-on" hover-stay-time="80" @click.stop="uni.navigateTo({ url: `/subpages/course-bills/index?id=${card.course.id}` })">去支付</text>
             </view>
           </view>
           </view>
         </view>
-        <view v-if="store.canWrite" class="course add press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/pages/course-edit/index' })">
+        <view v-if="store.canWrite" class="course add press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/subpages/course-edit/index' })">
           <view class="plus"><AppIcon name="plus" tone="white" :size="22" /></view>
           <text class="name">新增课程</text>
           <text class="meta">创建新的课程与排课计划</text>
@@ -309,7 +310,7 @@ function more(course: Course) {
             </view>
           </view>
           <view class="new-row">
-            <input v-model="newName" maxlength="8" placeholder="输入新孩子名字" placeholder-class="ph" />
+            <input v-model="newName" maxlength="8" :placeholder="newChildPlaceholder" placeholder-class="ph" />
             <button hover-class="press-on" hover-stay-time="80" class="btn" @click="addChild">添加</button>
           </view>
           <text v-if="childError" class="form-error">{{ childError }}</text>

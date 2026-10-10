@@ -31,6 +31,28 @@ const db = cloud.database()
 const users = () => db.collection('users')
 const families = () => db.collection('families')
 const invites = () => db.collection('invites')
+const COLLECTIONS = ['users', 'families', 'invites']
+
+function errorText(error: unknown) {
+  const value = error as { errCode?: number; errMsg?: string; message?: string } | undefined
+  return `${value?.errCode ?? ''} ${value?.errMsg ?? ''} ${value?.message ?? ''}`
+}
+
+function isCollectionMissing(error: unknown) {
+  return /-502005|DATABASE_COLLECTION_NOT_EXIST|collection not exist/i.test(errorText(error))
+}
+
+/** 新环境第一次调用时自动建好集合，不需要在控制台手动建表。 */
+async function ensureCollections() {
+  for (const name of COLLECTIONS) {
+    try {
+      await db.createCollection(name)
+    } catch (error) {
+      if (!/-501001|already exist|DATABASE_COLLECTION_ALREADY_EXIST/i.test(errorText(error))) throw error
+    }
+  }
+}
+
 type FamilyDoc = {
   snapshotJson?: string
   version?: number
@@ -416,6 +438,16 @@ async function dispatchAccount(user: UserDoc, action: string, payload: Record<st
   raise('INVALID_ACTION', '不支持的操作')
 }
 
+async function handle(openid: string, unionid: string, action: string, payload: Record<string, unknown>) {
+  if (action === 'login') return login(openid, unionid, payload)
+  if (action === 'joinFamily') return joinFamily(openid, unionid, payload)
+  const user = await requireUser(openid)
+  if (action === 'createInvite' || action === 'listMembers' || action === 'removeMember') {
+    return dispatchAccount(user, action, payload)
+  }
+  return dispatchWorkspace(user, action, payload)
+}
+
 export async function main(event: { action?: string; payload?: Record<string, unknown> }) {
   const context = cloud.getWXContext()
   const openid = context.OPENID || ''
@@ -423,18 +455,16 @@ export async function main(event: { action?: string; payload?: Record<string, un
 
   try {
     const action = event?.action || ''
-    const payload = event.payload ?? {}
-    if (action === 'login') {
-      return { ok: true as const, data: await login(openid, context.UNIONID || '', payload) }
+    const payload = event?.payload ?? {}
+    const unionid = context.UNIONID || ''
+    try {
+      return { ok: true as const, data: await handle(openid, unionid, action, payload) }
+    } catch (error) {
+      // 集合缺失时读写在落库前就会失败，建好集合后整次重试是安全的。
+      if (!isCollectionMissing(error)) throw error
+      await ensureCollections()
+      return { ok: true as const, data: await handle(openid, unionid, action, payload) }
     }
-    if (action === 'joinFamily') {
-      return { ok: true as const, data: await joinFamily(openid, context.UNIONID || '', payload) }
-    }
-    const user = await requireUser(openid)
-    if (action === 'createInvite' || action === 'listMembers' || action === 'removeMember') {
-      return { ok: true as const, data: await dispatchAccount(user, action, payload) }
-    }
-    return { ok: true as const, data: await dispatchWorkspace(user, action, payload) }
   } catch (error) {
     const code = error instanceof FamilyActionError ? error.code : 'CLOUD_ERROR'
     const message = error instanceof Error ? error.message : '云函数执行失败'

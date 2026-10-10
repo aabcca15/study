@@ -68,6 +68,7 @@ export const COURSE_COLORS = [
   '#FF9A3D',
   '#22C4CC',
   '#7C8AA5',
+  '#FFC233',
 ]
 
 export const COURSE_ICON_COLORS: Record<CourseIcon, string> = {
@@ -79,6 +80,7 @@ export const COURSE_ICON_COLORS: Record<CourseIcon, string> = {
   swimming: '#22C4CC',
   english: '#3E9BFF',
   calligraphy: '#F0A92B',
+  homework: '#FFC233',
   generic: '#7C8AA5',
 }
 
@@ -140,6 +142,7 @@ export const COURSE_ICON_OPTIONS: Array<{ value: CourseIcon; label: string }> = 
   { value: 'swimming', label: '游泳' },
   { value: 'english', label: '英语' },
   { value: 'calligraphy', label: '书法' },
+  { value: 'homework', label: '作业' },
   { value: 'generic', label: '通用' },
 ]
 

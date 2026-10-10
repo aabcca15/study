@@ -29,26 +29,36 @@ function coordinates(width: number) {
   })
 }
 
+type Canvas2D = {
+  width: number
+  height: number
+  getContext: (type: '2d') => CanvasRenderingContext2D
+}
+
 function draw() {
   const query = uni.createSelectorQuery().in(instance?.proxy)
-  query.select(`#${canvasId}`).boundingClientRect((rect) => {
-    const box = Array.isArray(rect) ? rect[0] : rect
-    const width = box?.width || 320
-    const ctx = uni.createCanvasContext(canvasId, instance?.proxy)
+  query.select(`#${canvasId}`).fields({ node: true, size: true }, () => {}).exec((res) => {
+    const field = res?.[0] as { node?: Canvas2D; width?: number } | undefined
+    const canvas = field?.node
+    if (!canvas) return
+    const width = field?.width || 320
+    const height = 128
+    const ratio = uni.getWindowInfo?.().pixelRatio || 2
+    canvas.width = width * ratio
+    canvas.height = height * ratio
+    const ctx = canvas.getContext('2d')
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     const points = coordinates(width)
-    ctx.clearRect(0, 0, width, 128)
-    ctx.setStrokeStyle(isDarkMix() ? '#2d3546' : '#e6e8f0')
-    ctx.setLineWidth(1)
+    ctx.clearRect(0, 0, width, height)
+    ctx.strokeStyle = isDarkMix() ? '#2d3546' : '#e6e8f0'
+    ctx.lineWidth = 1
     for (const y of [32, 64, 96]) {
       ctx.beginPath()
       ctx.moveTo(12, y)
       ctx.lineTo(width - 12, y)
       ctx.stroke()
     }
-    if (!points.length) {
-      ctx.draw()
-      return
-    }
+    if (!points.length) return
     const line = () => {
       points.forEach((point, index) => {
         if (!index) {
@@ -74,35 +84,34 @@ function draw() {
     ctx.lineTo(width - 12, 104)
     ctx.lineTo(12, 104)
     ctx.closePath()
-    ctx.setFillStyle(mix(props.color, currentMixBase(), isDarkMix() ? 0.72 : 0.82))
+    ctx.fillStyle = mix(props.color, currentMixBase(), isDarkMix() ? 0.72 : 0.82)
     ctx.fill()
     ctx.beginPath()
     line()
-    ctx.setStrokeStyle(props.color)
-    ctx.setLineWidth(4)
-    ctx.setLineCap('round')
-    ctx.setLineJoin('round')
+    ctx.strokeStyle = props.color
+    ctx.lineWidth = 4
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
     ctx.stroke()
     points.forEach((point) => {
       if (point.value <= 0) return
       ctx.beginPath()
       ctx.arc(point.x, point.y, 3.2, 0, Math.PI * 2)
-      ctx.setFillStyle(currentMixBase())
+      ctx.fillStyle = currentMixBase()
       ctx.fill()
-      ctx.setStrokeStyle(props.color)
-      ctx.setLineWidth(2.4)
+      ctx.strokeStyle = props.color
+      ctx.lineWidth = 2.4
       ctx.stroke()
     })
     const step = Math.max(1, Math.ceil(points.length / 6))
-    ctx.setFillStyle(isDarkMix() ? '#9aa3b8' : '#8b93a5')
-    ctx.setFontSize(8)
-    ctx.setTextAlign('center')
+    ctx.fillStyle = isDarkMix() ? '#9aa3b8' : '#8b93a5'
+    ctx.font = '8px sans-serif'
+    ctx.textAlign = 'center'
     points.forEach((point, index) => {
       if (index % step !== 0 && index !== points.length - 1) return
       ctx.fillText(point.label, point.x, 121)
     })
-    ctx.draw()
-  }).exec()
+  })
 }
 
 /** 任何一次录入都会产生新的 points 数组；曲线数值没变就不重画画布。 */
@@ -121,7 +130,7 @@ watch(signature, () => nextTick(draw))
       </view>
       <text class="total" :style="{ color }">{{ valueFormatter(total) }}</text>
     </view>
-    <canvas :id="canvasId" :canvas-id="canvasId" class="plot" />
+    <canvas :id="canvasId" type="2d" class="plot" />
   </view>
 </template>
 

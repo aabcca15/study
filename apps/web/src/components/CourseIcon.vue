@@ -29,11 +29,15 @@ defineProps<{ name: CourseIcon }>()
   <svg v-else-if="name === 'calligraphy'" viewBox="0 0 24 24" aria-hidden="true">
     <path d="m16 3 5 5L10 19l-6 2 2-6L16 3Zm-8.5 11.5 5 5M14 5l5 5" />
   </svg>
+  <svg v-else-if="name === 'homework'" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12.5 21H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7l4 4v4.5M14 3v4h4M9 11h5M9 15h3" />
+    <path d="m15.5 20.5 5-5a1.4 1.4 0 0 0-2-2l-5 5-.5 2.5 2.5-.5Z" />
+  </svg>
   <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M8 9V7.2A4 4 0 0 1 16 7.2V9" />
-    <path d="M7 9h10a2.4 2.4 0 0 1 2.4 2.4v7.2A2.4 2.4 0 0 1 17 21H7a2.4 2.4 0 0 1-2.4-2.4v-7.2A2.4 2.4 0 0 1 7 9Z" />
-    <path d="M9.5 13.5h5M12 13.5v3.2" />
-    <path d="M7 9v2.2M17 9v2.2" />
+    <path d="M10 4.6a2 2 0 0 1 4 0V5" />
+    <path d="M6 11a6 6 0 0 1 12 0v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-8Z" />
+    <path d="M6 13.5H4.6v4.5H6M18 13.5h1.4v4.5H18" />
+    <path d="M10 10.6v2.6a2 2 0 0 0 4 0v-2.6M8.8 17.8h6.4" />
   </svg>
 </template>
 

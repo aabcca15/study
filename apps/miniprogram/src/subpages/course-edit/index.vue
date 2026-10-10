@@ -15,7 +15,7 @@ import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts } from '
 import { showCloudError } from '@/cloud/call'
 import { denyViewerWrite } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import TimeField from '@/components/TimeField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import SelectField from '@/components/SelectField.vue'
@@ -25,6 +25,7 @@ import DateDragGrid from '@/components/DateDragGrid.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const courseId = ref('')
 const saving = ref(false)
 const errorText = ref('')
@@ -284,6 +285,7 @@ function pickIcon(icon: CourseIcon) {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
   <view class="page edit sub">
     <PageHeader safe show-back :title="courseId ? '课程编辑' : '新增课程'">
@@ -466,7 +468,7 @@ function pickIcon(icon: CourseIcon) {
       </view>
       <view class="field">
         <text class="field-label">课程颜色</text>
-        <view class="chip-row">
+        <view class="chip-row color-row">
           <view
             v-for="color in COURSE_COLORS"
             :key="color"
@@ -600,7 +602,8 @@ function pickIcon(icon: CourseIcon) {
   font-size: 10px;
 }
 .icon-option.on { color: var(--icon-on-fg); border-color: var(--icon-on-line); background: var(--icon-on-bg); }
-.swatch { width: 28px; height: 28px; border-radius: 50%; }
+.color-row { flex-wrap: nowrap; justify-content: space-between; gap: 0; padding: 0 3px; }
+.swatch { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; }
 .swatch.on { box-shadow: 0 0 0 3px var(--halo), 0 0 0 5px #ff7a45; }
 .form-error { display: block; margin-bottom: 8px; }
 .save-dock {

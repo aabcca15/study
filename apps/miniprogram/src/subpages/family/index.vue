@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { useThemePage } from '@/utils/wx-theme'
+import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import PageHeader from '@/components/PageHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import {
   FAMILY_ROLE_LABEL,
   formatInviteCode,
@@ -16,23 +17,39 @@ import {
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+const pageBg = usePageBackground()
 const members = ref<FamilyMemberView[]>([])
 const invites = ref<FamilyInviteView[]>([])
-const latest = ref<FamilyInviteView | null>(null)
 const loading = ref(false)
 const inviting = ref('')
+const inviteRole = ref<InviteRole>(store.canInviteParent ? 'parent' : 'viewer')
+const roleTabs = computed(() => [
+  ...(store.canInviteParent ? [{ role: 'parent' as const, label: '邀请家长' }] : []),
+  ...(store.canInviteViewer ? [{ role: 'viewer' as const, label: '邀请家人' }] : []),
+])
+const current = computed(() => invites.value.find((item) => item.role === inviteRole.value && isUsable(item)) || null)
+const others = computed(() => invites.value.filter((item) => item.code !== current.value?.code))
+
+watch(roleTabs, (tabs) => {
+  if (tabs.length && !tabs.some((tab) => tab.role === inviteRole.value)) inviteRole.value = tabs[0].role
+}, { immediate: true })
 
 onShow(() => {
   refreshRoster()
 })
 
-onShareAppMessage(() => {
-  const code = latest.value?.code || invites.value[0]?.code || ''
+onShareAppMessage((options) => {
+  const target = (options as { target?: { dataset?: { code?: string } } } | undefined)?.target
+  const code = target?.dataset?.code || current.value?.code || ''
   return {
     title: '邀请你加入我们的家庭课表',
     path: code ? `/pages/login/index?invite=${code}` : '/pages/login/index',
   }
 })
+
+function isUsable(item: FamilyInviteView) {
+  return !item.expired && item.usedCount < item.maxUses
+}
 
 async function refreshRoster() {
   loading.value = true
@@ -40,9 +57,6 @@ async function refreshRoster() {
     const roster = await store.listMembers()
     members.value = roster.members
     invites.value = roster.invites
-    if (latest.value && !roster.invites.some((item) => item.code === latest.value?.code)) {
-      latest.value = roster.invites[0] || null
-    }
   } catch (error) {
     showCloudError(error)
   } finally {
@@ -50,13 +64,20 @@ async function refreshRoster() {
   }
 }
 
+function pickRole(role: InviteRole) {
+  inviteRole.value = role
+  if (!current.value && !loading.value) invite(role)
+}
+
 async function invite(role: InviteRole) {
   if (inviting.value) return
   inviting.value = role
   try {
-    latest.value = await store.createInvite(role)
+    const created = await store.createInvite(role)
+    if (created && !invites.value.some((item) => item.code === created.code)) {
+      invites.value = [created, ...invites.value]
+    }
     await refreshRoster()
-    uni.showToast({ icon: 'none', title: '邀请码已生成' })
   } catch (error) {
     showCloudError(error)
   } finally {
@@ -101,6 +122,7 @@ function remove(member: FamilyMemberView) {
 </script>
 
 <template>
+  <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <view class="page family-page">
       <PageHeader show-back safe title="家庭成员" :caption="`你是${store.roleLabel} · ${store.canWrite ? '可以改课表和账单' : '只能看课表和地点'}`" />
@@ -130,30 +152,55 @@ function remove(member: FamilyMemberView) {
         <text class="h2">邀请加入</text>
       </view>
       <view v-if="store.canInviteParent || store.canInviteViewer" class="card">
-        <view class="invite-actions">
-          <button hover-class="press-on" hover-stay-time="80" v-if="store.canInviteParent" class="btn" :disabled="Boolean(inviting)" @click="invite('parent')">
-            {{ inviting === 'parent' ? '生成中…' : '邀请家长' }}
-          </button>
-          <button hover-class="press-on" hover-stay-time="80" v-if="store.canInviteViewer" class="btn ghost-btn" :disabled="Boolean(inviting)" @click="invite('viewer')">
-            {{ inviting === 'viewer' ? '生成中…' : '邀请家人' }}
-          </button>
+        <view class="role-tabs">
+          <view
+            v-if="roleTabs.length > 1"
+            class="role-thumb"
+            :class="{ right: inviteRole === roleTabs[1].role }"
+          />
+          <view
+            v-for="tab in roleTabs"
+            :key="tab.role"
+            class="role-tab press"
+            :class="{ on: inviteRole === tab.role, solo: roleTabs.length === 1 }"
+            hover-class="press-on"
+            hover-stay-time="80"
+            @click="pickRole(tab.role)"
+          >{{ tab.label }}</view>
         </view>
-        <text class="hint">{{ store.canInviteParent ? INVITE_ROLE_HINT.parent + '；' : '' }}{{ INVITE_ROLE_HINT.viewer }}。邀请码 24 小时内有效，最多用 10 次。</text>
-        <view v-if="latest" class="code-box">
-          <text class="code-label">最新邀请码 · {{ FAMILY_ROLE_LABEL[latest.role] }}</text>
-          <text class="code press" hover-class="press-on" hover-stay-time="80" @click="copyCode(latest.code)">{{ formatInviteCode(latest.code) }}</text>
-          <text class="muted">{{ expireLabel(latest.expireAt) }}</text>
-          <view class="invite-actions">
-            <button hover-class="press-on" hover-stay-time="80" class="btn" @click="copyCode(latest.code)">复制</button>
-            <button hover-class="press-on" hover-stay-time="80" class="btn ghost-btn" open-type="share">发给微信好友</button>
-          </view>
+        <text class="hint">{{ INVITE_ROLE_HINT[inviteRole] }}</text>
+        <view class="code-box">
+          <template v-if="current">
+            <text class="code-label">邀请码 · {{ FAMILY_ROLE_LABEL[current.role] }}</text>
+            <text class="code press" hover-class="press-on" hover-stay-time="80" @click="copyCode(current.code)">{{ formatInviteCode(current.code) }}</text>
+            <text class="muted">{{ expireLabel(current.expireAt) }} · 已用 {{ current.usedCount }}/{{ current.maxUses }}</text>
+            <button hover-class="press-on" hover-stay-time="80" class="btn share-btn" open-type="share" :data-code="current.code">
+              <AppIcon name="share" tone="white" :size="17" />
+              <text>发给微信好友</text>
+            </button>
+          </template>
+          <template v-else>
+            <text class="muted">{{ inviting ? '正在生成邀请码…' : '还没有可用的邀请码' }}</text>
+            <button hover-class="press-on" hover-stay-time="80" class="btn share-btn" :disabled="Boolean(inviting)" @click="invite(inviteRole)">
+              {{ inviting ? '生成中…' : '生成邀请码' }}
+            </button>
+          </template>
         </view>
-        <view v-for="item in invites.filter((invite) => invite.code !== latest?.code)" :key="item.code" class="invite-row">
-          <view>
+        <view v-for="item in others" :key="item.code" class="invite-row">
+          <view class="invite-copy">
             <text class="name">{{ formatInviteCode(item.code) }} · {{ FAMILY_ROLE_LABEL[item.role] }}</text>
-            <text class="muted">{{ expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
+            <text class="muted">{{ item.expired ? '已过期' : expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
           </view>
-          <button hover-class="press-on" hover-stay-time="80" class="ghost" @click="copyCode(item.code)">复制</button>
+          <button
+            v-if="isUsable(item)"
+            hover-class="press-on"
+            hover-stay-time="80"
+            class="share-icon"
+            open-type="share"
+            :data-code="item.code"
+          >
+            <AppIcon name="share" tone="accent" :size="17" />
+          </button>
         </view>
       </view>
     </view>
@@ -209,15 +256,56 @@ function remove(member: FamilyMemberView) {
   border-radius: 999px;
   font-size: 12px;
 }
-.invite-actions {
+.role-tabs {
+  position: relative;
   display: flex;
-  gap: 10px;
-}
-.invite-actions .btn { flex: 1; }
-.ghost-btn {
-  color: var(--ink);
+  padding: 4px;
+  border-radius: 16px;
   background: var(--bg);
-  box-shadow: none;
+}
+.role-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+  box-shadow: 0 8px 18px -8px rgba(255, 122, 69, 0.6);
+  transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.role-thumb.right { transform: translateX(100%); }
+.role-tab {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  height: 40px;
+  line-height: 40px;
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  transition: color 0.3s ease, transform 0.46s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.role-tab.on { color: #fff; }
+.role-tab.solo.on {
+  background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+}
+.share-btn {
+  gap: 6px;
+  width: 100%;
+  margin-top: 12px;
+}
+.invite-copy { flex: 1; min-width: 0; }
+.share-icon {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--accent-soft);
 }
 .hint {
   display: block;

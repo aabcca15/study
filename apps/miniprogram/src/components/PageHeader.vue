@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { openTab } from '@/utils/nav'
-import { statusBarHeight } from '@/utils/system'
+import { capsuleInset, statusBarHeight } from '@/utils/system'
 
 defineProps<{
   eyebrow?: string
@@ -11,6 +11,7 @@ defineProps<{
 }>()
 
 const statusBar = statusBarHeight()
+const capsuleRight = capsuleInset() + 6
 
 function back() {
   const pages = getCurrentPages()
@@ -20,7 +21,10 @@ function back() {
 </script>
 
 <template>
-  <view :style="{ paddingTop: safe ? statusBar + 'px' : '0px' }">
+  <view
+    :class="{ 'page-header-fixed': safe }"
+    :style="safe ? { paddingTop: statusBar + 'px', paddingRight: capsuleRight + 'px' } : {}"
+  >
     <view class="page-header">
       <button hover-class="press-on" hover-stay-time="80" v-if="showBack" class="page-back" @click="back">‹</button>
       <view class="page-header-copy">

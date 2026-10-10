@@ -84,6 +84,11 @@ function toggleFab() {
   open.value = !open.value
 }
 
+function openFamily() {
+  open.value = false
+  uni.navigateTo({ url: '/subpages/family/index' })
+}
+
 function quick(url: string) {
   if (!family.canWrite) {
     uni.showToast({ icon: 'none', title: '家人只能查看课表' })
@@ -125,18 +130,25 @@ onShow(measureSoon)
         <text class="desc">选择日期、已有课程或临时安排</text>
       </view>
     </button>
-    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/course-edit/index')">
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/subpages/course-edit/index')">
       <text class="quick-badge amber">✦</text>
       <view>
         <text class="title">新增课程</text>
         <text class="desc">建立新的课程预设</text>
       </view>
     </button>
-    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/expense-edit/index')">
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/subpages/expense-edit/index')">
       <text class="quick-badge teal">¥</text>
       <view>
         <text class="title">记一笔账单</text>
         <text class="desc">登记一次课程费用</text>
+      </view>
+    </button>
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="openFamily">
+      <view class="quick-badge violet"><AppIcon name="family" tone="white" :size="22" /></view>
+      <view>
+        <text class="title">邀请家人</text>
+        <text class="desc">邀请家长或家人一起看课表</text>
       </view>
     </button>
   </view>
@@ -377,6 +389,7 @@ onShow(measureSoon)
 .quick-badge.accent { background: linear-gradient(135deg, #ffb45c, #f15a36); }
 .quick-badge.amber { background: linear-gradient(140deg, #ffce6b, #f5a524); }
 .quick-badge.teal { background: linear-gradient(140deg, #58d8bd, #1fa98c); }
+.quick-badge.violet { background: linear-gradient(140deg, #9a86ff, #6a4ee8); }
 
 .quick-item text { display: block; }
 .quick-item .title { font-size: 13px; font-weight: 700; }

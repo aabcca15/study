@@ -46,8 +46,8 @@ export const FAMILY_ROLE_LABEL: Record<FamilyRole, string> = {
 }
 
 export const INVITE_ROLE_HINT: Record<InviteRole, string> = {
-  parent: '可以改课表、管孩子和账单',
-  viewer: '只能看课表和地点，方便接送',
+  parent: '可编辑课表、账单共同管理',
+  viewer: '只可查看课表信息 方便接送',
 }
 
 export const INVITE_MAX_USES = 10

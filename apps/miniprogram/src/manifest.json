@@ -6,6 +6,9 @@
   "versionCode": "100",
   "transformPx": false,
   "vueVersion": "3",
+  "uniStatistics": {
+    "enable": false
+  },
   "mp-weixin": {
     "appid": "",
     "cloudfunctionRoot": "cloudfunctions/",
@@ -13,8 +16,14 @@
       "urlCheck": false,
       "es6": true,
       "minified": true,
+      "minifyWXSS": true,
+      "minifyWXML": true,
       "postcss": true
     },
+    "optimization": {
+      "subPackages": true
+    },
+    "lazyCodeLoading": "requiredComponents",
     "usingComponents": true
   },
   "mp-toutiao": {

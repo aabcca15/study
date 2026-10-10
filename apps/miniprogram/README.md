@@ -1,6 +1,6 @@
 # Uday家庭课表计划小程序
 
-从注册账号到提交审核的逐步说明见仓库 `docs/miniprogram-launch.md`。下面是开发时的目录和命令。
+从注册账号到提交审核的逐步说明见仓库 `docs/miniprogram-launch.md`；日常打包、分环境部署云函数、发体验版和正式版见 `docs/miniprogram-deploy.md`。下面是开发时的目录和命令。
 
 uni-app（Vue 3）家长端。微信小程序走云开发：登录用微信号 `openid`，读写走云函数 `api`。页面里的日期、时间和下拉都用小程序原生 `picker`。
 
@@ -11,28 +11,36 @@ uni-app（Vue 3）家长端。微信小程序走云开发：登录用微信号 `
 ## 目录
 
 ```text
-src/                    uni-app 页面、Pinia、云函数调用
+src/pages/              主包：登录和四个 tab 页
+src/subpages/           分包：账单、课程编辑、课程账单、记账、家庭成员
+src/                    其余是组件、Pinia、云函数调用
 cloudfunctions/api/     微信云函数。src/index.ts 是源码，index.js 是打包结果
 scripts/build-cloud.mjs 把家庭工作区打进云函数
+scripts/use-env.mjs     打包前按 .env 改 project.config.json 的 miniprogramRoot / appid
+scripts/report-size.mjs 打包后统计主包、分包体积
+.env.development        开发云环境 ID、AppID（dev:mp、build:mp:dev）
+.env.production         正式云环境 ID、AppID（build:mp）
 ```
 
-云数据库三个集合，由云函数创建：
+新增二级页面放进 `src/subpages/` 并登记到 `pages.json` 的 `subPackages`，路由写 `/subpages/xxx/index`。主包限制 2MB，图片先压缩。
+
+云数据库三个集合。第一次调用时云函数会自动创建，不需要手动建：
 
 - `users`：`openid`、`unionid`、`familyId`、`role`（`owner` / `parent` / `viewer`）、`displayName`
 - `families`：`snapshotJson`（与网页版家庭快照相同）、`version`、`timezone`、`ownerOpenid`
 - `invites`：邀请码做文档 ID，含 `familyId`、`role`、`expireAt`、`maxUses`、`usedCount`
 
-请在云开发控制台把这三个集合的权限设为「仅云函数可读写」，不要让小程序端直接改数据库。
+课程、排课、账单等业务数据都在 `families.snapshotJson` 里，没有单独的集合。建议在云开发控制台把三个集合的权限设为「所有用户不可读写」，小程序端只调用云函数。
 
 ## 本地运行
 
-1. 用自己的小程序 AppID 开通云开发。把同一个 AppID 填进 `project.config.json` 的 `appid`，以及 `src/manifest.json` 的 `mp-weixin.appid`。环境 ID 可填进 `src/config.ts` 的 `CLOUD_ENV`；留空则用开发者工具当前环境。
+1. 用自己的小程序 AppID 开通云开发。在 `.env.development` / `.env.production` 填 `WX_APPID` 和 `VITE_CLOUD_ENV`；`VITE_CLOUD_ENV` 留空则用开发者工具当前环境。不要手改 `project.config.json` 的 `miniprogramRoot` / `appid`，打包命令会改。
 2. 在仓库根目录安装依赖：`npm install`
 3. 打包云函数：`npm run build:cloud`
 4. 安装云函数依赖：在微信开发者工具里对 `api` 选择「安装依赖」，或进入 `apps/miniprogram/cloudfunctions/api` 后执行 `npm install`
-5. 启动微信端：`npm run dev:mp`。正式打包：`npm run build:mp`
-6. 用微信开发者工具导入 **`apps/miniprogram`**（这一层同时包含小程序和 `cloudfunctions/`）。只执行过 `build:mp` 时，`miniprogramRoot` 用 `dist/build/mp-weixin/`。
-7. 在开发者工具中上传并部署云函数 `api`（云端安装依赖），并用微信扫码预览。登录身份是真实 openid，数据写在云数据库。
+5. 启动微信端：`npm run dev:mp`（开发环境，输出 `dist/dev`）。体验包：`npm run build:mp:dev`（开发环境，输出 `dist/build`）。正式包：`npm run build:mp`（正式环境，输出 `dist/build`）
+6. 用微信开发者工具导入 **`apps/miniprogram`**（这一层同时包含小程序和 `cloudfunctions/`）。
+7. 右键 `cloudfunctions` 选择要部署的云环境，再右键 `api`「上传并部署：云端安装依赖」，并用微信扫码预览。登录身份是真实 openid，数据写在云数据库。
 
 开发者工具不要再用游客 AppID。游客没有 openid，云函数会直接拒绝。
 

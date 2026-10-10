@@ -328,7 +328,8 @@ var COURSE_COLORS = [
   "#C265F0",
   "#FF9A3D",
   "#22C4CC",
-  "#7C8AA5"
+  "#7C8AA5",
+  "#FFC233"
 ];
 var CHILD_AVATAR_OPTIONS = [
   { key: "boy-blue", label: "\u84DD\u8863\u7537\u5B69", color: "#5B8DEF" },
@@ -1958,6 +1959,23 @@ var db = import_wx_server_sdk.default.database();
 var users = () => db.collection("users");
 var families = () => db.collection("families");
 var invites = () => db.collection("invites");
+var COLLECTIONS = ["users", "families", "invites"];
+function errorText(error) {
+  const value = error;
+  return `${(value == null ? void 0 : value.errCode) ?? ""} ${(value == null ? void 0 : value.errMsg) ?? ""} ${(value == null ? void 0 : value.message) ?? ""}`;
+}
+function isCollectionMissing(error) {
+  return /-502005|DATABASE_COLLECTION_NOT_EXIST|collection not exist/i.test(errorText(error));
+}
+async function ensureCollections() {
+  for (const name of COLLECTIONS) {
+    try {
+      await db.createCollection(name);
+    } catch (error) {
+      if (!/-501001|already exist|DATABASE_COLLECTION_ALREADY_EXIST/i.test(errorText(error))) throw error;
+    }
+  }
+}
 function fail(code, message) {
   return { ok: false, code, message };
 }
@@ -2302,24 +2320,30 @@ async function dispatchAccount(user, action, payload) {
   }
   raise("INVALID_ACTION", "\u4E0D\u652F\u6301\u7684\u64CD\u4F5C");
 }
+async function handle(openid, unionid, action, payload) {
+  if (action === "login") return login(openid, unionid, payload);
+  if (action === "joinFamily") return joinFamily(openid, unionid, payload);
+  const user = await requireUser(openid);
+  if (action === "createInvite" || action === "listMembers" || action === "removeMember") {
+    return dispatchAccount(user, action, payload);
+  }
+  return dispatchWorkspace(user, action, payload);
+}
 async function main(event) {
   const context = import_wx_server_sdk.default.getWXContext();
   const openid = context.OPENID || "";
   if (!openid) return fail("UNAUTHENTICATED", "\u8BF7\u5728\u5FAE\u4FE1\u5185\u6253\u5F00\u5C0F\u7A0B\u5E8F");
   try {
     const action = (event == null ? void 0 : event.action) || "";
-    const payload = event.payload ?? {};
-    if (action === "login") {
-      return { ok: true, data: await login(openid, context.UNIONID || "", payload) };
+    const payload = (event == null ? void 0 : event.payload) ?? {};
+    const unionid = context.UNIONID || "";
+    try {
+      return { ok: true, data: await handle(openid, unionid, action, payload) };
+    } catch (error) {
+      if (!isCollectionMissing(error)) throw error;
+      await ensureCollections();
+      return { ok: true, data: await handle(openid, unionid, action, payload) };
     }
-    if (action === "joinFamily") {
-      return { ok: true, data: await joinFamily(openid, context.UNIONID || "", payload) };
-    }
-    const user = await requireUser(openid);
-    if (action === "createInvite" || action === "listMembers" || action === "removeMember") {
-      return { ok: true, data: await dispatchAccount(user, action, payload) };
-    }
-    return { ok: true, data: await dispatchWorkspace(user, action, payload) };
   } catch (error) {
     const code = error instanceof FamilyActionError ? error.code : "CLOUD_ERROR";
     const message = error instanceof Error ? error.message : "\u4E91\u51FD\u6570\u6267\u884C\u5931\u8D25";

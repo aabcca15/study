@@ -116,7 +116,7 @@ function setStart(value: string) {
 
 function goCreateCourse() {
   emit('close')
-  uni.navigateTo({ url: '/pages/course-edit/index' })
+  uni.navigateTo({ url: '/subpages/course-edit/index' })
 }
 
 async function submit() {

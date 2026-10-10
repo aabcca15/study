@@ -46,15 +46,25 @@
   background: linear-gradient(160deg, rgba(243, 248, 255, 0.96) 0%, rgba(255, 255, 255, 0.55) 48%, rgba(223, 234, 250, 0.82) 100%);
   box-shadow: inset 0 1px 1px #fff, inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 10px 20px -12px rgba(40, 52, 88, 0.28);
   pointer-events: none;
-  transition: left 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), top 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), width 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), height 0.48s cubic-bezier(0.22, 0.8, 0.28, 1), transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+  transition: left 0.36s cubic-bezier(0.32, 0.72, 0, 1), top 0.36s cubic-bezier(0.32, 0.72, 0, 1), width 0.36s cubic-bezier(0.32, 0.72, 0, 1), height 0.36s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
 }
 
-.indicator.instant {
+.tab-host.instant .indicator,
+.tab-host.instant .tab-label,
+.tab-host.instant .tab {
   transition: none;
 }
 
+/* 速度最快时拉伸、接近终点时轻微回弹，和位移用同一时长。 */
+@keyframes travel {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.1, 0.9); }
+  68% { transform: scale(0.97, 1.03); }
+  100% { transform: scale(1, 1); }
+}
+
 .indicator.travel {
-  transform: scaleX(1.08) scaleY(0.9);
+  animation: travel 0.36s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @keyframes jelly {
@@ -80,6 +90,12 @@
   justify-content: center;
   border-radius: 18px;
   color: #8c93a3;
+  transition: transform 0.46s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.tab.tab-press {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: scale(0.92);
 }
 
 .tab.active {
@@ -99,7 +115,7 @@
   opacity: 0;
   font-size: 10px;
   white-space: nowrap;
-  transition: max-width 0.28s ease, margin-left 0.28s ease, opacity 0.2s ease;
+  transition: max-width 0.36s cubic-bezier(0.32, 0.72, 0, 1), margin-left 0.36s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.24s ease;
 }
 
 .tab.active .tab-label {
@@ -127,11 +143,20 @@
   color: #fff;
   background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
   box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.55), 0 0 0 8px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 14px 26px -8px rgba(255, 122, 69, 0.75);
-  transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.46s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.tabbar-fab.fab-press {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: scale(0.9);
 }
 
 .tabbar-fab.open {
   transform: rotate(135deg) scale(0.96);
+}
+
+.tabbar-fab.open.fab-press {
+  transform: rotate(135deg) scale(0.86);
 }
 
 .fab-mark {
@@ -193,6 +218,18 @@
   padding: 9px;
   border-radius: 18px;
   color: #243056;
+  transition: transform 0.46s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.2s ease;
+}
+
+.quick-item.quick-press {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1), background-color 0.2s ease;
+  transform: scale(0.97);
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.badge-ico {
+  width: 22px;
+  height: 22px;
 }
 
 .quick-badge {
@@ -210,6 +247,7 @@
 .accent { background: linear-gradient(135deg, #ffb45c, #f15a36); }
 .amber { background: linear-gradient(140deg, #ffce6b, #f5a524); }
 .teal { background: linear-gradient(140deg, #58d8bd, #1fa98c); }
+.violet { background: linear-gradient(140deg, #9a86ff, #6a4ee8); }
 
 .title, .desc { display: block; }
 .title { font-size: 13px; font-weight: 700; }
@@ -242,5 +280,6 @@
 }
 
 .tab-host.dark .quick-backdrop { background: rgba(8, 10, 16, 0.45); }
+.tab-host.dark .quick-item.quick-press { background-color: rgba(255, 255, 255, 0.06); }
 .tab-host.dark .title { color: #f3f5fa; }
 .tab-host.dark .desc { color: #9aa3b8; }
