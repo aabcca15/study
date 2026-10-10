@@ -29,7 +29,9 @@ const avatarKey = ref<ChildAvatarKey>('boy-blue')
 const inviteCode = ref('')
 const displayName = ref('')
 const submitting = ref(false)
-const booting = ref(false)
+/** 有登录记录时首帧就显示骨架，避免先闪一下表单再跳走。 */
+const booting = ref(!store.ready && hasLocalSession())
+let resuming = false
 const childPlaceholder = computed(() => avatarDefaultName(avatarKey.value))
 
 onLoad((query) => {
@@ -37,6 +39,7 @@ onLoad((query) => {
   if (!invite) return
   inviteCode.value = invite
   mode.value = 'join'
+  booting.value = false
 })
 
 onShow(() => {
@@ -44,7 +47,8 @@ onShow(() => {
     openTab('/pages/today/index')
     return
   }
-  if (booting.value || inviteCode.value || !hasLocalSession()) return
+  if (resuming || inviteCode.value || !hasLocalSession()) return
+  resuming = true
   booting.value = true
   store.resume().then(() => {
     openTab('/pages/today/index')
@@ -52,6 +56,8 @@ onShow(() => {
     store.logout()
     booting.value = false
     showCloudError(error)
+  }).finally(() => {
+    resuming = false
   })
 })
 
@@ -101,12 +107,22 @@ async function submit() {
       <ThemeToggle />
     </view>
     <view class="stage">
-      <view class="mark">U</view>
+      <view class="mark"><image class="mark-glyph" src="/static/logo-u.svg" mode="aspectFit" /></view>
       <view class="word">Uday</view>
       <view class="slogan">Plan Your Day. Grow Your Way.</view>
     </view>
 
-    <view v-if="booting" class="boot">正在进入…</view>
+    <view v-if="booting" class="panel">
+      <view class="sk boot-modes" />
+      <view class="boot-form">
+        <view class="picks">
+          <view v-for="n in 4" :key="n" class="sk boot-pick" />
+        </view>
+        <view class="sk sk-line boot-label" />
+        <view class="sk boot-field" />
+        <view class="sk boot-submit"><text class="boot-text">正在进入…</text></view>
+      </view>
+    </view>
     <view v-else class="panel">
       <view class="modes">
         <view class="mode-thumb" :class="{ join: mode === 'join' }" />
@@ -193,8 +209,12 @@ async function submit() {
   border-radius: 28px;
   background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
   box-shadow: 0 18px 32px -14px rgba(255, 122, 69, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  font-size: 42px;
-  font-weight: 800;
+}
+
+.mark-glyph {
+  display: block;
+  width: 44px;
+  height: 42px;
 }
 
 .word {
@@ -211,10 +231,39 @@ async function submit() {
   font-size: 13px;
 }
 
-.boot {
-  margin-top: 8px;
-  color: var(--muted);
+.boot-modes {
+  height: 44px;
+  margin-bottom: 22px;
+  border-radius: 16px;
+}
+.boot-form {
+  display: flex;
+  height: 240px;
+  flex-direction: column;
+}
+.boot-pick {
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+}
+.boot-label {
+  width: 64px;
+  margin-bottom: 10px;
+}
+.boot-field {
+  height: 48px;
+  border-radius: 14px;
+}
+.boot-submit {
+  height: 48px;
+  margin-top: auto;
+  border-radius: 14px;
   text-align: center;
+}
+.boot-text {
+  line-height: 48px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .panel {

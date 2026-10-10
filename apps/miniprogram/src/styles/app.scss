@@ -338,8 +338,12 @@ button::after {
   border-radius: 14px;
   background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
   box-shadow: 0 12px 22px -10px rgba(255, 122, 69, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  font-size: 22px;
-  font-weight: 800;
+}
+
+.brand-glyph {
+  display: block;
+  width: 22px;
+  height: 21px;
 }
 
 .brand-copy {
@@ -670,4 +674,21 @@ button::after {
 
 .theme-root.theme-dark .card {
   box-shadow: var(--elev-md), var(--glow-top);
+}
+
+/* 骨架屏：数据未到时占住最终布局，避免内容到达后跳动。 */
+.sk {
+  display: block;
+  border-radius: 10px;
+  background: var(--track);
+  animation: sk-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.sk-line { height: 12px; border-radius: 6px; }
+.sk-title { height: 18px; border-radius: 8px; }
+.sk-round { border-radius: 999px; }
+
+@keyframes sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }

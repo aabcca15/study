@@ -21,6 +21,7 @@ const pageBg = usePageBackground()
 const members = ref<FamilyMemberView[]>([])
 const invites = ref<FamilyInviteView[]>([])
 const loading = ref(false)
+const loaded = ref(false)
 const inviting = ref('')
 const inviteRole = ref<InviteRole>(store.canInviteParent ? 'parent' : 'viewer')
 const roleTabs = computed(() => [
@@ -61,6 +62,7 @@ async function refreshRoster() {
     showCloudError(error)
   } finally {
     loading.value = false
+    loaded.value = true
   }
 }
 
@@ -135,9 +137,18 @@ function remove(member: FamilyMemberView) {
 
       <view class="section-head">
         <text class="h2">成员</text>
-        <text class="muted">{{ loading ? '同步中…' : `${members.length} 人` }}</text>
+        <text class="muted">{{ loading || !loaded ? '同步中…' : `${members.length} 人` }}</text>
       </view>
       <view class="card list">
+        <template v-if="!loaded">
+          <view v-for="n in 2" :key="n" class="member">
+            <view class="sk avatar-sk" />
+            <view class="member-copy">
+              <view class="sk sk-line" style="width: 96px" />
+              <view class="sk sk-line" style="width: 48px; margin-top: 8px" />
+            </view>
+          </view>
+        </template>
         <view v-for="member in members" :key="member.openid" class="member">
           <view class="avatar" :class="member.role">{{ member.displayName.slice(0, 1) }}</view>
           <view class="member-copy">
@@ -170,7 +181,13 @@ function remove(member: FamilyMemberView) {
         </view>
         <text class="hint">{{ INVITE_ROLE_HINT[inviteRole] }}</text>
         <view class="code-box">
-          <template v-if="current">
+          <template v-if="!loaded">
+            <view class="sk sk-line code-sk" style="width: 88px" />
+            <view class="sk code-sk" style="width: 168px; height: 30px; margin-top: 10px" />
+            <view class="sk sk-line code-sk" style="width: 140px; margin-top: 10px" />
+            <view class="sk" style="height: 44px; margin-top: 14px; border-radius: 14px" />
+          </template>
+          <template v-else-if="current">
             <text class="code-label">邀请码 · {{ FAMILY_ROLE_LABEL[current.role] }}</text>
             <text class="code press" hover-class="press-on" hover-stay-time="80" @click="copyCode(current.code)">{{ formatInviteCode(current.code) }}</text>
             <text class="muted">{{ expireLabel(current.expireAt) }} · 已用 {{ current.usedCount }}/{{ current.maxUses }}</text>
@@ -248,6 +265,8 @@ function remove(member: FamilyMemberView) {
 .avatar.parent { background: linear-gradient(135deg, #5d9cff, #3c6fe0); }
 .avatar.viewer { background: linear-gradient(135deg, #39c6a4, #1fa98c); }
 .member-copy { flex: 1; min-width: 0; }
+.avatar-sk { width: 40px; height: 40px; border-radius: 14px; }
+.code-sk { margin-left: auto; margin-right: auto; }
 .name { display: block; font-size: 15px; font-weight: 700; }
 .ghost {
   padding: 6px 10px;

@@ -18,6 +18,7 @@ cloudfunctions/api/     微信云函数。src/index.ts 是源码，index.js 是�
 scripts/build-cloud.mjs 把家庭工作区打进云函数
 scripts/use-env.mjs     打包前按 .env 改 project.config.json 的 miniprogramRoot / appid
 scripts/report-size.mjs 打包后统计主包、分包体积
+scripts/optimize-logo.mjs 把 docs/prd/UI/logo.svg 压成 src/static/logo-u.svg
 .env.development        开发云环境 ID、AppID（dev:mp、build:mp:dev）
 .env.production         正式云环境 ID、AppID（build:mp）
 ```

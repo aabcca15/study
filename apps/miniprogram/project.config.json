@@ -11,6 +11,8 @@
     "minifyWXML": true,
     "newFeature": true,
     "ignoreUploadUnusedFiles": true,
+    "uploadWithSourceMap": true,
+    "checkSiteMap": false,
     "bigPackageSizeSupport": true
   },
   "packOptions": {

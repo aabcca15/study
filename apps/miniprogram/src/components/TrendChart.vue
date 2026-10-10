@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, getCurrentInstance, nextTick, onMounted, watch } from 'vue'
+import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/utils/wx-theme'
 import { currentMixBase, isDarkMix, mix } from '@/utils/color'
@@ -16,6 +16,7 @@ const canvasId = `trend-${props.color.replace('#', '')}`
 const instance = getCurrentInstance()
 const theme = useThemeStore()
 const { mode } = storeToRefs(theme)
+const drawn = ref(false)
 const maxValue = computed(() => Math.max(1, ...props.points.map((item) => item.value)))
 const total = computed(() => props.points.reduce((sum, item) => sum + item.value, 0))
 
@@ -58,7 +59,10 @@ function draw() {
       ctx.lineTo(width - 12, y)
       ctx.stroke()
     }
-    if (!points.length) return
+    if (!points.length) {
+      drawn.value = true
+      return
+    }
     const line = () => {
       points.forEach((point, index) => {
         if (!index) {
@@ -111,6 +115,7 @@ function draw() {
       if (index % step !== 0 && index !== points.length - 1) return
       ctx.fillText(point.label, point.x, 121)
     })
+    drawn.value = true
   })
 }
 
@@ -130,7 +135,13 @@ watch(signature, () => nextTick(draw))
       </view>
       <text class="total" :style="{ color }">{{ valueFormatter(total) }}</text>
     </view>
-    <canvas :id="canvasId" type="2d" class="plot" />
+    <view class="plot-wrap">
+      <canvas :id="canvasId" type="2d" class="plot" />
+      <view v-if="!drawn" class="plot-sk">
+        <view class="sk plot-sk-wave" />
+        <view class="sk sk-line plot-sk-axis" />
+      </view>
+    </view>
   </view>
 </template>
 
@@ -146,5 +157,20 @@ watch(signature, () => nextTick(draw))
 .title { display: block; color: var(--ink); font-size: 16px; font-weight: 800; }
 .caption { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
 .total { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
-.plot { width: 100%; height: 128px; margin-top: 6px; }
+.plot-wrap { position: relative; margin-top: 6px; }
+.plot { display: block; width: 100%; height: 128px; }
+.plot-sk {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 24px 12px 2px;
+  background: var(--paper);
+}
+.plot-sk-wave { flex: 1; border-radius: 14px; }
+.plot-sk-axis { height: 8px; margin-top: 12px; }
 </style>
