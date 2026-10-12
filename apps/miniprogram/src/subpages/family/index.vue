@@ -10,6 +10,7 @@ import {
   FAMILY_ROLE_LABEL,
   formatInviteCode,
   INVITE_ROLE_HINT,
+  isInviteActive,
   type FamilyInviteView,
   type FamilyMemberView,
   type InviteRole,
@@ -28,8 +29,10 @@ const roleTabs = computed(() => [
   ...(store.canInviteParent ? [{ role: 'parent' as const, label: '邀请家长' }] : []),
   ...(store.canInviteViewer ? [{ role: 'viewer' as const, label: '邀请家人' }] : []),
 ])
-const current = computed(() => invites.value.find((item) => item.role === inviteRole.value && isUsable(item)) || null)
-const others = computed(() => invites.value.filter((item) => item.code !== current.value?.code))
+/** 过期或次数用完的邀请码不展示，列表里只留还能打开的。 */
+const activeInvites = computed(() => invites.value.filter((item) => isInviteActive(item)))
+const current = computed(() => activeInvites.value.find((item) => item.role === inviteRole.value) || null)
+const others = computed(() => activeInvites.value.filter((item) => item.code !== current.value?.code))
 
 watch(roleTabs, (tabs) => {
   if (tabs.length && !tabs.some((tab) => tab.role === inviteRole.value)) inviteRole.value = tabs[0].role
@@ -43,21 +46,18 @@ onShareAppMessage((options) => {
   const target = (options as { target?: { dataset?: { code?: string } } } | undefined)?.target
   const code = target?.dataset?.code || current.value?.code || ''
   return {
-    title: '邀请你加入我们的家庭课表',
+    title: '邀请你一起看 Uday 家庭课表',
     path: code ? `/pages/login/index?invite=${code}` : '/pages/login/index',
+    imageUrl: '/static/share-cover.png',
   }
 })
-
-function isUsable(item: FamilyInviteView) {
-  return !item.expired && item.usedCount < item.maxUses
-}
 
 async function refreshRoster() {
   loading.value = true
   try {
     const roster = await store.listMembers()
     members.value = roster.members
-    invites.value = roster.invites
+    invites.value = roster.invites.filter((item) => isInviteActive(item))
   } catch (error) {
     showCloudError(error)
   } finally {
@@ -206,10 +206,9 @@ function remove(member: FamilyMemberView) {
         <view v-for="item in others" :key="item.code" class="invite-row">
           <view class="invite-copy">
             <text class="name">{{ formatInviteCode(item.code) }} · {{ FAMILY_ROLE_LABEL[item.role] }}</text>
-            <text class="muted">{{ item.expired ? '已过期' : expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
+            <text class="muted">{{ expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
           </view>
           <button
-            v-if="isUsable(item)"
             hover-class="press-on"
             hover-stay-time="80"
             class="share-icon"

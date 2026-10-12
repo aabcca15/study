@@ -9,10 +9,7 @@ const { isDark } = storeToRefs(theme)
 <template>
   <button hover-class="press-on" hover-stay-time="80" class="theme-toggle" :class="{ dark: isDark }" @click="theme.toggle()">
     <view class="glyph">
-      <view class="ray a" />
-      <view class="ray b" />
-      <view class="ray c" />
-      <view class="ray d" />
+      <view v-for="n in 8" :key="n" class="ray" :style="{ transform: `rotate(${(n - 1) * 45}deg)` }" />
       <view class="orb" />
       <view class="cut" />
     </view>
@@ -31,56 +28,57 @@ const { isDark } = storeToRefs(theme)
 
 .glyph {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .orb {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 5px;
+  left: 5px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: currentColor;
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .cut {
   position: absolute;
-  top: 2px;
-  left: 8px;
-  width: 10px;
-  height: 10px;
+  top: 3px;
+  left: 9px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: var(--header-bg);
+  background: var(--bg);
   opacity: 0;
-  transform: translate(8px, -8px) scale(0.2);
+  transform: translate(6px, -6px) scale(0.2);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
 }
 
+/* 光线绕图标中心转，八个方向都贴着圆。 */
 .ray {
   position: absolute;
-  top: 9px;
-  left: 9px;
+  top: 0;
+  left: 10px;
   width: 2px;
-  height: 4px;
-  margin-left: -1px;
+  height: 3.5px;
   border-radius: 999px;
   background: currentColor;
-  transform-origin: 1px 1px;
+  transform-origin: 1px 11px;
+  transition: opacity 0.2s ease;
 }
-
-.ray.a { transform: translateY(-8px); }
-.ray.b { transform: translateY(8px); }
-.ray.c { transform: rotate(90deg) translateY(-8px); }
-.ray.d { transform: rotate(90deg) translateY(8px); }
 
 .theme-toggle.dark .ray {
   opacity: 0;
-  transform: scale(0.2);
+}
+
+.theme-toggle.dark .orb {
+  transform: scale(0.92);
 }
 
 .theme-toggle.dark .cut {
   opacity: 1;
-  transform: translate(3px, -2px) scale(1);
+  transform: translate(2px, -1px) scale(1);
 }
 </style>
