@@ -126,8 +126,8 @@ onShow(measureSoon)
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/today/index?add=1')">
       <text class="quick-badge accent">＋</text>
       <view>
-        <text class="title">快速新增安排</text>
-        <text class="desc">选择日期、已有课程或临时安排</text>
+        <text class="title">快速新增计划</text>
+        <text class="desc">选择日期、已有课程或临时计划</text>
       </view>
     </button>
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/subpages/course-edit/index')">

@@ -53,6 +53,42 @@ async function ensureCollections() {
   }
 }
 
+/** 按字段名限制长度，比前端 maxlength 略宽，只做兜底；其余字符串统一不超过 DEFAULT_TEXT_LIMIT。 */
+const TEXT_LIMITS: Record<string, number> = {
+  name: 20,
+  childName: 20,
+  displayName: 16,
+  title: 40,
+  teacher: 20,
+  location: 60,
+  note: 300,
+  code: 16,
+}
+const DEFAULT_TEXT_LIMIT = 200
+const UNSAFE_CHARS = /[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF<>]/g
+
+function cleanString(value: string, max: number) {
+  const chars = Array.from(value.replace(UNSAFE_CHARS, '').trim())
+  return chars.length > max ? chars.slice(0, max).join('').trim() : chars.join('')
+}
+
+/** 客户端传来的所有字符串去掉控制字符、零宽字符和尖括号，并限制长度。 */
+function sanitizePayload(value: unknown, key = '', depth = 0): unknown {
+  if (depth > 8) return undefined
+  if (typeof value === 'string') return cleanString(value, TEXT_LIMITS[key] ?? DEFAULT_TEXT_LIMIT)
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (Array.isArray(value)) return value.slice(0, 500).map((item) => sanitizePayload(item, key, depth + 1))
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [field, item] of Object.entries(value as Record<string, unknown>)) {
+      if (field.startsWith('$') || field === '__proto__' || field === 'constructor' || field === 'prototype') continue
+      out[field] = sanitizePayload(item, field, depth + 1)
+    }
+    return out
+  }
+  return value
+}
+
 type FamilyDoc = {
   snapshotJson?: string
   version?: number
@@ -455,7 +491,7 @@ export async function main(event: { action?: string; payload?: Record<string, un
 
   try {
     const action = event?.action || ''
-    const payload = event?.payload ?? {}
+    const payload = sanitizePayload(event?.payload ?? {}) as Record<string, unknown>
     const unionid = context.UNIONID || ''
     try {
       return { ok: true as const, data: await handle(openid, unionid, action, payload) }

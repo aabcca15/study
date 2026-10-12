@@ -8,6 +8,7 @@ import { money } from '@server-domain/billing'
 import type { DayOccurrence } from '@server-domain/types'
 import { useFamilyStore } from '@/stores/family'
 import { occurrenceExpense } from '@/utils/view'
+import { EMPTY_DAY_LINES, EMPTY_DAY_LINES_VIEWER, pickDailyLine } from '@/domain/copy'
 import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/utils/wx-theme'
 import { cardBackground, currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
@@ -33,6 +34,12 @@ const emit = defineEmits<{
 
 const store = useFamilyStore()
 const { isDark } = storeToRefs(useThemeStore())
+/** 每次打开小程序换一批，同一天内切页不跳。 */
+const lineSeed = String(Math.floor(Math.random() * 1000))
+const emptyLine = computed(() => pickDailyLine(
+  props.readonly ? EMPTY_DAY_LINES_VIEWER : EMPTY_DAY_LINES,
+  `${lineSeed}|${props.title}`,
+))
 
 function progress(item: DayOccurrence) {
   return courseScheduleProgress(item.course, item.date, store.overviewScheduleExceptions)
@@ -183,7 +190,7 @@ const rows = computed(() => {
                 </view>
               </view>
               <text v-if="row.item.exception" class="adjust" :style="{ color: row.item.course.color }">
-                {{ row.item.exception.status === 'added' ? '本次临时添加' : '本次安排已调整' }}
+                {{ row.item.exception.status === 'added' ? '本次临时添加' : '本次计划已调整' }}
               </text>
             </view>
             <view class="lesson-side">
@@ -197,14 +204,13 @@ const rows = computed(() => {
                   class="pay-pill"
                   :class="row.fee.paid ? 'paid' : 'unpaid'"
                 >{{ row.fee.paid ? '本次已付' : '本次未付' }}</text>
-                <text v-if="row.totals" class="fee-totals">已付 {{ money(row.totals.paid) }} · 未付 {{ money(row.totals.unpaid) }}</text>
               </view>
             </view>
           </view>
           <view class="course-progress">
             <view class="progress-copy">
-              <text>课程进度</text>
-              <text>{{ row.progress.completed }}/{{ row.progress.total }} 课时</text>
+              <text class="progress-label">课程进度 {{ row.progress.completed }}/{{ row.progress.total }} 课时</text>
+              <text v-if="row.totals && !hideFee" class="fee-totals">已付 {{ money(row.totals.paid) }} · 未付 {{ money(row.totals.unpaid) }}</text>
             </view>
             <view class="progress-track" :style="row.trackStyle">
               <view :style="row.fillStyle" />
@@ -217,7 +223,7 @@ const rows = computed(() => {
     <view v-else class="empty-state">
       <button hover-class="press-on" hover-stay-time="80" v-if="!readonly" class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
       <text class="empty-title">这一天没有课程</text>
-      <text class="empty-desc">{{ readonly ? '今天没有需要接送的安排。' : '计划有变化也没关系，好好享受空闲时间。' }}</text>
+      <text class="empty-desc">{{ emptyLine }}</text>
     </view>
   </view>
 </template>
@@ -356,7 +362,7 @@ const rows = computed(() => {
 .pay-pill { padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 750; }
 .pay-pill.paid { color: var(--paid); background: var(--paid-soft); }
 .pay-pill.unpaid { color: var(--unpaid); background: var(--unpaid-soft); }
-.fee-totals { color: var(--muted); font-size: 9px; line-height: 1.35; text-align: right; }
+.fee-totals { flex: 0 0 auto; white-space: nowrap; }
 .more {
   display: flex;
   width: 32px;
@@ -366,7 +372,8 @@ const rows = computed(() => {
   justify-content: center;
 }
 .course-progress { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
-.progress-copy { display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--muted); font-size: 10px; }
+.progress-copy { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: var(--muted); font-size: 10px; }
+.progress-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress-track { height: 5px; border-radius: 999px; overflow: hidden; }
 .progress-track view { height: 100%; border-radius: 999px; }
 .empty-state {

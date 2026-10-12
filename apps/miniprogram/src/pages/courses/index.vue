@@ -7,6 +7,8 @@ import { getCourseAmountLabel, getCourseBillingSummary, getCourseLifecycle, getC
 import { courseScheduleProgress } from '@server-domain/courseSchedule'
 import { showCloudError } from '@/cloud/call'
 import { avatarDefaultName } from '@/domain/avatar-names'
+import { TEXT_LIMIT } from '@/domain/limits'
+import { cleanText, formTip } from '@/utils/form'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage, useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
@@ -30,13 +32,11 @@ const editingAvatarId = ref('')
 const newName = ref('')
 const newAvatar = ref<ChildAvatarKey>('boy-blue')
 const names = reactive<Record<string, string>>({})
-const childError = ref('')
 const newChildPlaceholder = computed(() => avatarDefaultName(newAvatar.value))
 
 watch(managing, (open) => {
   setTabCover(open)
   if (!open) return
-  childError.value = ''
   editingAvatarId.value = ''
   newName.value = ''
   newAvatar.value = 'boy-blue'
@@ -83,8 +83,15 @@ const cards = computed(() => {
 })
 
 async function saveName(id: string) {
-  const name = (names[id] || '').trim()
-  if (!name) return
+  const current = store.snapshot.children.find((child) => child.id === id)?.name || ''
+  const name = cleanText(names[id], TEXT_LIMIT.childName)
+  if (!name) {
+    names[id] = current
+    formTip('孩子名字不能为空')
+    return
+  }
+  names[id] = name
+  if (name === current) return
   try {
     await store.updateChild(id, { name })
   } catch (error) {
@@ -102,12 +109,11 @@ async function setAvatar(id: string, key: ChildAvatarKey) {
 }
 
 async function addChild() {
-  childError.value = ''
-  const name = newName.value.trim() || newChildPlaceholder.value
+  const name = cleanText(newName.value, TEXT_LIMIT.childName) || newChildPlaceholder.value
   try {
     const id = await store.addChild(name, newAvatar.value)
     if (!id) {
-      childError.value = '请先填写孩子名字'
+      formTip('请先填写孩子名字')
       return
     }
     names[id] = name
@@ -191,7 +197,7 @@ function more(course: Course) {
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page courses-page">
-      <PageHeader title="课程安排" :caption="store.canWrite ? `管理 ${store.child?.name || '孩子'} 的排课、进度与费用` : `查看 ${store.child?.name || '孩子'} 的课程、老师和地点`">
+      <PageHeader title="课程计划" :caption="store.canWrite ? `管理 ${store.child?.name || '孩子'} 的排课、进度与费用` : `查看 ${store.child?.name || '孩子'} 的课程、老师和地点`">
         <template #actions>
           <view class="child-row">
             <view
@@ -291,7 +297,7 @@ function more(course: Course) {
             </view>
             <view class="field profile-name">
               <text class="field-label">孩子名称</text>
-              <input v-model="names[child.id]" maxlength="8" placeholder-class="ph" @blur="saveName(child.id)" />
+              <input v-model="names[child.id]" :maxlength="TEXT_LIMIT.childName" placeholder-class="ph" @blur="saveName(child.id)" />
             </view>
             <text class="delete press" hover-class="press-on" hover-stay-time="80" @click="removeCurrentChild(child.id, child.name)">删除</text>
           </view>
@@ -310,10 +316,9 @@ function more(course: Course) {
             </view>
           </view>
           <view class="new-row">
-            <input v-model="newName" maxlength="8" :placeholder="newChildPlaceholder" placeholder-class="ph" />
+            <input v-model="newName" :maxlength="TEXT_LIMIT.childName" :placeholder="newChildPlaceholder" placeholder-class="ph" />
             <button hover-class="press-on" hover-stay-time="80" class="btn" @click="addChild">添加</button>
           </view>
-          <text v-if="childError" class="form-error">{{ childError }}</text>
         </scroll-view>
       </view>
     </view>
@@ -437,6 +442,5 @@ function more(course: Course) {
 .avatar-choices .on :deep(.child-face) { box-shadow: 0 0 0 2px #ff7a45; }
 .new-row { display: flex; align-items: center; gap: 8px; }
 .new-row input { flex: 1; min-height: 44px; padding: 0 12px; border-radius: 14px; color: var(--ink); background: var(--field-bg); box-shadow: inset 0 0 0 1px var(--line); }
-.form-error { display: block; margin-top: 8px; color: var(--unpaid); font-size: 12px; }
 .course.inactive { color: var(--muted); }
 </style>

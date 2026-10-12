@@ -35,6 +35,13 @@ export function syncVisibleTab(index: number) {
   }, 60)
 }
 
+/** 页面首屏渲染完成后，让自己那份底栏撤掉主题色遮罩。 */
+export function revealTabBar(scope?: { getTabBar?: () => { reveal?: () => void } }) {
+  const route = getCurrentPages().slice(-1)[0]?.route
+  const bar = (scope?.getTabBar?.() || (route ? ownTabBar(route) : undefined)) as { reveal?: () => void } | undefined
+  bar?.reveal?.()
+}
+
 export function setTabCover(covered: boolean) {
   const route = getCurrentPages().slice(-1)[0]?.route
   if (!route) return

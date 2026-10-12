@@ -132,7 +132,7 @@ function remove(member: FamilyMemberView) {
       <view class="card role-card">
         <text class="eyebrow">当前身份</text>
         <text class="role-name">{{ store.displayName || store.roleLabel }}</text>
-        <text class="muted">{{ store.role === 'viewer' ? '接送时看今天上哪节课、在哪里。改课和账单由家长来。' : '邀请家长一起管课表，或邀请家人只看安排。' }}</text>
+        <text class="muted">{{ store.role === 'viewer' ? '接送时看今天上哪节课、在哪里。改课和账单由家长来。' : '邀请家长一起管课表，或邀请家人只看计划。' }}</text>
       </view>
 
       <view class="section-head">

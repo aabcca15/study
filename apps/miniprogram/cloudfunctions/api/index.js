@@ -1976,6 +1976,37 @@ async function ensureCollections() {
     }
   }
 }
+var TEXT_LIMITS = {
+  name: 20,
+  childName: 20,
+  displayName: 16,
+  title: 40,
+  teacher: 20,
+  location: 60,
+  note: 300,
+  code: 16
+};
+var DEFAULT_TEXT_LIMIT = 200;
+var UNSAFE_CHARS = /[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF<>]/g;
+function cleanString(value, max) {
+  const chars = Array.from(value.replace(UNSAFE_CHARS, "").trim());
+  return chars.length > max ? chars.slice(0, max).join("").trim() : chars.join("");
+}
+function sanitizePayload(value, key = "", depth = 0) {
+  if (depth > 8) return void 0;
+  if (typeof value === "string") return cleanString(value, TEXT_LIMITS[key] ?? DEFAULT_TEXT_LIMIT);
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (Array.isArray(value)) return value.slice(0, 500).map((item) => sanitizePayload(item, key, depth + 1));
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [field, item] of Object.entries(value)) {
+      if (field.startsWith("$") || field === "__proto__" || field === "constructor" || field === "prototype") continue;
+      out[field] = sanitizePayload(item, field, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
 function fail(code, message) {
   return { ok: false, code, message };
 }
@@ -2335,7 +2366,7 @@ async function main(event) {
   if (!openid) return fail("UNAUTHENTICATED", "\u8BF7\u5728\u5FAE\u4FE1\u5185\u6253\u5F00\u5C0F\u7A0B\u5E8F");
   try {
     const action = (event == null ? void 0 : event.action) || "";
-    const payload = (event == null ? void 0 : event.payload) ?? {};
+    const payload = sanitizePayload((event == null ? void 0 : event.payload) ?? {});
     const unionid = context.UNIONID || "";
     try {
       return { ok: true, data: await handle(openid, unionid, action, payload) };

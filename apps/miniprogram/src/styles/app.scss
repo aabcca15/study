@@ -676,6 +676,13 @@ button::after {
   box-shadow: var(--elev-md), var(--glow-top);
 }
 
+/* 必填标记 */
+.req {
+  margin-left: 3px;
+  color: #ed5d6e;
+  font-weight: 800;
+}
+
 /* 骨架屏：数据未到时占住最终布局，避免内容到达后跳动。 */
 .sk {
   display: block;

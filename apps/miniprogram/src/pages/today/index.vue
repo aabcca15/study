@@ -184,7 +184,7 @@ async function undoCancel() {
           <view class="overview-body">
             <view>
               <text class="big">{{ items.length }}</text>
-              <text class="muted">节安排</text>
+              <text class="muted">节计划</text>
             </view>
             <view class="overview-ring" :style="{ '--ring': dayDonePercent + '%' }">
               <text>{{ dayDonePercent }}%</text>
@@ -210,7 +210,7 @@ async function undoCancel() {
       </view>
 
       <DayCourseList
-        :title="isToday ? '今日安排' : selectedLabel + '安排'"
+        :title="isToday ? '今日计划' : selectedLabel + '计划'"
         :items="items"
         :readonly="!store.canWrite"
         :hide-fee="!store.canViewBills"

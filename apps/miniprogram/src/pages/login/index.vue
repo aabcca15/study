@@ -9,6 +9,8 @@ import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import { normalizeInviteCode } from '@/domain/family-account'
 import { avatarDefaultName } from '@/domain/avatar-names'
+import { TEXT_LIMIT } from '@/domain/limits'
+import { cleanText, formTip } from '@/utils/form'
 import { openTab } from '@/utils/nav'
 import { capsuleBox, statusBarHeight } from '@/utils/system'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -84,12 +86,12 @@ async function submit() {
     if (mode.value === 'join') {
       const code = normalizeInviteCode(inviteCode.value)
       if (code.length < 6) {
-        uni.showToast({ icon: 'none', title: '请填写邀请码' })
+        formTip(code ? '邀请码是 6 位字母或数字' : '请填写邀请码')
         return
       }
-      await store.joinFamily(code, displayName.value.trim())
+      await store.joinFamily(code, cleanText(displayName.value, TEXT_LIMIT.displayName))
     } else {
-      await store.login(childName.value.trim() || childPlaceholder.value, avatarKey.value)
+      await store.login(cleanText(childName.value, TEXT_LIMIT.childName) || childPlaceholder.value, avatarKey.value)
     }
     openTab('/pages/today/index')
   } catch (error) {
@@ -147,7 +149,7 @@ async function submit() {
           </view>
           <view class="field">
             <view class="field-label">孩子名字</view>
-            <input v-model="childName" maxlength="20" :placeholder="childPlaceholder" placeholder-class="ph" />
+            <input v-model="childName" :maxlength="TEXT_LIMIT.childName" :placeholder="childPlaceholder" placeholder-class="ph" />
           </view>
           <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
             <text class="submit-label">{{ submitting ? '进入中…' : '创建并进入' }}</text>
@@ -156,12 +158,12 @@ async function submit() {
 
         <view v-else class="form">
           <view class="field">
-            <view class="field-label">邀请码</view>
-            <input :value="inviteCode" maxlength="8" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
+            <view class="field-label">邀请码<text class="req">*</text></view>
+            <input :value="inviteCode" :maxlength="TEXT_LIMIT.inviteCode" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
           </view>
           <view class="field">
             <view class="field-label">你的称呼</view>
-            <input v-model="displayName" maxlength="16" placeholder="爸爸/妈妈/爷爷/奶奶" placeholder-class="ph" />
+            <input v-model="displayName" :maxlength="TEXT_LIMIT.displayName" placeholder="爸爸/妈妈/爷爷/奶奶" placeholder-class="ph" />
           </view>
           <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
             <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>

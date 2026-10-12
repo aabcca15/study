@@ -4,6 +4,8 @@ import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
 import { occurrenceExpense } from '@/utils/view'
+import { TEXT_LIMIT } from '@/domain/limits'
+import { amountError, formTip } from '@/utils/form'
 import TimeField from './TimeField.vue'
 
 const props = defineProps<{
@@ -45,7 +47,12 @@ async function save() {
   const item = props.item
   if (!item || saving.value) return
   if (endTime.value <= startTime.value) {
-    showCloudError(new Error('结束时间要晚于开始时间'))
+    formTip('结束时间要晚于开始时间')
+    return
+  }
+  const amountProblem = free.value || locked.value ? '' : amountError(amount.value, '金额')
+  if (amountProblem) {
+    formTip(amountProblem)
     return
   }
   saving.value = true
@@ -108,7 +115,7 @@ function cancelOnce() {
     <view class="sheet" @click.stop>
       <view class="sheet-head">
         <view>
-          <text class="eyebrow">这次安排</text>
+          <text class="eyebrow">这次计划</text>
           <text class="sheet-title">{{ item.course.title }}</text>
         </view>
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
@@ -134,7 +141,7 @@ function cancelOnce() {
             <text class="field-label">金额</text>
             <view class="money">
               <text>¥</text>
-              <input v-model="amount" type="digit" placeholder-class="ph" :disabled="locked" />
+              <input v-model="amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" :disabled="locked" />
             </view>
           </view>
           <view v-if="!free" class="row pay-row">

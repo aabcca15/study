@@ -5,10 +5,15 @@ import { onLoad } from '@dcloudio/uni-app'
 import { billNetAmount, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import type { ExpenseCategory } from '@server-domain/types'
+import { storeToRefs } from 'pinia'
 import { showCloudError } from '@/cloud/call'
 import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { usePageBackground, useThemePage } from '@/utils/wx-theme'
+import { TEXT_LIMIT } from '@/domain/limits'
+import { amountError, cleanText, formTip } from '@/utils/form'
+import { cardBackground, mix, tileBackground } from '@/utils/color'
+import { useThemeStore, usePageBackground, useThemePage } from '@/utils/wx-theme'
+import AppIcon from '@/components/AppIcon.vue'
 import DateField from '@/components/DateField.vue'
 import SelectField from '@/components/SelectField.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -52,19 +57,49 @@ const refundable = computed(() => {
   return Math.max(0, Math.round((received - refundedTotal.value) * 100) / 100)
 })
 
+const { isDark } = storeToRefs(useThemeStore())
+const course = computed(() => store.snapshot.courses.find((item) => item.id === existing.value?.courseId))
+/** 课程账单标题形如「钢琴 · 一次性课程费」，拆成主标题和副标题排版。 */
+const titleParts = computed(() => {
+  const [name, ...rest] = (existing.value?.title || '').split(/\s*·\s*/)
+  return {
+    name: name || '账单',
+    sub: rest.join(' · ') || (existing.value ? CATEGORY_LABEL[existing.value.category] : ''),
+  }
+})
+const statusLabel = computed(() => {
+  if (!existing.value) return ''
+  if (!paid.value) return '未支付'
+  return refundedTotal.value >= existing.value.amount ? '已退完' : '已支付'
+})
+const heroStyle = computed(() => {
+  const tint = course.value?.color || '#FF7A45'
+  return {
+    background: cardBackground(tint),
+    boxShadow: `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -18px ${mix(tint, '#191f3a', isDark.value ? 0.4 : 0.58)}, var(--glow-top)`,
+  }
+})
+const tileStyle = computed(() => {
+  const tint = course.value?.color || '#FF7A45'
+  return { background: tileBackground(tint), boxShadow: `0 10px 20px -10px ${mix(tint, '#191f3a', 0.3)}` }
+})
+
 async function create() {
-  if (!form.title.trim()) {
-    showCloudError(new Error('请填写名称'))
+  if (saving.value) return
+  const title = cleanText(form.title, TEXT_LIMIT.expenseTitle)
+  if (!title) {
+    formTip('请填写名称')
     return
   }
-  if (!(Number(form.amount) > 0)) {
-    showCloudError(new Error('请填写金额'))
+  const amountProblem = amountError(form.amount, '金额', { required: true })
+  if (amountProblem) {
+    formTip(amountProblem)
     return
   }
   saving.value = true
   try {
     await store.upsertExpense({
-      title: form.title.trim(),
+      title,
       category: form.category,
       billingMode: 'session',
       amount: Number(form.amount) || 0,
@@ -93,13 +128,18 @@ async function markPaid() {
 
 async function refund() {
   if (!expenseId.value) return
+  const amountProblem = amountError(refundAmount.value, '退款金额', { required: true })
+  if (amountProblem) {
+    formTip(amountProblem)
+    return
+  }
   const value = Number(refundAmount.value) || 0
-  if (value <= 0 || value > refundable.value) {
-    showCloudError(new Error(`退款金额应大于 0，且不超过 ${money(refundable.value)}`))
+  if (value > refundable.value) {
+    formTip(`退款金额不能超过 ${money(refundable.value)}`)
     return
   }
   try {
-    await store.refund(expenseId.value, value, refundNote.value.trim())
+    await store.refund(expenseId.value, value, cleanText(refundNote.value, TEXT_LIMIT.refundNote))
     refundAmount.value = ''
     refundNote.value = ''
     uni.showToast({ icon: 'none', title: '退款已记录' })
@@ -133,41 +173,48 @@ function remove() {
     <template v-if="!expenseId">
       <text class="muted">记到当前孩子 {{ store.child?.name || '' }}，并直接记为已支付。</text>
       <view class="field">
-        <text class="field-label">名称</text>
-        <input v-model="form.title" placeholder="例如：买书" placeholder-class="ph" />
+        <text class="field-label">名称<text class="req">*</text></text>
+        <input v-model="form.title" :maxlength="TEXT_LIMIT.expenseTitle" placeholder="例如：买书" placeholder-class="ph" />
       </view>
       <view class="field">
         <text class="field-label">类型</text>
         <SelectField v-model="form.category" :options="categoryOptions" />
       </view>
       <view class="field">
-        <text class="field-label">金额</text>
-        <input v-model="form.amount" type="digit" placeholder-class="ph" />
+        <text class="field-label">金额<text class="req">*</text></text>
+        <input v-model="form.amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0.00" placeholder-class="ph" />
       </view>
       <view class="field">
-        <text class="field-label">日期</text>
+        <text class="field-label">日期<text class="req">*</text></text>
         <DateField v-model="form.date" />
       </view>
       <button hover-class="press-on" hover-stay-time="80" class="btn block" :disabled="saving" @click="create">保存</button>
     </template>
 
     <template v-else-if="existing">
-      <view class="h1">{{ existing.title }}</view>
-      <view class="card">
-        <view class="row"><text>账单金额</text><text>{{ money(existing.amount) }}</text></view>
-        <view v-if="paid" class="row">
-          <text>实际支付</text>
-          <text class="pay-paid">{{ money(netPaid) }}</text>
+      <view class="bill-hero" :style="heroStyle">
+        <view class="hero-top">
+          <view class="hero-icon" :style="tileStyle">
+            <AppIcon :name="course?.icon || 'bill'" tone="white" :size="22" />
+          </view>
+          <view class="hero-copy">
+            <text class="hero-name">{{ titleParts.name }}</text>
+            <text class="hero-sub">{{ titleParts.sub }}</text>
+          </view>
+          <text class="status-pill" :class="paid ? 'paid' : 'unpaid'">{{ statusLabel }}</text>
         </view>
-        <view v-if="refundedTotal" class="row">
-          <text>已退金额</text>
-          <text class="refund-amount">−{{ money(refundedTotal) }}</text>
+        <text class="hero-label">{{ paid ? '实际支付' : '待支付' }}</text>
+        <text class="hero-amount">{{ money(paid ? netPaid : existing.amount) }}</text>
+      </view>
+      <view class="card detail-card">
+        <view class="detail-row"><text class="detail-key">账单金额</text><text class="detail-val">{{ money(existing.amount) }}</text></view>
+        <view v-if="refundedTotal" class="detail-row">
+          <text class="detail-key">已退金额</text>
+          <text class="detail-val refund-amount">−{{ money(refundedTotal) }}</text>
         </view>
-        <view class="row"><text>日期</text><text>{{ existing.dueDate }}</text></view>
-        <view class="row">
-          <text>状态</text>
-          <text :class="paid ? 'pay-paid' : 'pay-unpaid'">{{ paid ? (refundedTotal >= existing.amount ? '已退完' : '已支付') : '未支付' }}</text>
-        </view>
+        <view class="detail-row"><text class="detail-key">账单日期</text><text class="detail-val">{{ existing.dueDate }}</text></view>
+        <view class="detail-row"><text class="detail-key">类型</text><text class="detail-val">{{ CATEGORY_LABEL[existing.category] }}</text></view>
+        <view v-if="course" class="detail-row"><text class="detail-key">所属课程</text><text class="detail-val">{{ course.title }}</text></view>
       </view>
       <button hover-class="press-on" hover-stay-time="80" v-if="!paid" class="btn block" @click="markPaid">标记已支付</button>
       <view v-else class="card refund-card">
@@ -189,15 +236,15 @@ function remove() {
         </view>
         <template v-if="refundable > 0">
           <view class="field">
-            <text class="field-label">退款金额</text>
+            <text class="field-label">退款金额<text class="req">*</text></text>
             <view class="money">
               <text>¥</text>
-              <input v-model="refundAmount" type="digit" placeholder-class="ph" />
+              <input v-model="refundAmount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" />
             </view>
           </view>
           <view class="field">
             <text class="field-label">备注</text>
-            <input v-model="refundNote" placeholder="选填" placeholder-class="ph" />
+            <input v-model="refundNote" :maxlength="TEXT_LIMIT.refundNote" placeholder="选填" placeholder-class="ph" />
           </view>
           <button hover-class="press-on" hover-stay-time="80" class="btn ghost block refund-btn" @click="refund">记录退款</button>
         </template>
@@ -211,6 +258,64 @@ function remove() {
 
 <style scoped>
 .edit { padding-bottom: 48rpx; }
+.bill-hero {
+  margin-bottom: 12px;
+  padding: 16px 16px 18px;
+  border-radius: 24px;
+}
+.hero-top { display: flex; align-items: center; gap: 12px; }
+.hero-icon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+}
+.hero-copy { flex: 1; min-width: 0; }
+.hero-name {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hero-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.status-pill {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+}
+.status-pill.paid { color: var(--paid); background: var(--paid-soft); }
+.status-pill.unpaid { color: var(--unpaid); background: var(--unpaid-soft); }
+.hero-label { display: block; margin-top: 18px; color: var(--muted); font-size: 11px; font-weight: 650; }
+.hero-amount {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.detail-card { padding-top: 6px; padding-bottom: 6px; }
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.detail-row:last-child { border-bottom: 0; }
+.detail-key { flex: 0 0 auto; color: var(--muted); }
+.detail-val { min-width: 0; overflow: hidden; color: var(--ink); font-weight: 650; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .section { display: block; margin-bottom: 12px; color: var(--ink); font-size: 16px; font-weight: 800; }
 .history { margin-bottom: 12px; }
 .history-row {

@@ -51,7 +51,7 @@ const cellViews = computed(() => cells.value.map((date, index) => ({
   colors: cellColors.value[index],
 })))
 const monthTitle = computed(() => dayjs(`${cursor.value}-01`).format('YYYY年M月'))
-const listTitle = computed(() => `${dayjs(ui.selectedDate).format('M月D日')}安排`)
+const listTitle = computed(() => `${dayjs(ui.selectedDate).format('M月D日')}计划`)
 
 function shiftMonth(delta: number) {
   cursor.value = dayjs(`${cursor.value}-01`).add(delta, 'month').format('YYYY-MM')

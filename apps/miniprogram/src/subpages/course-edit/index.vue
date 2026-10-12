@@ -13,6 +13,8 @@ import {
 import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, CourseType } from '@server-domain/types'
 import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
+import { TEXT_LIMIT } from '@/domain/limits'
+import { amountError, cleanText, formTip } from '@/utils/form'
 import { denyViewerWrite } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
@@ -28,8 +30,6 @@ const themeClass = useThemePage()
 const pageBg = usePageBackground()
 const courseId = ref('')
 const saving = ref(false)
-const errorText = ref('')
-const slotError = ref('')
 const slots = ref<CourseDateSlot[]>([])
 const batchStart = ref('18:00')
 const batchEnd = ref('19:00')
@@ -53,7 +53,7 @@ const form = reactive({
 const pricingPlans = [
   { value: 'prepaid', label: '一次性支付', caption: '报名或购买课包时支付总金额' },
   { value: 'usage', label: '按需计费', caption: '按实际次数或小时累计' },
-  { value: 'free', label: '无需缴费', caption: '只记录课程安排' },
+  { value: 'free', label: '无需缴费', caption: '只记录课程计划' },
 ]
 const usageUnits = [
   { value: 'per_session', label: '按次', caption: '每完成一节按单次价格计费' },
@@ -73,7 +73,7 @@ const amountLabel = computed(() => {
 })
 const billingSummary = computed(() => {
   const amount = `¥${Math.max(0, Number(form.amount) || 0).toLocaleString('zh-CN')}`
-  if (form.pricingMode === 'free') return '该课程无需缴费，只记录课程安排。'
+  if (form.pricingMode === 'free') return '该课程无需缴费，只记录课程计划。'
   if (form.pricingMode === 'prepaid') {
     return `课程总费用 ${amount}，当前${form.paymentStatus === 'paid' ? '已支付' : '待支付'}。`
   }
@@ -153,14 +153,13 @@ function onSelectedDates(dates: string[]) {
 
 function applyBatchTime() {
   if (batchEnd.value <= batchStart.value) {
-    errorText.value = '结束时间要晚于开始时间'
+    formTip('结束时间要晚于开始时间')
     return
   }
   if (batchConflict.value) {
-    errorText.value = batchConflict.value
+    formTip(batchConflict.value)
     return
   }
-  errorText.value = ''
   slots.value = slots.value.map((slot) => ({
     ...slot,
     startTime: batchStart.value,
@@ -169,7 +168,6 @@ function applyBatchTime() {
 }
 
 function openSlot(slot: CourseDateSlot) {
-  slotError.value = ''
   editingSlot.value = { ...slot }
 }
 
@@ -177,7 +175,7 @@ function saveSlotTime() {
   const slot = editingSlot.value
   if (!slot) return
   if (slot.endTime <= slot.startTime) {
-    slotError.value = '结束时间要晚于开始时间'
+    formTip('结束时间要晚于开始时间')
     return
   }
   slots.value = slots.value.map((item) => item.date === slot.date ? { ...slot } : item)
@@ -191,25 +189,27 @@ function billingMode(): BillingMode {
 }
 
 async function save() {
-  errorText.value = ''
-  if (!form.title.trim()) {
-    errorText.value = '请填写课程名称'
+  if (saving.value) return
+  const title = cleanText(form.title, TEXT_LIMIT.courseTitle)
+  if (!title) {
+    formTip('请填写课程名称')
     return
   }
   if (!form.childIds.length) {
-    errorText.value = '请至少选择一个孩子'
+    formTip('请至少选择一个孩子')
     return
   }
   if (!slots.value.length) {
-    errorText.value = '请至少选择一个上课日期'
+    formTip('请至少选择一个上课日期')
     return
   }
   if (slots.value.some((slot) => slot.endTime <= slot.startTime)) {
-    errorText.value = '结束时间要晚于开始时间'
+    formTip('结束时间要晚于开始时间')
     return
   }
-  if (form.pricingMode !== 'free' && !(Number(form.amount) > 0)) {
-    errorText.value = `请填写${amountLabel.value}`
+  const amountProblem = form.pricingMode === 'free' ? '' : amountError(form.amount, amountLabel.value, { required: true })
+  if (amountProblem) {
+    formTip(amountProblem)
     return
   }
   const dates = [...slots.value].sort((a, b) => a.date.localeCompare(b.date))
@@ -221,7 +221,7 @@ async function save() {
     form.childIds,
   )
   if (conflict) {
-    errorText.value = `${conflict.date} 与「${conflict.title}」时间重叠`
+    formTip(`${conflict.date} 与「${conflict.title}」时间重叠`)
     return
   }
   saving.value = true
@@ -229,10 +229,10 @@ async function save() {
     await store.saveCourse({
       id: courseId.value || undefined,
       childIds: [...form.childIds],
-      title: form.title.trim(),
+      title,
       type: form.type,
-      teacher: form.teacher.trim(),
-      location: form.location.trim(),
+      teacher: cleanText(form.teacher, TEXT_LIMIT.teacher),
+      location: cleanText(form.location, TEXT_LIMIT.location),
       icon: form.icon,
       color: form.color,
       needsBillingReview: false,
@@ -251,7 +251,7 @@ async function save() {
         endTime: batchEnd.value,
         dates,
       },
-      note: form.note,
+      note: cleanText(form.note, TEXT_LIMIT.note),
     }, form.paymentStatus)
     uni.navigateBack()
   } catch (error) {
@@ -295,7 +295,7 @@ function pickIcon(icon: CourseIcon) {
     </PageHeader>
 
     <view class="participants">
-      <text class="participants-title">选择参与这门课程的孩子</text>
+      <text class="participants-title">选择参与这门课程的孩子<text class="req">*</text></text>
       <view class="child-row">
         <view
           v-for="child in store.snapshot.children"
@@ -321,8 +321,8 @@ function pickIcon(icon: CourseIcon) {
         </view>
       </view>
       <view class="field">
-        <text class="field-label">课程名称</text>
-        <input v-model="form.title" maxlength="40" placeholder="例如 钢琴课 / 外教口语" placeholder-class="ph" />
+        <text class="field-label">课程名称<text class="req">*</text></text>
+        <input v-model="form.title" :maxlength="TEXT_LIMIT.courseTitle" placeholder="例如 钢琴课 / 外教口语" placeholder-class="ph" />
       </view>
       <view class="row">
         <view class="field" style="flex: 1">
@@ -331,12 +331,12 @@ function pickIcon(icon: CourseIcon) {
         </view>
         <view class="field" style="flex: 1">
           <text class="field-label">老师</text>
-          <input v-model="form.teacher" placeholder="老师姓名" placeholder-class="ph" />
+          <input v-model="form.teacher" :maxlength="TEXT_LIMIT.teacher" placeholder="老师姓名" placeholder-class="ph" />
         </view>
       </view>
       <view class="field">
         <text class="field-label">上课地点</text>
-        <input v-model="form.location" placeholder="线下地点或在线平台" placeholder-class="ph" />
+        <input v-model="form.location" :maxlength="TEXT_LIMIT.location" placeholder="线下地点或在线平台" placeholder-class="ph" />
       </view>
 
       <view class="billing">
@@ -368,10 +368,10 @@ function pickIcon(icon: CourseIcon) {
           >{{ option.label }}</text>
         </view>
         <view v-if="form.pricingMode !== 'free'" class="field">
-          <text class="field-label">{{ amountLabel }}</text>
+          <text class="field-label">{{ amountLabel }}<text class="req">*</text></text>
           <view class="money">
             <text>¥</text>
-            <input v-model="form.amount" type="digit" placeholder-class="ph" />
+            <input v-model="form.amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" />
           </view>
         </view>
         <view v-if="form.pricingMode === 'prepaid'" class="row pay-row">
@@ -386,7 +386,7 @@ function pickIcon(icon: CourseIcon) {
       <view class="section-heading">
         <text>02</text>
         <view>
-          <text class="h2">选择上课日期</text>
+          <text class="h2">选择上课日期<text class="req">*</text></text>
           <text class="hint">点选或按住滑动，可连续多选、取消</text>
         </view>
       </view>
@@ -483,11 +483,10 @@ function pickIcon(icon: CourseIcon) {
       </view>
       <view class="field">
         <text class="field-label">备注</text>
-        <textarea v-model="form.note" maxlength="200" placeholder="课程说明或注意事项" placeholder-class="ph" />
+        <textarea v-model="form.note" :maxlength="TEXT_LIMIT.note" placeholder="课程说明或注意事项" placeholder-class="ph" />
       </view>
     </view>
 
-    <text v-if="errorText" class="form-error">{{ errorText }}</text>
   </view>
 
   <view class="save-dock">
@@ -516,7 +515,6 @@ function pickIcon(icon: CourseIcon) {
           <TimeField v-model="editingSlot.endTime" />
         </view>
       </view>
-      <text v-if="slotError" class="form-error">{{ slotError }}</text>
       <view class="sheet-foot">
         <button hover-class="press-on" hover-stay-time="80" class="btn block" @click="saveSlotTime">保存当天时间</button>
         <text class="hint">只修改这一天，不影响其他已选日期。</text>
@@ -570,7 +568,7 @@ function pickIcon(icon: CourseIcon) {
 }
 .h2 { display: block; color: var(--ink); font-size: 16px; font-weight: 800; }
 .hint { display: block; color: var(--muted); font-size: 12px; }
-.hint.warn, .form-error { color: var(--unpaid); }
+.hint.warn { color: var(--unpaid); }
 .billing { margin-top: 4px; }
 .bill-title { display: block; font-weight: 800; }
 .plan-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
@@ -605,7 +603,6 @@ function pickIcon(icon: CourseIcon) {
 .color-row { flex-wrap: nowrap; justify-content: space-between; gap: 0; padding: 0 3px; }
 .swatch { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; }
 .swatch.on { box-shadow: 0 0 0 3px var(--halo), 0 0 0 5px #ff7a45; }
-.form-error { display: block; margin-bottom: 8px; }
 .save-dock {
   position: fixed;
   z-index: 40;

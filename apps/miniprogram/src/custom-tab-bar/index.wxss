@@ -8,6 +8,29 @@
   overflow: visible;
 }
 
+/* tab 页第一次创建时，页面首帧还没有主题数据（深色下会先露出浅色底）。
+   底栏的首帧带着主题色，先用它盖住页面，页面渲染完再淡出。 */
+.page-veil {
+  position: fixed;
+  z-index: 880;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #f3f4fb;
+  opacity: 1;
+  transition: opacity 0.18s ease-out;
+  pointer-events: none;
+}
+
+.tab-host.dark .page-veil {
+  background: #10131b;
+}
+
+.page-veil.out {
+  opacity: 0;
+}
+
 .tab-host.covered,
 .tab-host.covered .tabbar,
 .tab-host.covered .quick-menu,

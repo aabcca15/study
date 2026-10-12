@@ -1,11 +1,12 @@
 <view class="tab-host {{covered ? 'covered' : ''}} {{dark ? 'dark' : ''}} {{instant ? 'instant' : ''}}">
+<view wx:if="{{veil}}" class="page-veil {{veilOut ? 'out' : ''}}" />
 <view class="quick-backdrop {{open ? 'show' : ''}}" bindtap="close" />
 <view class="quick-menu {{open ? 'show' : ''}}">
   <view wx:if="{{canWrite}}" class="quick-item" hover-class="quick-press" hover-stay-time="80" data-kind="add" bindtap="quick">
     <text class="quick-badge accent">＋</text>
     <view>
-      <text class="title">快速新增安排</text>
-      <text class="desc">选择日期、已有课程或临时安排</text>
+      <text class="title">快速新增计划</text>
+      <text class="desc">选择日期、已有课程或临时计划</text>
     </view>
   </view>
   <view wx:if="{{canWrite}}" class="quick-item" hover-class="quick-press" hover-stay-time="80" data-kind="course" bindtap="quick">

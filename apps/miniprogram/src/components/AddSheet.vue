@@ -11,6 +11,8 @@ import {
   startTimeOptions,
 } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
+import { TEXT_LIMIT } from '@/domain/limits'
+import { amountError, cleanText, formTip } from '@/utils/form'
 import { useFamilyStore } from '@/stores/family'
 import DateDragGrid from './DateDragGrid.vue'
 import TimeField from './TimeField.vue'
@@ -34,7 +36,6 @@ const endTime = ref('10:00')
 const amount = ref('0')
 const paid = ref(false)
 const saving = ref(false)
-const errorText = ref('')
 const pickerOpen = ref(false)
 
 const sortedDates = computed(() => [...dates.value].filter(Boolean).sort())
@@ -56,7 +57,7 @@ const busyIntervals = computed(() =>
 const conflict = computed(() => findBusyConflict(busyIntervals.value, startTime.value, endTime.value))
 const dateLabel = computed(() => {
   const dates = sortedDates.value
-  if (!dates.length) return '选择安排日期'
+  if (!dates.length) return '选择上课日期'
   const first = dayjs(dates[0])
   const last = dayjs(dates[dates.length - 1])
   if (dates.length === 1) return first.format('YYYY年M月D日')
@@ -93,7 +94,6 @@ function resetForm() {
   title.value = ''
   amount.value = '0'
   paid.value = false
-  errorText.value = ''
   pickerOpen.value = false
   pickDefaultTimes(dates.value[0])
 }
@@ -105,7 +105,6 @@ watch(() => props.open, (open) => {
 function selectCourse(id: string) {
   if (courseScheduledOnAllDates(id)) return
   courseId.value = id
-  errorText.value = ''
 }
 
 function setStart(value: string) {
@@ -121,31 +120,36 @@ function goCreateCourse() {
 
 async function submit() {
   if (saving.value) return
-  errorText.value = ''
+  const cleanTitle = cleanText(title.value, TEXT_LIMIT.courseTitle)
   if (!sortedDates.value.length) {
-    errorText.value = '请选择安排日期'
+    formTip('请选择上课日期')
     return
   }
   if (mode.value === 'preset') {
     if (!courseId.value) {
-      errorText.value = '请选择一门课程'
+      formTip('请选择一门课程')
       return
     }
     if (courseScheduledOnAllDates(courseId.value)) {
-      errorText.value = '所选日期都已有这门课'
+      formTip('所选日期都已有这门课')
       return
     }
   } else {
-    if (!title.value.trim()) {
-      errorText.value = '请填写课程名称'
+    if (!cleanTitle) {
+      formTip('请填写课程名称')
       return
     }
     if (!startTime.value || !endTime.value || endTime.value <= startTime.value) {
-      errorText.value = '结束时间要晚于开始时间'
+      formTip('结束时间要晚于开始时间')
       return
     }
     if (conflict.value) {
-      errorText.value = `所选日期中 ${conflict.value.title} 已占用该时间段`
+      formTip(`所选日期中「${conflict.value.title}」已占用该时间段`)
+      return
+    }
+    const amountProblem = amountError(amount.value, '费用')
+    if (amountProblem) {
+      formTip(amountProblem)
       return
     }
   }
@@ -156,7 +160,7 @@ async function submit() {
     } else {
       await store.quickArrangement({
         dates: sortedDates.value,
-        title: title.value.trim(),
+        title: cleanTitle,
         startTime: startTime.value,
         endTime: endTime.value,
         amount: Number(amount.value) || 0,
@@ -178,15 +182,15 @@ async function submit() {
       <view class="handle" />
       <view class="sheet-head">
         <view>
-          <text class="eyebrow">新增安排</text>
-          <text class="sheet-title">安排课程</text>
+          <text class="eyebrow">新增计划</text>
+          <text class="sheet-title">计划课程</text>
         </view>
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
 
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
         <view class="field">
-          <text class="field-label">安排日期</text>
+          <text class="field-label">上课日期<text class="req">*</text></text>
           <view class="date-trigger press" hover-class="press-on" hover-stay-time="80" @click="pickerOpen = true">
             <text class="date-text">{{ dateLabel }}</text>
             <text class="date-count">{{ sortedDates.length ? `${sortedDates.length} 天` : '' }}</text>
@@ -195,11 +199,11 @@ async function submit() {
 
         <view class="mode-tabs">
           <text class="press" :class="{ on: mode === 'preset' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'preset'">选择已有课程</text>
-          <text class="press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">临时新增安排</text>
+          <text class="press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">临时新增计划</text>
         </view>
 
         <template v-if="mode === 'preset'">
-          <text class="tip">老师、时间和地点将自动带入，添加后仍可单独调整这一次安排。</text>
+          <text class="tip">老师、时间和地点将自动带入，添加后仍可单独调整这一次计划。</text>
           <view v-if="courses.length" class="preset-list">
             <view
               v-for="course in courses"
@@ -215,7 +219,7 @@ async function submit() {
                 <text class="preset-name">{{ course.title }}</text>
                 <text class="preset-meta">{{ course.recurrence.startTime }}–{{ course.recurrence.endTime }} · {{ course.teacher || '老师待定' }}</text>
               </view>
-              <text class="preset-mark">{{ courseScheduledOnAllDates(course.id) ? '已安排' : (courseId === course.id ? '✓' : '') }}</text>
+              <text class="preset-mark">{{ courseScheduledOnAllDates(course.id) ? '已计划' : (courseId === course.id ? '✓' : '') }}</text>
             </view>
           </view>
           <view v-else class="empty-course">
@@ -226,8 +230,8 @@ async function submit() {
 
         <template v-else>
           <view class="field">
-            <text class="field-label">课程名称</text>
-            <input v-model="title" placeholder="例如 临时钢琴课" placeholder-class="ph" />
+            <text class="field-label">课程名称<text class="req">*</text></text>
+            <input v-model="title" :maxlength="TEXT_LIMIT.courseTitle" placeholder="例如 临时钢琴课" placeholder-class="ph" />
           </view>
           <view class="row">
             <view class="field" style="flex: 1">
@@ -246,7 +250,7 @@ async function submit() {
             <text class="field-label">费用</text>
             <view class="money">
               <text>¥</text>
-              <input v-model="amount" type="digit" placeholder-class="ph" />
+              <input v-model="amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" />
             </view>
           </view>
           <view class="row pay-row">
@@ -254,7 +258,6 @@ async function submit() {
             <switch :checked="paid" color="#ff7a45" @change="paid = Boolean($event.detail.value)" />
           </view>
         </template>
-        <text v-if="errorText" class="form-error">{{ errorText }}</text>
       </scroll-view>
 
       <view class="sheet-foot">
@@ -265,7 +268,7 @@ async function submit() {
   <view v-if="pickerOpen" class="mask picker-mask" @click="pickerOpen = false">
     <view class="sheet picker-sheet" @click.stop>
       <view class="sheet-head">
-        <text class="sheet-title">选择安排日期</text>
+        <text class="sheet-title">选择上课日期</text>
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="pickerOpen = false">×</text>
       </view>
       <text class="tip">点选或按住滑动，可连续多选、取消。</text>
@@ -327,7 +330,7 @@ async function submit() {
   color: var(--ink);
   box-shadow: var(--elev-sm);
 }
-.tip, .preset-meta, .busy text, .form-error {
+.tip, .preset-meta, .busy text {
   display: block;
   color: var(--muted);
   font-size: 12px;
@@ -361,7 +364,6 @@ async function submit() {
 .money input { flex: 1; height: 44px; }
 .busy { margin-bottom: 12px; }
 .pay-row { align-items: center; margin-bottom: 8px; }
-.form-error { margin: 4px 0 8px; color: var(--unpaid); }
 .date-trigger {
   display: flex;
   min-height: 46px;

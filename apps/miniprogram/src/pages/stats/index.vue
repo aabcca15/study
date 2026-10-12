@@ -152,7 +152,7 @@ function formatTrendHours(hours: number) {
         <view class="metric">
           <view class="metric-icon purple"><AppIcon name="clipboard" tone="white" :size="18" /></view>
           <view>
-            <text class="muted">课程安排</text>
+            <text class="muted">课程计划</text>
             <text class="metric-value">{{ stats.scheduledCount }}<text class="unit">次</text></text>
           </view>
         </view>
@@ -207,11 +207,11 @@ function formatTrendHours(hours: number) {
           </view>
         </view>
       </scroll-view>
-      <text v-else class="empty">当前周期暂无课程安排。</text>
+      <text v-else class="empty">当前周期暂无课程计划。</text>
 
       <TrendChart
         title="课时趋势"
-        :caption="granularity === 'year' ? '各月安排课时' : '每日安排课时'"
+        :caption="granularity === 'year' ? '各月计划课时' : '每日计划课时'"
         :points="courseTrend"
         color="#FF7A45"
         :value-formatter="formatTrendHours"
