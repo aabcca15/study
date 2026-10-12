@@ -27,15 +27,22 @@ function readMode(): ThemeMode {
   return saved === 'dark' ? 'dark' : 'light'
 }
 
-function paintTabBars(dark: boolean) {
-  getCurrentPages().forEach((page) => {
-    const raw = page as {
-      getTabBar?: () => { setData?: (data: { dark: boolean }) => void }
-      $vm?: { getTabBar?: () => { setData?: (data: { dark: boolean }) => void } }
-    }
-    const bar = raw.getTabBar?.() || raw.$vm?.getTabBar?.()
-    bar?.setData?.({ dark })
-  })
+type TabBarInstance = { syncState?: () => void }
+
+/** getCurrentPages 不含已缓存的其它 tab 页，所以底栏自己在 globalData.tabBars 里登记。 */
+function paintTabBars() {
+  const app = getApp({ allowDefault: true }) as { globalData?: { tabBars?: TabBarInstance[] } }
+  app.globalData?.tabBars?.forEach((bar) => bar.syncState?.())
+}
+
+/**
+ * 换肤后，后台缓存的 tab 页切回来时会先露出旧主题的画面。
+ * 记一个标记，下一次切 tab 用 reLaunch 重建页面，新页面首帧就是新主题。
+ */
+function markCachedPagesStale() {
+  const app = getApp({ allowDefault: true }) as { globalData?: { themeStale?: boolean } }
+  app.globalData = app.globalData || {}
+  app.globalData.themeStale = true
 }
 
 export const useThemeStore = defineStore('theme', {
@@ -63,11 +70,12 @@ export const useThemeStore = defineStore('theme', {
       uni.setBackgroundTextStyle({
         textStyle: this.isDark ? 'light' : 'dark',
       })
-      paintTabBars(this.isDark)
+      paintTabBars()
     },
     toggle() {
       this.mode = this.isDark ? 'light' : 'dark'
       uni.setStorageSync(THEME_KEY, this.mode)
+      markCachedPagesStale()
       this.apply()
     },
   },

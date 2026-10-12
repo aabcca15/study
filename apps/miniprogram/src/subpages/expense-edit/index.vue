@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { appShare, momentsShare } from '@/utils/share'
 import { billNetAmount, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import type { ExpenseCategory } from '@server-domain/types'
@@ -20,6 +21,8 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const expenseId = ref('')
 const saving = ref(false)

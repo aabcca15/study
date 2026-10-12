@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
+import { appShare, momentsShare } from '@/utils/share'
 import { billNetAmount, billsInDueRange, groupByCategory, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { showCloudError } from '@/cloud/call'
@@ -17,6 +18,8 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const theme = useThemeStore()
 const anchor = ref(dayjs().format('YYYY-MM-DD'))
@@ -79,7 +82,7 @@ function shift(delta: number) {
   <view class="theme-root" :class="themeClass">
     <AppHeader />
     <view class="page">
-      <PageHeader show-back eyebrow="全家账单" :title="weekLabel(anchor)">
+      <PageHeader show-back compact eyebrow="全家账单" :title="weekLabel(anchor)">
         <template #actions>
           <view class="nav">
             <button hover-class="press-on" hover-stay-time="80" @click="shift(-1)">‹</button>
@@ -158,8 +161,8 @@ function shift(delta: number) {
 </template>
 
 <style scoped>
-.nav { display: flex; align-items: center; gap: 4px; }
-.nav button { display: flex; width: 32px; height: 32px; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; line-height: 32px; }
+.nav { display: flex; align-items: center; gap: 2px; }
+.nav button { display: flex; width: 28px; height: 32px; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; line-height: 32px; }
 .nav .add {
   width: auto;
   gap: 4px;

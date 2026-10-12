@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
+import { appShare, isMomentsPreview, momentsShare } from '@/utils/share'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
@@ -17,6 +18,8 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const store = useFamilyStore()
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const statusBar = statusBarHeight()
 const capsule = capsuleBox()
@@ -45,6 +48,7 @@ onLoad((query) => {
 })
 
 onShow(() => {
+  if (isMomentsPreview()) return
   if (store.ready) {
     openTab('/pages/today/index')
     return

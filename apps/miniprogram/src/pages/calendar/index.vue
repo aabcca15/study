@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
+import { appShare, momentsShare } from '@/utils/share'
 import dayjs from 'dayjs'
 import { occurrencesOnDate } from '@server-domain/schedule'
 import type { DayOccurrence } from '@server-domain/types'
@@ -18,6 +19,8 @@ import OccurrenceSheet from '@/components/OccurrenceSheet.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const ui = useUiStore()
 const cursor = ref(dayjs().format('YYYY-MM'))

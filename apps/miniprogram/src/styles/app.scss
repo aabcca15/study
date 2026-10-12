@@ -13,6 +13,8 @@ page {
   --surface-2: #f4f6fb;
   --field-bg: #ffffff;
   --track: #eceef4;
+  --sk: #e8ebf2;
+  --sk-hi: #f4f5fa;
   --ink: #1b2030;
   --muted: #8b93a5;
   --line: #eef0f7;
@@ -88,6 +90,8 @@ button::after {
   --surface-2: #262d3d;
   --field-bg: #161b26;
   --track: #2a3142;
+  --sk: #2a3244;
+  --sk-hi: #222939;
   --ink: #f3f5fa;
   --muted: #9aa3b8;
   --line: #2d3546;
@@ -437,6 +441,12 @@ button::after {
   white-space: nowrap;
 }
 
+.page-header-copy .h1.h1-compact {
+  margin-top: 6px;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
 .page-header-copy .eyebrow {
   font-size: 12px;
   font-weight: 650;
@@ -687,7 +697,7 @@ button::after {
 .sk {
   display: block;
   border-radius: 10px;
-  background: var(--track);
+  background-color: var(--sk);
   animation: sk-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -695,7 +705,8 @@ button::after {
 .sk-title { height: 18px; border-radius: 8px; }
 .sk-round { border-radius: 999px; }
 
+/* 在两种同色系之间呼吸，不用透明度，深色下不会透出浅色。 */
 @keyframes sk-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  0%, 100% { background-color: var(--sk); }
+  50% { background-color: var(--sk-hi); }
 }

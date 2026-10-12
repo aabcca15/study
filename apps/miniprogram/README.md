@@ -1,6 +1,6 @@
 # Uday家庭课表计划小程序
 
-从注册账号到提交审核的逐步说明见仓库 `docs/miniprogram-launch.md`；日常打包、分环境部署云函数、发体验版和正式版见 `docs/miniprogram-deploy.md`。下面是开发时的目录和命令。
+从注册账号到提交审核的逐步说明见仓库 `docs/miniprogram-launch.md`；日常打包、分环境部署云函数、发体验版和正式版见 `docs/miniprogram-deploy.md`。课前 15 分钟订阅提醒尚未实现，步骤见 `docs/miniprogram-remind.md`。下面是开发时的目录和命令。
 
 uni-app（Vue 3）家长端。微信小程序走云开发：登录用微信号 `openid`，读写走云函数 `api`。页面里的日期、时间和下拉都用小程序原生 `picker`。
 

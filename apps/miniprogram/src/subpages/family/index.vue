@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import PageHeader from '@/components/PageHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { inviteShare, isMomentsPreview, momentsShare } from '@/utils/share'
 import {
   FAMILY_ROLE_LABEL,
   formatInviteCode,
@@ -39,17 +40,18 @@ watch(roleTabs, (tabs) => {
 }, { immediate: true })
 
 onShow(() => {
+  if (isMomentsPreview()) {
+    loaded.value = true
+    return
+  }
   refreshRoster()
 })
 
+onShareTimeline(momentsShare)
+
 onShareAppMessage((options) => {
   const target = (options as { target?: { dataset?: { code?: string } } } | undefined)?.target
-  const code = target?.dataset?.code || current.value?.code || ''
-  return {
-    title: '邀请你一起看 Uday 家庭课表',
-    path: code ? `/pages/login/index?invite=${code}` : '/pages/login/index',
-    imageUrl: '/static/share-cover.png',
-  }
+  return inviteShare(target?.dataset?.code || current.value?.code || '')
 })
 
 async function refreshRoster() {

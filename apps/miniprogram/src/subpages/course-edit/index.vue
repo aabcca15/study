@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { appShare, momentsShare } from '@/utils/share'
 import dayjs from 'dayjs'
 import {
   COURSE_COLORS,
@@ -11,7 +12,7 @@ import {
   unusedCourseColor,
 } from '@server-domain/constants'
 import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, CourseType } from '@server-domain/types'
-import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts } from '@server-domain/schedule'
+import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts, type BusyInterval } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, cleanText, formTip } from '@/utils/form'
@@ -27,12 +28,16 @@ import DateDragGrid from '@/components/DateDragGrid.vue'
 
 const store = useFamilyPage({ refresh: false })
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const courseId = ref('')
 const saving = ref(false)
 const slots = ref<CourseDateSlot[]>([])
-const batchStart = ref('18:00')
-const batchEnd = ref('19:00')
+const batchStart = ref('09:00')
+const batchEnd = ref('10:00')
+/** 用户手动改过批量时间后，不再按冲突自动改默认值。 */
+const batchTouched = ref(false)
 const editingSlot = ref<CourseDateSlot | null>(null)
 const slotsOpen = ref(false)
 
@@ -95,6 +100,12 @@ const batchConflict = computed(() => {
   )
   return hit ? `${hit.title} 已占用 ${hit.start}–${hit.end}` : ''
 })
+const batchHint = computed(() => {
+  if (batchEnd.value <= batchStart.value) return '结束时间要晚于开始时间'
+  if (batchConflict.value) return batchConflict.value
+  if (!slots.value.length) return '先选择日期，这里的时间会自动套到每一天。'
+  return '改动会立刻更新全部已选日期，某一天不同再在下方单独调整。'
+})
 
 onLoad((query) => {
   if (denyViewerWrite()) return
@@ -116,8 +127,8 @@ onLoad((query) => {
   form.amount = String(course?.amount ?? 0)
   form.note = course?.note ?? ''
   slots.value = [...(course?.recurrence.dates ?? [])]
-  batchStart.value = course?.recurrence.startTime ?? '18:00'
-  batchEnd.value = course?.recurrence.endTime ?? '19:00'
+  batchStart.value = course?.recurrence.startTime ?? '09:00'
+  batchEnd.value = course?.recurrence.endTime ?? '10:00'
   const upfront = store.snapshot.expenses.find((item) =>
     item.courseId === courseId.value && (item.source === 'course_upfront' || item.billingMode === 'term'),
   )
@@ -128,6 +139,78 @@ function toggleChild(id: string) {
   form.childIds = form.childIds.includes(id)
     ? form.childIds.filter((item) => item !== id)
     : [...form.childIds, id]
+  alignDefaultTime()
+}
+
+function minutesOf(time: string) {
+  const [hour, minute] = time.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function timeOf(minutes: number) {
+  const hour = Math.floor(minutes / 60)
+  const minute = minutes % 60
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+/** 新课默认 9:00–10:00。和已选日期上的课重叠时，改到那段课结束时刻再排 1 小时。整天排满则保持当前时间。 */
+function suggestDefaultTime(intervals: BusyInterval[]) {
+  let start = 9 * 60
+  for (let guard = 0; guard < 48; guard += 1) {
+    const end = start + 60
+    if (end > 23 * 60) return null
+    const startTime = timeOf(start)
+    const endTime = timeOf(end)
+    const hit = findBusyConflict(intervals, startTime, endTime)
+    if (!hit) return { start: startTime, end: endTime }
+    const next = minutesOf(hit.end)
+    if (next <= start) return null
+    start = next
+  }
+  return null
+}
+
+function busyForSelection() {
+  return busyIntervalsForDates(
+    store.overviewCourses,
+    slots.value.map((slot) => slot.date),
+    store.overviewScheduleExceptions,
+    courseId.value || undefined,
+    form.childIds,
+  )
+}
+
+function applyBatchToSlots() {
+  if (!slots.value.length) return
+  if (batchEnd.value <= batchStart.value || batchConflict.value) return
+  if (slots.value.every((slot) => slot.startTime === batchStart.value && slot.endTime === batchEnd.value)) return
+  slots.value = slots.value.map((slot) => ({
+    ...slot,
+    startTime: batchStart.value,
+    endTime: batchEnd.value,
+  }))
+}
+
+function alignDefaultTime() {
+  if (courseId.value || batchTouched.value) return
+  if (slots.value.some((slot) => slot.startTime !== batchStart.value || slot.endTime !== batchEnd.value)) return
+  const next = suggestDefaultTime(busyForSelection())
+  if (!next || (next.start === batchStart.value && next.end === batchEnd.value)) return
+  batchStart.value = next.start
+  batchEnd.value = next.end
+  applyBatchToSlots()
+}
+
+function onBatchStart(value: string) {
+  batchTouched.value = true
+  batchStart.value = value
+  applyBatchToSlots()
+}
+
+function onBatchEnd(value: string) {
+  batchTouched.value = true
+  batchEnd.value = value
+  applyBatchToSlots()
 }
 
 function choosePlan(value: string) {
@@ -149,22 +232,7 @@ function onSelectedDates(dates: string[]) {
     startTime: batchStart.value,
     endTime: batchEnd.value,
   }).sort((left, right) => left.date.localeCompare(right.date))
-}
-
-function applyBatchTime() {
-  if (batchEnd.value <= batchStart.value) {
-    formTip('结束时间要晚于开始时间')
-    return
-  }
-  if (batchConflict.value) {
-    formTip(batchConflict.value)
-    return
-  }
-  slots.value = slots.value.map((slot) => ({
-    ...slot,
-    startTime: batchStart.value,
-    endTime: batchEnd.value,
-  }))
+  alignDefaultTime()
 }
 
 function openSlot(slot: CourseDateSlot) {
@@ -399,23 +467,20 @@ function pickIcon(icon: CourseIcon) {
         <text>03</text>
         <view>
           <text class="h2">批量设置时间</text>
-          <text class="hint">应用到当前已选的全部日期</text>
+          <text class="hint">改这里会立刻更新全部已选日期</text>
         </view>
       </view>
       <view class="row">
         <view class="field" style="flex: 1">
           <text class="field-label">开始</text>
-          <TimeField v-model="batchStart" />
+          <TimeField :model-value="batchStart" @update:model-value="onBatchStart" />
         </view>
         <view class="field" style="flex: 1">
           <text class="field-label">结束</text>
-          <TimeField v-model="batchEnd" />
+          <TimeField :model-value="batchEnd" @update:model-value="onBatchEnd" />
         </view>
       </view>
-      <text class="hint" :class="{ warn: batchConflict }">{{ batchConflict || '选择日期后，可一次改完全部上课时间。' }}</text>
-      <button hover-class="press-on" hover-stay-time="80" class="btn ghost block" :disabled="!slots.length || !!batchConflict" @click="applyBatchTime">
-        应用到已选 {{ slots.length }} 个日期
-      </button>
+      <text class="hint" :class="{ warn: batchEnd <= batchStart || batchConflict }">{{ batchHint }}</text>
     </view>
 
     <view v-if="sortedSlots.length" class="editor-card">

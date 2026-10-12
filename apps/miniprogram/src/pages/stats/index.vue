@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
+import { appShare, momentsShare } from '@/utils/share'
 import dayjs from 'dayjs'
 import { groupByCategory, money } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
@@ -17,6 +18,8 @@ import TrendChart from '@/components/TrendChart.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const theme = useThemeStore()
 /** 与 web 一致：卡片接近整行，右侧露出下一张方便左右滑。 */
@@ -225,9 +228,6 @@ function formatTrendHours(hours: number) {
         :value-formatter="money"
       />
 
-      <view v-if="store.canViewBills" class="card link press" hover-class="press-on" hover-stay-time="80" @click="uni.navigateTo({ url: '/subpages/bills/index' })">
-        <view class="row"><text>本周账单</text><text class="muted">查看 ›</text></view>
-      </view>
     </view>
   </view>
 </template>

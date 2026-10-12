@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { appShare, momentsShare } from '@/utils/share'
 import { COURSE_TYPE_LABEL } from '@server-domain/constants'
 import { buildCourseBillLedger } from '@server-domain/courseBills'
 import { money } from '@server-domain/billing'
@@ -14,6 +15,8 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
 const themeClass = useThemePage()
+onShareAppMessage(appShare)
+onShareTimeline(momentsShare)
 const pageBg = usePageBackground()
 const courseId = ref('')
 

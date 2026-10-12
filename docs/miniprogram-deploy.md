@@ -1,6 +1,6 @@
 # 微信小程序打包与发布（开发 / 体验版 / 正式版）
 
-第一次注册账号、填资料、选类目，看 [miniprogram-launch.md](miniprogram-launch.md)。本文讲已经有 AppID 之后，每次怎么打包、上传云函数、发体验版和正式版。
+第一次注册账号、填资料、选类目，看 [miniprogram-launch.md](miniprogram-launch.md)。本文讲已经有 AppID 之后，每次怎么打包、上传云函数、发体验版和正式版。课前 15 分钟的微信订阅提醒还没做，步骤见 [miniprogram-remind.md](miniprogram-remind.md)。
 
 Windows PowerShell 里命令一条一条执行，不要用 `&&` 连起来。下面的命令都在仓库根目录 `myhome` 执行。
 

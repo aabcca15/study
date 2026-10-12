@@ -1,5 +1,6 @@
 import { onShow } from '@dcloudio/uni-app'
 import { showCloudError } from '@/cloud/call'
+import { isMomentsPreview } from '@/utils/share'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
@@ -16,6 +17,7 @@ export function useFamilyPage(options: { refresh?: boolean } = {}) {
 
   onShow(() => {
     theme.apply()
+    if (isMomentsPreview()) return
     if (!store.ready) {
       uni.reLaunch({ url: '/pages/login/index' })
       return

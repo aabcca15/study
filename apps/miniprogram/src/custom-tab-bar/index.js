@@ -8,13 +8,19 @@ const tabs = [
 // 指示块先在当前页滑到目标位置，快到终点时再切页，新页面直接停在终点。
 const SLIDE_MS = 360
 const SWITCH_AFTER_MS = 200
-const VEIL_FADE_MS = 200
-const VEIL_MAX_MS = 700
 
 function appData() {
   const app = getApp()
   app.globalData = app.globalData || {}
   return app.globalData
+}
+
+/** 换肤后其它缓存页还是旧主题画面，取走标记后用 reLaunch 重建，见 stores/theme.ts。 */
+function takeThemeStale() {
+  const data = appData()
+  if (!data.themeStale) return false
+  data.themeStale = false
+  return true
 }
 
 function routeIndex() {
@@ -55,8 +61,6 @@ Component({
     jelly: false,
     covered: false,
     dark: false,
-    veil: true,
-    veilOut: false,
     canWrite: true,
     indicator: 'opacity:0;',
     left: tabs.slice(0, 2),
@@ -64,15 +68,16 @@ Component({
   },
   lifetimes: {
     attached() {
+      const data = appData()
+      data.tabBars = (data.tabBars || []).concat(this)
       this.syncState()
       const guess = routeIndex()
       if (guess >= 0) this.own(guess)
-      // 页面正常会在首屏渲染完后调用 reveal；这里兜底，避免遮罩卡住。
-      this._veilTimer = setTimeout(() => this.reveal(), VEIL_MAX_MS)
     },
     detached() {
       this.clearTimers()
-      clearTimeout(this._veilTimer)
+      const data = appData()
+      data.tabBars = (data.tabBars || []).filter((bar) => bar !== this)
     },
   },
   pageLifetimes: {
@@ -82,13 +87,6 @@ Component({
     },
   },
   methods: {
-    /** 页面首屏已带着主题渲染好，淡出遮罩。 */
-    reveal() {
-      if (!this.data.veil || this.data.veilOut) return
-      clearTimeout(this._veilTimer)
-      this.setData({ veilOut: true })
-      this._veilTimer = setTimeout(() => this.setData({ veil: false }), VEIL_FADE_MS)
-    },
     syncState() {
       const data = appData()
       const dark = data.theme === 'dark'
@@ -148,6 +146,10 @@ Component({
     },
     go(index) {
       const home = this.owner
+      if (takeThemeStale()) {
+        wx.reLaunch({ url: tabs[index].url })
+        return
+      }
       wx.switchTab({
         url: tabs[index].url,
         success: () => {

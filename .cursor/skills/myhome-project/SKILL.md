@@ -10,7 +10,7 @@ description: >-
 
 家长用来管孩子的学校课、兴趣班、上课地点和费用。仓库名 `myhome`。产品名「Uday家庭课表计划」，登录页品牌字是 Uday。
 
-先读本文件建立整体图。改业务规则、接口或表时再读 [myhome-backend-contracts](../myhome-backend-contracts/SKILL.md)。用户怎么一步步操作，见 [flows.md](flows.md)。小程序从注册到发布，见 [docs/miniprogram-launch.md](../../../docs/miniprogram-launch.md)；日常打包、分环境部署云函数、体验版 / 正式版见 [docs/miniprogram-deploy.md](../../../docs/miniprogram-deploy.md)。
+先读本文件建立整体图。改业务规则、接口或表时再读 [myhome-backend-contracts](../myhome-backend-contracts/SKILL.md)。用户怎么一步步操作，见 [flows.md](flows.md)。小程序从注册到发布，见 [docs/miniprogram-launch.md](../../../docs/miniprogram-launch.md)；日常打包、分环境部署云函数、体验版 / 正式版见 [docs/miniprogram-deploy.md](../../../docs/miniprogram-deploy.md)。课前 15 分钟订阅提醒尚未实现，步骤见 [docs/miniprogram-remind.md](../../../docs/miniprogram-remind.md)。
 
 ## 两套客户端，数据不互通
 
