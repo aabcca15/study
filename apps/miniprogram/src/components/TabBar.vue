@@ -5,11 +5,14 @@ import AppIcon from '@/components/AppIcon.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
-import { openTab } from '@/utils/nav'
+import { openTab, type TabKey } from '@/utils/nav'
 import { promptLogin } from '@/utils/login-gate'
 
 const props = defineProps<{
-  active?: 'today' | 'calendar' | 'courses' | 'stats'
+  /** 子页面里高亮哪个 tab；主页面不传，直接跟着 ui.tab。 */
+  active?: TabKey
+  /** 弹层打开时整条底栏连同菜单一起藏起来。 */
+  hidden?: boolean
 }>()
 
 const ui = useUiStore()
@@ -22,10 +25,10 @@ const box = ref({ left: 8, top: 8, width: 72, height: 50 })
 const instance = getCurrentInstance()
 
 const tabs = [
-  { key: 'today', label: '今日', url: '/pages/today/index', icon: 'clock' },
-  { key: 'calendar', label: '日历', url: '/pages/calendar/index', icon: 'calendar' },
-  { key: 'courses', label: '课程', url: '/pages/courses/index', icon: 'book' },
-  { key: 'stats', label: '统计', url: '/pages/stats/index', icon: 'bars' },
+  { key: 'today', label: '今日', icon: 'clock' },
+  { key: 'calendar', label: '日历', icon: 'calendar' },
+  { key: 'courses', label: '课程', icon: 'book' },
+  { key: 'stats', label: '统计', icon: 'bars' },
 ] as const
 
 const leftTabs = tabs.slice(0, 2)
@@ -66,19 +69,13 @@ function measure() {
   })
 }
 
-function go(key: typeof tabs[number]['key'], url: string) {
+function go(key: TabKey) {
   open.value = false
   if (key === 'stats' && !family.ready && !hasLocalSession()) {
     promptLogin('登录后可以查看课程统计。是否前往登录？')
     return
   }
-  if (ui.tab === key) {
-    const current = getCurrentPages().slice(-1)[0]?.route
-    if (current && `/${current}` === url) return
-  }
-  ui.tab = key
-  measure()
-  openTab(url)
+  openTab(key)
 }
 
 function toggleFab() {
@@ -109,10 +106,9 @@ function quick(url: string) {
     return
   }
   open.value = false
-  if (url.startsWith('/pages/today')) {
+  if (url === 'add') {
     ui.pendingAdd = true
-    ui.tab = 'today'
-    openTab('/pages/today/index')
+    openTab('today')
     return
   }
   uni.navigateTo({ url })
@@ -135,9 +131,10 @@ onShow(measureSoon)
 </script>
 
 <template>
+  <view class="tab-host" :class="{ hidden }">
   <view class="quick-backdrop" :class="{ show: open, dark: theme.isDark }" @click="open = false" />
   <view class="quick-menu" :class="{ show: open, dark: theme.isDark }">
-    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/pages/today/index?add=1')">
+    <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('add')">
       <text class="quick-badge accent">＋</text>
       <view>
         <text class="title">快速新增计划</text>
@@ -177,7 +174,7 @@ onShow(measureSoon)
       :class="{ active: tab.key === ui.tab }"
       hover-class="press-on"
       hover-stay-time="80"
-      @click="go(tab.key, tab.url)"
+      @click="go(tab.key)"
     >
       <AppIcon :name="tab.icon" :tone="tab.key === ui.tab ? 'accent' : 'muted'" :size="21" />
       <text class="tab-label">{{ tab.label }}</text>
@@ -195,15 +192,23 @@ onShow(measureSoon)
       :class="{ active: tab.key === ui.tab }"
       hover-class="press-on"
       hover-stay-time="80"
-      @click="go(tab.key, tab.url)"
+      @click="go(tab.key)"
     >
       <AppIcon :name="tab.icon" :tone="tab.key === ui.tab ? 'accent' : 'muted'" :size="21" />
       <text class="tab-label">{{ tab.label }}</text>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
+.tab-host.hidden .tabbar,
+.tab-host.hidden .quick-menu,
+.tab-host.hidden .quick-backdrop {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .tabbar {
   position: fixed;
   z-index: 900;

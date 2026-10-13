@@ -14,6 +14,7 @@ import { showCloudError } from '@/cloud/call'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, cleanText, formTip } from '@/utils/form'
 import { useFamilyStore } from '@/stores/family'
+import AppIcon from './AppIcon.vue'
 import DateDragGrid from './DateDragGrid.vue'
 import TimeField from './TimeField.vue'
 
@@ -183,10 +184,11 @@ async function submit() {
   <view v-if="open" class="mask" @click="emit('close')">
     <view class="sheet" @click.stop>
       <view class="handle" />
-      <view class="sheet-head">
-        <view>
-          <text class="eyebrow">新增计划</text>
-          <text class="sheet-title">计划课程</text>
+      <view class="add-head">
+        <view class="add-icon"><AppIcon name="plus" tone="white" :size="22" /></view>
+        <view class="add-copy">
+          <text class="add-title">新增计划</text>
+          <text class="add-caption">选一门已有课程，或临时加一项安排</text>
         </view>
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
@@ -295,12 +297,21 @@ async function submit() {
   border-radius: 99px;
   background: var(--line);
 }
-.eyebrow {
-  display: block;
-  color: var(--accent-text);
-  font-size: 11px;
-  font-weight: 700;
+.add-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.add-icon {
+  display: flex;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 10px 20px -10px rgba(255, 122, 69, 0.7);
 }
+.add-copy { flex: 1; min-width: 0; }
+.add-title { display: block; color: var(--ink); font-size: 20px; font-weight: 800; letter-spacing: -0.03em; }
+.add-caption { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .sheet-title { font-size: 22px; }
 .close {
   width: 34px;

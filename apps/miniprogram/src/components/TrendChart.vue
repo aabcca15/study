@@ -4,13 +4,15 @@ import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/utils/wx-theme'
 import { currentMixBase, isDarkMix, mix } from '@/utils/color'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   caption: string
   points: Array<{ label: string; value: number }>
   color: string
   valueFormatter: (value: number) => string
-}>()
+  /** 所在视图是否正在显示。藏起来时量不到画布宽度，等显示出来再画。 */
+  visible?: boolean
+}>(), { visible: true })
 
 const canvasId = `trend-${props.color.replace('#', '')}`
 const instance = getCurrentInstance()
@@ -36,13 +38,24 @@ type Canvas2D = {
   getContext: (type: '2d') => CanvasRenderingContext2D
 }
 
+let stale = false
+
 function draw() {
+  if (!props.visible) {
+    stale = true
+    return
+  }
   const query = uni.createSelectorQuery().in(instance?.proxy)
   query.select(`#${canvasId}`).fields({ node: true, size: true }, () => {}).exec((res) => {
     const field = res?.[0] as { node?: Canvas2D; width?: number } | undefined
     const canvas = field?.node
     if (!canvas) return
-    const width = field?.width || 320
+    if (!field?.width) {
+      stale = true
+      return
+    }
+    stale = false
+    const width = field.width
     const height = 128
     const ratio = uni.getWindowInfo?.().pixelRatio || 2
     canvas.width = width * ratio
@@ -124,6 +137,9 @@ const signature = computed(() => `${mode.value}|${props.color}|${props.points.ma
 
 onMounted(() => nextTick(draw))
 watch(signature, () => nextTick(draw))
+watch(() => props.visible, (visible) => {
+  if (visible && (stale || !drawn.value)) nextTick(draw)
+})
 </script>
 
 <template>

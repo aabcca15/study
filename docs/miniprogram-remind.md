@@ -31,7 +31,7 @@
 
 ## 2. 今天页加「课前提醒」按钮
 
-放在 `apps/miniprogram/src/pages/today/index.vue`，由点击触发：
+放在 `apps/miniprogram/src/views/TodayView.vue`（今日视图，挂在 `pages/home/index.vue` 里），由点击触发：
 
 ```ts
 uni.requestSubscribeMessage({ tmplIds: ['模板ID'] })
@@ -76,7 +76,7 @@ uni.requestSubscribeMessage({ tmplIds: ['模板ID'] })
 cloud.openapi.subscribeMessage.send({
   touser: openid,
   templateId: '模板ID',
-  page: 'pages/today/index',
+  page: 'pages/home/index?tab=today',
   miniprogramState: 'formal',
   lang: 'zh_CN',
   data: {

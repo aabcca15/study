@@ -54,14 +54,14 @@ onShow(() => {
     return
   }
   if (store.ready) {
-    openTab('/pages/today/index')
+    openTab('today')
     return
   }
   if (resuming || !hasLocalSession()) return
   resuming = true
   booting.value = true
   store.resume().then(() => {
-    openTab('/pages/today/index')
+    openTab('today')
   }).catch((error) => {
     store.logout()
     booting.value = false
@@ -126,7 +126,7 @@ async function stayHome() {
       submitting.value = false
     }
   }
-  if (store.ready) openTab('/pages/today/index')
+  if (store.ready) openTab('today')
 }
 
 /** 已有家庭时先说明后果。返回 false 表示这次不加入。 */
@@ -167,14 +167,14 @@ async function submit() {
       }
       const proceed = await confirmJoin(code)
       if (!proceed) {
-        if (store.ready) openTab('/pages/today/index')
+        if (store.ready) openTab('today')
         return
       }
       await store.joinFamily(code, cleanText(displayName.value, TEXT_LIMIT.displayName))
     } else {
       await store.login(cleanText(childName.value, TEXT_LIMIT.childName) || childPlaceholder.value, avatarKey.value)
     }
-    openTab('/pages/today/index')
+    openTab('today')
   } catch (error) {
     showCloudError(error)
   } finally {

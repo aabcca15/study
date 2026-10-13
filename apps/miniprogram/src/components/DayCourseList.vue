@@ -99,19 +99,24 @@ function courseIcon(item: DayOccurrence) {
   return live?.icon || item.course.icon || 'generic'
 }
 
-function cardStyle(item: DayOccurrence) {
+/** 深色下顶部高光只留一丝，带一点课程色，不再是一条亮白线。 */
+function cardStyle(item: DayOccurrence, dark: boolean) {
   const tint = item.course.color
   return {
     background: cardBackground(tint),
-    boxShadow: `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(tint, '#191f3a', 0.58)}, inset 0 1px 0 rgba(255,255,255,.9)`,
+    boxShadow: dark
+      ? `0 2px 6px rgba(0,0,0,.28), 0 18px 34px -18px rgba(0,0,0,.6), inset 0 1px 0 ${mix(tint, '#1c2230', 0.78)}`
+      : `0 2px 5px rgba(25,31,58,.04), 0 18px 34px -16px ${mix(tint, '#191f3a', 0.58)}, inset 0 1px 0 rgba(255,255,255,.9)`,
   }
 }
 
-function tileStyle(item: DayOccurrence) {
+function tileStyle(item: DayOccurrence, dark: boolean) {
   const tint = item.course.color
   return {
     background: tileBackground(tint),
-    boxShadow: `0 10px 20px -10px ${mix(tint, '#191f3a', 0.3)}, inset 0 1px 0 rgba(255,255,255,.4)`,
+    boxShadow: dark
+      ? `0 10px 20px -12px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14)`
+      : `0 10px 20px -10px ${mix(tint, '#191f3a', 0.3)}, inset 0 1px 0 rgba(255,255,255,.4)`,
   }
 }
 
@@ -134,8 +139,8 @@ const rows = computed(() => {
     progress: done,
     faces: participants(item),
     icon: courseIcon(item),
-    cardStyle: cardStyle(item),
-    tileStyle: tileStyle(item),
+    cardStyle: cardStyle(item, dark),
+    tileStyle: tileStyle(item, dark),
     typeStyle: { color: deepTone(color), background: mix(color, paper, dark ? 0.72 : 0.82) },
     trackStyle: { background: mix(color, dark ? '#2a3142' : '#eceef4', 0.86) },
     fillStyle: {

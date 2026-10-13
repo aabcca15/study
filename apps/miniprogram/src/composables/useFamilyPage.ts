@@ -2,6 +2,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { showCloudError } from '@/cloud/call'
 import { isMomentsPreview } from '@/utils/share'
 import { promptLogin } from '@/utils/login-gate'
+import { openTab } from '@/utils/nav'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
@@ -65,8 +66,7 @@ function ensureSession() {
 function leaveForLogin() {
   promptLogin('登录后才能使用这项功能。是否前往登录？').then((ok) => {
     if (ok) return
-    const pages = getCurrentPages()
-    if (pages.length > 1) uni.navigateBack()
-    else uni.switchTab({ url: '/pages/today/index' })
+    if (getCurrentPages().length > 1) uni.navigateBack()
+    else openTab('today')
   })
 }

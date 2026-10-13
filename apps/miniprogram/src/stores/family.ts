@@ -139,17 +139,7 @@ export const useFamilyStore = defineStore('family', {
     },
   },
   actions: {
-    /** 缓存着的 tab 页都会跟着快照重新计算；内容没变就不替换，避免白白重绘。 */
-    syncClientFlags() {
-      try {
-        const app = getApp() as { globalData?: Record<string, unknown> }
-        app.globalData = app.globalData || {}
-        app.globalData.canWrite = this.ready && this.canWrite
-        app.globalData.role = this.ready ? this.role : ''
-      } catch {
-        // 非小程序运行时没有 getApp
-      }
-    },
+    /** 所有视图都跟着快照重新计算；内容没变就不替换，避免白白重绘。 */
     applySnapshot(snapshot: AppSnapshot) {
       const json = JSON.stringify(snapshot)
       if (json !== snapshotJson) {
@@ -157,7 +147,6 @@ export const useFamilyStore = defineStore('family', {
         this.snapshot = frozen(snapshot)
       }
       this.syncedAt = Date.now()
-      this.syncClientFlags()
     },
     applySession(data: CloudSession) {
       this.openid = data.openid
@@ -212,7 +201,6 @@ export const useFamilyStore = defineStore('family', {
       this.snapshot = frozen(emptySnapshot())
       this.syncedAt = 0
       this.rangeMonth = ''
-      this.syncClientFlags()
       uni.removeStorageSync(LOGGED_KEY)
     },
     refresh() {

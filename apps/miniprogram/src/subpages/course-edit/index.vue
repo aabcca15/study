@@ -104,7 +104,7 @@ const batchHint = computed(() => {
   if (batchEnd.value <= batchStart.value) return '结束时间要晚于开始时间'
   if (batchConflict.value) return batchConflict.value
   if (!slots.value.length) return '先选择日期，这里的时间会自动套到每一天。'
-  return '改动会立刻更新全部已选日期，某一天不同再在下方单独调整。'
+  return ''
 })
 
 onLoad((query) => {
@@ -480,7 +480,7 @@ function pickIcon(icon: CourseIcon) {
           <TimeField :model-value="batchEnd" @update:model-value="onBatchEnd" />
         </view>
       </view>
-      <text class="hint" :class="{ warn: batchEnd <= batchStart || batchConflict }">{{ batchHint }}</text>
+      <text v-if="batchHint" class="hint" :class="{ warn: batchEnd <= batchStart || batchConflict }">{{ batchHint }}</text>
     </view>
 
     <view v-if="sortedSlots.length" class="editor-card">

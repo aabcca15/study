@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import dayjs from 'dayjs'
+import { WEEKDAY_SHORT } from '@server-domain/constants'
 import type { DayOccurrence } from '@server-domain/types'
+import { tileBackground } from '@/utils/color'
+import AppIcon from './AppIcon.vue'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
 import { occurrenceExpense, temporaryRemark } from '@/utils/view'
@@ -29,6 +33,31 @@ const expense = computed(() =>
   props.item ? occurrenceExpense(store.overviewExpenses, props.item.course, props.item.date) : undefined,
 )
 const locked = computed(() => expense.value?.status === 'paid')
+const temporary = computed(() => props.item?.course.source === 'temporary')
+const icon = computed(() => {
+  const course = props.item?.course
+  if (!course) return 'generic'
+  return store.snapshot.courses.find((item) => item.id === course.id)?.icon || course.icon || 'generic'
+})
+const dateLabel = computed(() => {
+  if (!props.item) return ''
+  const date = dayjs(props.item.date)
+  return `${date.format('M月D日')} 周${WEEKDAY_SHORT[date.day()]}`
+})
+const infoRows = computed(() => {
+  const item = props.item
+  if (!item) return []
+  const rows = [
+    { icon: 'calendar', label: '日期', value: dateLabel.value },
+    { icon: 'clock', label: '时间', value: `${startTime.value}–${endTime.value}` },
+  ]
+  if (temporary.value) rows.push({ icon: 'clipboard', label: '备注', value: temporaryRemark(item.course) })
+  else {
+    rows.push({ icon: 'family', label: '老师', value: item.course.teacher || '待定' })
+    rows.push({ icon: 'school', label: '地点', value: item.course.location || '待定' })
+  }
+  return rows
+})
 const free = computed(() => {
   const course = props.item?.course
   return course?.billingPolicy?.pricingMode === 'free' || course?.billingMode === 'free'
@@ -113,25 +142,28 @@ function cancelOnce() {
 <template>
   <view v-if="item" class="mask" @click="emit('close')">
     <view class="sheet" @click.stop>
-      <view class="sheet-head">
-        <view>
-          <text class="eyebrow">这次计划</text>
-          <text class="sheet-title">{{ item.course.title }}</text>
+      <view class="handle" />
+      <view class="occ-head">
+        <view class="occ-icon" :style="{ background: tileBackground(item.course.color) }">
+          <AppIcon :name="icon" tone="white" :size="24" />
+        </view>
+        <view class="occ-copy">
+          <text class="occ-badge">{{ temporary ? '临时计划' : '这次计划' }}</text>
+          <text class="occ-title">{{ item.course.title }}</text>
         </view>
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
-        <text v-if="item.course.source === 'temporary'" class="muted">{{ item.date }}</text>
-        <text v-if="item.course.source === 'temporary'" class="place">{{ temporaryRemark(item.course) }}</text>
-        <template v-else>
-          <text class="muted">{{ item.date }} · {{ item.course.teacher || '老师待定' }}</text>
-          <text class="place">{{ item.course.location || '地点待定' }}</text>
-        </template>
-        <view v-if="readonly" class="readonly-time">
-          <text>{{ startTime }}–{{ endTime }}</text>
+        <view class="info-card">
+          <view v-for="row in infoRows" :key="row.label" class="info-row">
+            <view class="info-mark"><AppIcon :name="row.icon" tone="muted" :size="15" /></view>
+            <text class="info-label">{{ row.label }}</text>
+            <text class="info-value">{{ row.value }}</text>
+          </view>
         </view>
-        <template v-else>
-          <view class="row" style="margin-top: 16px">
+        <template v-if="!readonly">
+          <text class="section-label">调整这一次</text>
+          <view class="row">
             <view class="field" style="flex: 1">
               <text class="field-label">开始</text>
               <TimeField v-model="startTime" />
@@ -163,7 +195,81 @@ function cancelOnce() {
 </template>
 
 <style scoped>
-.eyebrow { display: block; color: var(--accent-text); font-size: 11px; font-weight: 700; }
+.handle {
+  width: 38px;
+  height: 4px;
+  margin: 2px auto 14px;
+  border-radius: 99px;
+  background: var(--line);
+}
+.occ-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.occ-icon {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 20px -12px rgba(25, 31, 58, 0.45);
+}
+.occ-copy { flex: 1; min-width: 0; }
+.occ-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-size: 10px;
+  font-weight: 750;
+}
+.occ-title {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.info-card {
+  padding: 4px 14px;
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+.info-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.info-row + .info-row { border-top: 1px solid var(--line); }
+.info-mark {
+  display: flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--paper);
+}
+.info-label { flex: 0 0 auto; width: 34px; color: var(--muted); font-size: 12px; }
+.info-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.section-label {
+  display: block;
+  margin: 18px 2px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
 .close {
   width: 34px;
   height: 34px;
@@ -174,8 +280,6 @@ function cancelOnce() {
   line-height: 34px;
   font-size: 22px;
 }
-.place { display: block; margin-top: 8px; color: var(--ink); font-size: 15px; font-weight: 700; }
-.readonly-time { margin-top: 16px; color: var(--ink); font-size: 20px; font-weight: 800; }
 .pay-row { align-items: center; margin-bottom: 8px; }
 .action-row { display: flex; gap: 10px; }
 .action-row .btn { flex: 1; min-height: 48px; }

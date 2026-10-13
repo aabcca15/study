@@ -27,24 +27,6 @@ function readMode(): ThemeMode {
   return saved === 'dark' ? 'dark' : 'light'
 }
 
-type TabBarInstance = { syncState?: () => void }
-
-/** getCurrentPages 不含已缓存的其它 tab 页，所以底栏自己在 globalData.tabBars 里登记。 */
-function paintTabBars() {
-  const app = getApp({ allowDefault: true }) as { globalData?: { tabBars?: TabBarInstance[] } }
-  app.globalData?.tabBars?.forEach((bar) => bar.syncState?.())
-}
-
-/**
- * 换肤后，后台缓存的 tab 页切回来时会先露出旧主题的画面。
- * 记一个标记，下一次切 tab 用 reLaunch 重建页面，新页面首帧就是新主题。
- */
-function markCachedPagesStale() {
-  const app = getApp({ allowDefault: true }) as { globalData?: { themeStale?: boolean } }
-  app.globalData = app.globalData || {}
-  app.globalData.themeStale = true
-}
-
 export const useThemeStore = defineStore('theme', {
   state: () => ({
     mode: readMode() as ThemeMode,
@@ -56,10 +38,8 @@ export const useThemeStore = defineStore('theme', {
     },
   },
   actions: {
+    /** 四个 tab 视图同在一个页面里，换肤直接作用到全部视图；这里只同步窗口底色和下拉区。 */
     apply() {
-      const app = getApp({ allowDefault: true }) as { globalData?: { theme?: ThemeMode } }
-      app.globalData = app.globalData || {}
-      app.globalData.theme = this.mode
       setMixBase(this.colors.paper, this.isDark)
       const { bg } = this.colors
       uni.setBackgroundColor({
@@ -70,12 +50,10 @@ export const useThemeStore = defineStore('theme', {
       uni.setBackgroundTextStyle({
         textStyle: this.isDark ? 'light' : 'dark',
       })
-      paintTabBars()
     },
     toggle() {
       this.mode = this.isDark ? 'light' : 'dark'
       uni.setStorageSync(THEME_KEY, this.mode)
-      markCachedPagesStale()
       this.apply()
     },
   },
