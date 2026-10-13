@@ -361,6 +361,25 @@ async function removeMember(actor: UserDoc, payload: Record<string, unknown>) {
   return null
 }
 
+/** 只读判断，不占用邀请码、不换家庭。结论要和 joinFamily 的分支保持一致。 */
+async function previewInvite(openid: string, payload: Record<string, unknown>) {
+  const code = normalizeInviteCode(String(payload.code || ''))
+  const invite = await findInvite(code)
+  if (!invite) raise('INVITE_INVALID', '邀请码无效或已失效')
+  if (!isInviteActive(invite)) {
+    if (Date.parse(invite.expireAt) <= Date.now()) raise('INVITE_EXPIRED', '邀请已过期，请让家长重新生成')
+    raise('INVITE_USED_UP', '邀请已用完，请让家长重新生成')
+  }
+  const existing = await findUser(openid)
+  if (!existing) return { status: 'new' as const }
+  if (existing.familyId === invite.familyId) return { status: 'same' as const }
+  if (existing.role === 'owner' && await countFamilyMembers(existing.familyId) > 1) {
+    return { status: 'blocked' as const }
+  }
+  if (existing.role === 'owner') return { status: 'replace' as const }
+  return { status: 'leave' as const }
+}
+
 async function joinFamily(openid: string, unionid: string, payload: Record<string, unknown>) {
   const code = normalizeInviteCode(String(payload.code || ''))
   const invite = await findInvite(code)
@@ -476,6 +495,7 @@ async function dispatchAccount(user: UserDoc, action: string, payload: Record<st
 
 async function handle(openid: string, unionid: string, action: string, payload: Record<string, unknown>) {
   if (action === 'login') return login(openid, unionid, payload)
+  if (action === 'previewInvite') return previewInvite(openid, payload)
   if (action === 'joinFamily') return joinFamily(openid, unionid, payload)
   const user = await requireUser(openid)
   if (action === 'createInvite' || action === 'listMembers' || action === 'removeMember') {

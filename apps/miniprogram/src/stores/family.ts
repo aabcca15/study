@@ -23,6 +23,7 @@ import {
   FAMILY_ROLE_LABEL,
   type FamilyInviteView,
   type FamilyMemberView,
+  type InviteJoinPreview,
   type FamilyRole,
   type InviteRole,
 } from '@/domain/family-account'
@@ -184,6 +185,9 @@ export const useFamilyStore = defineStore('family', {
     },
     async joinFamily(code: string, displayName?: string) {
       this.applySession(await callCloud<CloudSession>('joinFamily', { code, displayName }))
+    },
+    previewInvite(code: string) {
+      return callCloud<InviteJoinPreview>('previewInvite', { code })
     },
     listMembers() {
       return this.dispatch<FamilyRoster>('listMembers')

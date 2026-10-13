@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import dayjs from 'dayjs'
 import { COURSE_TYPE_LABEL } from '@server-domain/constants'
 import { courseCardFee } from '@server-domain/charges'
 import { buildCourseBillLedger } from '@server-domain/courseBills'
@@ -7,7 +9,7 @@ import { courseScheduleProgress } from '@server-domain/courseSchedule'
 import { money } from '@server-domain/billing'
 import type { DayOccurrence } from '@server-domain/types'
 import { useFamilyStore } from '@/stores/family'
-import { occurrenceExpense } from '@/utils/view'
+import { occurrenceExpense, temporaryRemark } from '@/utils/view'
 import { EMPTY_DAY_LINES, EMPTY_DAY_LINES_VIEWER, pickDailyLine } from '@/domain/copy'
 import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/utils/wx-theme'
@@ -18,6 +20,7 @@ import ChildAvatar from '@/components/ChildAvatar.vue'
 const props = withDefaults(defineProps<{
   title: string
   items: DayOccurrence[]
+  date?: string
   actionLabel?: string
   readonly?: boolean
   hideFee?: boolean
@@ -34,6 +37,13 @@ const emit = defineEmits<{
 
 const store = useFamilyStore()
 const { isDark } = storeToRefs(useThemeStore())
+const now = ref(dayjs().format('HH:mm'))
+function tick() {
+  now.value = dayjs().format('HH:mm')
+}
+onShow(tick)
+const clock = setInterval(tick, 30000)
+onUnmounted(() => clearInterval(clock))
 /** 每次打开小程序换一批，同一天内切页不跳。 */
 const lineSeed = String(Math.floor(Math.random() * 1000))
 const emptyLine = computed(() => pickDailyLine(
@@ -117,6 +127,8 @@ const rows = computed(() => {
     start: startOf(item),
     end: endOf(item),
     duration: duration(item),
+    temporary: item.course.source === 'temporary',
+    remark: temporaryRemark(item.course),
     fee: feeOf(item),
     totals: totals(item),
     progress: done,
@@ -131,6 +143,7 @@ const rows = computed(() => {
       background: `linear-gradient(90deg, ${mix(color, paper, 0.28)} 0%, ${deepTone(color)} 100%)`,
     },
     startStyle: { color: deepTone(color) },
+    finished: props.date === dayjs().format('YYYY-MM-DD') && endOf(item) <= now.value,
     endStyle: { color: mix(color, paper, dark ? 0.42 : 0.36) },
     lineStyle: {
       background: `linear-gradient(180deg, ${deepTone(color)} 0%, ${mix(color, paper, dark ? 0.68 : 0.58)} 100%)`,
@@ -170,6 +183,7 @@ const rows = computed(() => {
           </view>
         </view>
         <view class="lesson-card" :style="row.cardStyle">
+          <view v-if="row.finished" class="done-seal"><text>已完成</text></view>
           <view class="lesson-body">
             <view class="lesson-time" :style="row.tileStyle">
               <AppIcon :key="row.icon" :name="row.icon" tone="white" :size="26" />
@@ -178,9 +192,12 @@ const rows = computed(() => {
               <text class="lesson-type" :style="row.typeStyle">{{ COURSE_TYPE_LABEL[row.item.course.type] }}</text>
               <text class="lesson-name">{{ row.item.course.title }}</text>
               <view class="lesson-meta">
-                <text>{{ row.item.course.teacher || '老师待定' }}</text>
-                <view class="dot" />
-                <text>{{ row.item.course.location || '地点待定' }}</text>
+                <text v-if="row.temporary" class="remark">{{ row.remark }}</text>
+                <template v-else>
+                  <text>{{ row.item.course.teacher || '老师待定' }}</text>
+                  <view class="dot" />
+                  <text>{{ row.item.course.location || '地点待定' }}</text>
+                </template>
               </view>
               <view class="lesson-period">
                 <text class="dur">{{ row.duration }}</text>
@@ -301,12 +318,40 @@ const rows = computed(() => {
   transform: translateX(-50%);
 }
 .lesson-card {
+  position: relative;
   flex: 1;
   min-width: 0;
   padding: 14px;
   overflow: hidden;
   border-radius: 22px;
 }
+.done-seal {
+  position: absolute;
+  z-index: 1;
+  top: 46px;
+  right: 18px;
+  display: flex;
+  width: 68px;
+  height: 68px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 2px solid var(--paid);
+  border-radius: 50%;
+  color: var(--paid);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--paid);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  opacity: 0.55;
+  transform: rotate(-16deg);
+  pointer-events: none;
+}
+.done-seal text { line-height: 1; }
+.lesson-body,
+.course-progress { position: relative; z-index: 2; }
 .lesson-body { display: flex; align-items: flex-start; gap: 10px; }
 .lesson-time {
   display: flex;
@@ -338,6 +383,13 @@ const rows = computed(() => {
 }
 .lesson-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
 .lesson-meta text { min-width: 0; line-height: 1.35; }
+.remark {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.4;
+}
 .lesson-meta .dot { width: 3px; height: 3px; flex: 0 0 auto; border-radius: 50%; background: var(--faint); }
 .range { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 9px; }
 .lesson-period { display: flex; flex-wrap: wrap; gap: 5px 9px; align-items: center; margin-top: 11px; }

@@ -195,6 +195,8 @@ export interface QuickArrangementInput {
   endTime: string
   amount: number
   expenseStatus: ExpenseStatus
+  /** 临时计划的说明。不是课程时用来代替老师和地点。 */
+  note?: string
 }
 
 export interface SessionState {

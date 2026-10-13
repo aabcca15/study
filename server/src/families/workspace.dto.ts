@@ -192,6 +192,10 @@ export class QuickArrangementDto {
 
   @IsIn(['pending', 'unpaid', 'paid', 'void'])
   expenseStatus!: 'pending' | 'unpaid' | 'paid' | 'void'
+
+  @IsOptional()
+  @IsString()
+  note?: string
 }
 
 export class UpsertExpenseDto {

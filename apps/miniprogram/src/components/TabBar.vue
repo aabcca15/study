@@ -2,10 +2,11 @@
 import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon.vue'
-import { useFamilyStore } from '@/stores/family'
+import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import { openTab } from '@/utils/nav'
+import { promptLogin } from '@/utils/login-gate'
 
 const props = defineProps<{
   active?: 'today' | 'calendar' | 'courses' | 'stats'
@@ -67,6 +68,10 @@ function measure() {
 
 function go(key: typeof tabs[number]['key'], url: string) {
   open.value = false
+  if (key === 'stats' && !family.ready && !hasLocalSession()) {
+    promptLogin('登录后可以查看课程统计。是否前往登录？')
+    return
+  }
   if (ui.tab === key) {
     const current = getCurrentPages().slice(-1)[0]?.route
     if (current && `/${current}` === url) return
@@ -86,10 +91,19 @@ function toggleFab() {
 
 function openFamily() {
   open.value = false
+  if (!family.ready && !hasLocalSession()) {
+    promptLogin('登录后才能邀请家人。是否前往登录？')
+    return
+  }
   uni.navigateTo({ url: '/subpages/family/index' })
 }
 
 function quick(url: string) {
+  if (!family.ready && !hasLocalSession()) {
+    open.value = false
+    promptLogin('登录后才能新增计划、课程或记录账单。是否前往登录？')
+    return
+  }
   if (!family.canWrite) {
     uni.showToast({ icon: 'none', title: '家人只能查看课表' })
     return

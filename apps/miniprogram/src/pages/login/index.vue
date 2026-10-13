@@ -49,11 +49,15 @@ onLoad((query) => {
 
 onShow(() => {
   if (isMomentsPreview()) return
+  if (inviteCode.value) {
+    if (store.ready && !displayName.value) displayName.value = store.displayName
+    return
+  }
   if (store.ready) {
     openTab('/pages/today/index')
     return
   }
-  if (resuming || inviteCode.value || !hasLocalSession()) return
+  if (resuming || !hasLocalSession()) return
   resuming = true
   booting.value = true
   store.resume().then(() => {
@@ -83,6 +87,74 @@ function onCodeInput(event: { detail?: { value?: string } }) {
   inviteCode.value = normalizeInviteCode(event.detail?.value || '')
 }
 
+function alertJoin(title: string, content: string) {
+  return new Promise<void>((resolve) => {
+    uni.showModal({
+      title,
+      content,
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => resolve(),
+    })
+  })
+}
+
+function askJoin(title: string, content: string) {
+  return new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title,
+      content,
+      confirmText: '仍然加入',
+      cancelText: '先留下',
+      confirmColor: '#ff7a45',
+      success: (result) => resolve(Boolean(result.confirm)),
+    })
+  })
+}
+
+async function stayHome() {
+  if (submitting.value) return
+  if (!store.ready && hasLocalSession()) {
+    submitting.value = true
+    try {
+      await store.resume()
+    } catch (error) {
+      store.logout()
+      showCloudError(error)
+      return
+    } finally {
+      submitting.value = false
+    }
+  }
+  if (store.ready) openTab('/pages/today/index')
+}
+
+/** 已有家庭时先说明后果。返回 false 表示这次不加入。 */
+async function confirmJoin(code: string) {
+  if (!store.ready && hasLocalSession()) {
+    try {
+      await store.resume()
+    } catch {
+      store.logout()
+    }
+  }
+  if (!store.ready) return true
+  const preview = await store.previewInvite(code)
+  if (preview.status === 'new') return true
+  if (preview.status === 'same') {
+    await alertJoin('你已经在这个家庭里', '不用重复加入，直接进入当前课表。')
+    return false
+  }
+  if (preview.status === 'blocked') {
+    await alertJoin('暂时不能加入', '请先让其他成员退出后再加入别的家庭。')
+    return false
+  }
+  const content = preview.status === 'replace'
+    ? '加入后将改用对方的家庭。你现在这份课程和账单会被清除，且无法恢复。'
+    : '加入后将离开当前家庭，改用对方的课表。当前家庭的课程仍留给其他成员。'
+  return askJoin('加入对方的家庭', content)
+}
+
 async function submit() {
   if (submitting.value) return
   submitting.value = true
@@ -91,6 +163,11 @@ async function submit() {
       const code = normalizeInviteCode(inviteCode.value)
       if (code.length < 6) {
         formTip(code ? '邀请码是 6 位字母或数字' : '请填写邀请码')
+        return
+      }
+      const proceed = await confirmJoin(code)
+      if (!proceed) {
+        if (store.ready) openTab('/pages/today/index')
         return
       }
       await store.joinFamily(code, cleanText(displayName.value, TEXT_LIMIT.displayName))
@@ -160,7 +237,7 @@ async function submit() {
           </view>
         </view>
 
-        <view v-else class="form">
+        <view v-else class="form join-form">
           <view class="field">
             <view class="field-label">邀请码<text class="req">*</text></view>
             <input :value="inviteCode" :maxlength="TEXT_LIMIT.inviteCode" placeholder="例如 AB12CD" placeholder-class="ph" @input="onCodeInput" />
@@ -172,6 +249,7 @@ async function submit() {
           <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
             <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
           </view>
+          <text v-if="store.ready || hasLocalSession()" class="stay" @click="stayHome">回到我的课表</text>
         </view>
       </view>
     </view>
@@ -322,6 +400,18 @@ async function submit() {
   height: 240px;
   flex-direction: column;
   animation: form-in 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.form.join-form {
+  height: auto;
+  min-height: 240px;
+}
+.stay {
+  display: block;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
 }
 @keyframes form-in {
   from { opacity: 0; transform: translateY(6px); }

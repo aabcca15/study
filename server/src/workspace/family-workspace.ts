@@ -938,7 +938,7 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
         dates: dates.map((date) => ({ date, startTime: input.startTime, endTime: input.endTime })),
       },
       archived: false,
-      note: '通过快速新增创建的临时安排',
+      note: String(input.note || '').trim().slice(0, 200),
     })
 
     let expenseId: string | undefined

@@ -19,7 +19,7 @@ export function isMomentsPreview() {
 export function appShare(): ShareContent {
   return {
     title: 'Uday 家庭课表计划：今天上什么课，家人一起看',
-    path: '/pages/login/index',
+    path: '/pages/today/index',
     imageUrl: SHARE_IMAGE,
   }
 }

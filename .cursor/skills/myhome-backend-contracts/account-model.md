@@ -78,6 +78,7 @@ Family（租户）
 | action | 谁能调 | 作用 |
 |---|---|---|
 | `login` | 微信用户 | 已有用户回家庭。`resume: true` 且没有家庭时返回 `UNAUTHENTICATED`，不创建。否则新用户建家庭并成为 `owner` |
+| `previewInvite` `{ code }` | 微信用户 | 只读。返回 `new` / `same` / `blocked` / `replace` / `leave`，不占用邀请码、不换家庭 |
 | `joinFamily` `{ code, displayName? }` | 微信用户 | 按邀请码绑定家庭；创建者若家庭里还有别人则拒绝 `OWNER_HAS_MEMBERS` |
 | `createInvite` `{ role }` | owner：parent/viewer；parent：viewer | 生成邀请码 |
 | `listMembers` | 家庭成员 | 成员 + 未过期邀请 |
@@ -85,7 +86,7 @@ Family（租户）
 
 错误码：`INVITE_INVALID` `INVITE_EXPIRED` `INVITE_USED_UP` `INVITE_FORBIDDEN` `OWNER_HAS_MEMBERS` `MEMBER_REMOVE_FORBIDDEN` `CANNOT_REMOVE_OWNER` `CANNOT_REMOVE_SELF` `SCOPE_FORBIDDEN`。
 
-家人切换正在看的孩子只保存在本机，不改家庭快照里的默认孩子。邀请码占用次数在云数据库事务里递增，避免并发把同一个码用超。创建者若是家庭里唯一的人，加入别的家庭后会删掉空的旧家庭。
+家人切换正在看的孩子只保存在本机，不改家庭快照里的默认孩子。邀请码占用次数在云数据库事务里递增，避免并发把同一个码用超。已登录时打开带邀请码的链接会停在加入页，确认后才换家庭。创建者若是家里唯一的人，确认文案会说明课程和账单将被清除；加入成功后删掉空的旧家庭。家里还有别人时不发起加入。家长或家人离开当前家庭时，旧家庭数据仍留给其他成员。
 
 ## 金额、时区、审计
 

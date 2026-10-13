@@ -110,6 +110,7 @@ export function applyFamilyAction(workspace: Workspace, action: string, payload:
         endTime: String(payload.endTime || ''),
         amount: Number(payload.amount) || 0,
         expenseStatus: payload.expenseStatus === 'paid' ? 'paid' : 'unpaid',
+        note: typeof payload.note === 'string' ? payload.note : '',
       }))
     case 'upsertException':
       return workspace.upsertScheduleException(payload as never)

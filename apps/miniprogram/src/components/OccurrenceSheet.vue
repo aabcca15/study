@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
-import { occurrenceExpense } from '@/utils/view'
+import { occurrenceExpense, temporaryRemark } from '@/utils/view'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, formTip } from '@/utils/form'
 import TimeField from './TimeField.vue'
@@ -121,8 +121,12 @@ function cancelOnce() {
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
-        <text class="muted">{{ item.date }} · {{ item.course.teacher || '老师待定' }}</text>
-        <text class="place">{{ item.course.location || '地点待定' }}</text>
+        <text v-if="item.course.source === 'temporary'" class="muted">{{ item.date }}</text>
+        <text v-if="item.course.source === 'temporary'" class="place">{{ temporaryRemark(item.course) }}</text>
+        <template v-else>
+          <text class="muted">{{ item.date }} · {{ item.course.teacher || '老师待定' }}</text>
+          <text class="place">{{ item.course.location || '地点待定' }}</text>
+        </template>
         <view v-if="readonly" class="readonly-time">
           <text>{{ startTime }}–{{ endTime }}</text>
         </view>

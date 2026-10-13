@@ -30,6 +30,13 @@ export interface FamilyMemberView {
   createdAt: string
 }
 
+/** 已有家庭的人打开邀请码时，先看这个结果再决定要不要加入。 */
+export type InviteJoinStatus = 'new' | 'same' | 'blocked' | 'replace' | 'leave'
+
+export interface InviteJoinPreview {
+  status: InviteJoinStatus
+}
+
 export interface FamilyInviteView {
   code: string
   role: InviteRole

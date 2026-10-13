@@ -328,7 +328,7 @@ var COURSE_COLORS = [
   "#C265F0",
   "#FF9A3D",
   "#22C4CC",
-  "#7C8AA5",
+  "#FF5A36",
   "#FFC233"
 ];
 var CHILD_AVATAR_OPTIONS = [
@@ -489,7 +489,8 @@ function applyFamilyAction(workspace, action, payload) {
         startTime: String(payload.startTime || ""),
         endTime: String(payload.endTime || ""),
         amount: Number(payload.amount) || 0,
-        expenseStatus: payload.expenseStatus === "paid" ? "paid" : "unpaid"
+        expenseStatus: payload.expenseStatus === "paid" ? "paid" : "unpaid",
+        note: typeof payload.note === "string" ? payload.note : ""
       }));
     case "upsertException":
       return workspace.upsertScheduleException(payload);
@@ -1649,7 +1650,7 @@ function createFamilyWorkspace(initial) {
         dates: dates.map((date) => ({ date, startTime: input.startTime, endTime: input.endTime }))
       },
       archived: false,
-      note: "\u901A\u8FC7\u5FEB\u901F\u65B0\u589E\u521B\u5EFA\u7684\u4E34\u65F6\u5B89\u6392"
+      note: String(input.note || "").trim().slice(0, 200)
     });
     let expenseId;
     if (amount > 0) {
@@ -2244,6 +2245,23 @@ async function removeMember(actor, payload) {
   if (target._id) await users().doc(String(target._id)).remove();
   return null;
 }
+async function previewInvite(openid, payload) {
+  const code = normalizeInviteCode(String(payload.code || ""));
+  const invite = await findInvite(code);
+  if (!invite) raise("INVITE_INVALID", "\u9080\u8BF7\u7801\u65E0\u6548\u6216\u5DF2\u5931\u6548");
+  if (!isInviteActive(invite)) {
+    if (Date.parse(invite.expireAt) <= Date.now()) raise("INVITE_EXPIRED", "\u9080\u8BF7\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u8BA9\u5BB6\u957F\u91CD\u65B0\u751F\u6210");
+    raise("INVITE_USED_UP", "\u9080\u8BF7\u5DF2\u7528\u5B8C\uFF0C\u8BF7\u8BA9\u5BB6\u957F\u91CD\u65B0\u751F\u6210");
+  }
+  const existing = await findUser(openid);
+  if (!existing) return { status: "new" };
+  if (existing.familyId === invite.familyId) return { status: "same" };
+  if (existing.role === "owner" && await countFamilyMembers(existing.familyId) > 1) {
+    return { status: "blocked" };
+  }
+  if (existing.role === "owner") return { status: "replace" };
+  return { status: "leave" };
+}
 async function joinFamily(openid, unionid, payload) {
   const code = normalizeInviteCode(String(payload.code || ""));
   const invite = await findInvite(code);
@@ -2353,6 +2371,7 @@ async function dispatchAccount(user, action, payload) {
 }
 async function handle(openid, unionid, action, payload) {
   if (action === "login") return login(openid, unionid, payload);
+  if (action === "previewInvite") return previewInvite(openid, payload);
   if (action === "joinFamily") return joinFamily(openid, unionid, payload);
   const user = await requireUser(openid);
   if (action === "createInvite" || action === "listMembers" || action === "removeMember") {

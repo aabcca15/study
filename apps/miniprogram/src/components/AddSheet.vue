@@ -31,6 +31,7 @@ const mode = ref<'preset' | 'temporary'>('preset')
 const dates = ref<string[]>([])
 const courseId = ref('')
 const title = ref('')
+const note = ref('')
 const startTime = ref('09:00')
 const endTime = ref('10:00')
 const amount = ref('0')
@@ -92,6 +93,7 @@ function resetForm() {
   dates.value = [props.date || dayjs().format('YYYY-MM-DD')]
   courseId.value = ''
   title.value = ''
+  note.value = ''
   amount.value = '0'
   paid.value = false
   pickerOpen.value = false
@@ -136,7 +138,7 @@ async function submit() {
     }
   } else {
     if (!cleanTitle) {
-      formTip('请填写课程名称')
+      formTip('请填写计划名称')
       return
     }
     if (!startTime.value || !endTime.value || endTime.value <= startTime.value) {
@@ -161,6 +163,7 @@ async function submit() {
       await store.quickArrangement({
         dates: sortedDates.value,
         title: cleanTitle,
+        note: cleanText(note.value, TEXT_LIMIT.note),
         startTime: startTime.value,
         endTime: endTime.value,
         amount: Number(amount.value) || 0,
@@ -199,7 +202,7 @@ async function submit() {
 
         <view class="mode-tabs">
           <text class="press" :class="{ on: mode === 'preset' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'preset'">选择已有课程</text>
-          <text class="press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">临时新增计划</text>
+          <text class="press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">新增临时计划</text>
         </view>
 
         <template v-if="mode === 'preset'">
@@ -230,8 +233,12 @@ async function submit() {
 
         <template v-else>
           <view class="field">
-            <text class="field-label">课程名称<text class="req">*</text></text>
-            <input v-model="title" :maxlength="TEXT_LIMIT.courseTitle" placeholder="例如 临时钢琴课" placeholder-class="ph" />
+            <text class="field-label">计划名称<text class="req">*</text></text>
+            <input v-model="title" :maxlength="TEXT_LIMIT.courseTitle" placeholder="例如 家长会 / 临时钢琴课" placeholder-class="ph" />
+          </view>
+          <view class="field">
+            <text class="field-label">备注</text>
+            <input v-model="note" :maxlength="TEXT_LIMIT.note" placeholder="地点或事项，不是课程也可以" placeholder-class="ph" />
           </view>
           <view class="row">
             <view class="field" style="flex: 1">
@@ -324,6 +331,7 @@ async function submit() {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+  white-space: nowrap;
 }
 .mode-tabs text.on {
   background: var(--paper);

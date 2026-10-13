@@ -33,6 +33,16 @@ export function weekLabel(date: string) {
   return `${start.format('M月D日')}–${end.format('M月D日')}`
 }
 
+const LEGACY_TEMPORARY_NOTE = '通过快速新增创建的临时安排'
+
+/** 临时计划没有老师和地点，卡片上改展示备注。旧数据里的系统说明当成没填。 */
+export function temporaryRemark(course: { source?: string; note?: string }) {
+  if (course.source !== 'temporary') return ''
+  const note = (course.note || '').trim()
+  if (!note || note === LEGACY_TEMPORARY_NOTE) return '暂无备注'
+  return note
+}
+
 /** 一天一个点，颜色相同也分开画，方便看出当天有几节课。 */
 export function occurrenceDots(
   courses: Course[],
