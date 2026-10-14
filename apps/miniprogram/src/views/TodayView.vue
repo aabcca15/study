@@ -189,13 +189,13 @@ async function undoCancel() {
         <view class="overview-card press" hover-class="press-on" hover-stay-time="80" @click="openTab('calendar')">
           <view class="overview-head">
             <view class="mark"><AppIcon name="calendar" tone="white" :size="15" /></view>
-            <text>{{ isToday ? '今日课程' : selectedLabel + '课程' }}</text>
+            <text>课程日历</text>
             <text class="more">›</text>
           </view>
           <view class="overview-body">
             <view>
               <text class="big">{{ items.length }}</text>
-              <text class="muted">节计划</text>
+              <text class="muted">节课程</text>
             </view>
             <view class="overview-ring" :style="{ '--ring': dayDonePercent + '%' }">
               <text>{{ dayDonePercent }}%</text>

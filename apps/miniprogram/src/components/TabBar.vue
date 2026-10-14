@@ -135,7 +135,7 @@ onShow(measureSoon)
   <view class="quick-backdrop" :class="{ show: open, dark: theme.isDark }" @click="open = false" />
   <view class="quick-menu" :class="{ show: open, dark: theme.isDark }">
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('add')">
-      <view class="quick-badge accent"><AppIcon name="calendar" tone="white" :size="20" /></view>
+      <text class="quick-badge accent">＋</text>
       <view>
         <text class="title">快速新增计划</text>
         <text class="desc">选择日期、已有课程或临时计划</text>
@@ -149,7 +149,7 @@ onShow(measureSoon)
       </view>
     </button>
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/subpages/expense-edit/index')">
-      <view class="quick-badge teal"><AppIcon name="bill" tone="white" :size="20" /></view>
+      <text class="quick-badge teal">¥</text>
       <view>
         <text class="title">记一笔账单</text>
         <text class="desc">登记一次课程费用</text>
@@ -405,7 +405,9 @@ onShow(measureSoon)
   padding: 0;
   color: #fff;
   border-radius: 14px;
-  line-height: 1;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 42px;
 }
 
 .quick-badge.accent { background: linear-gradient(135deg, #ffb45c, #f15a36); }
