@@ -263,6 +263,9 @@ export const useFamilyStore = defineStore('family', {
     quickArrangement(input: Record<string, unknown>) {
       return this.dispatch('quickArrangement', input)
     },
+    updateCourseNote(courseId: string, note: string) {
+      return this.dispatch('updateCourseNote', { courseId, note })
+    },
     upsertException(input: Record<string, unknown>) {
       return this.dispatch('upsertException', input)
     },

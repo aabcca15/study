@@ -328,7 +328,7 @@ var COURSE_COLORS = [
   "#C265F0",
   "#FF9A3D",
   "#22C4CC",
-  "#FF5A36",
+  "#FF3D9A",
   "#FFC233"
 ];
 var CHILD_AVATAR_OPTIONS = [
@@ -434,16 +434,21 @@ function applyFamilyAction(workspace, action, payload) {
     }
     case "addChild": {
       const id = workspace.addChild(String(payload.name || ""), payload.avatarKey);
-      if (!id) throw new FamilyActionError("INVALID_CHILD_NAME", "\u8BF7\u5148\u586B\u5199\u5B69\u5B50\u540D\u5B57");
+      if (id === "empty") throw new FamilyActionError("INVALID_CHILD_NAME", "\u8BF7\u5148\u586B\u5199\u5B69\u5B50\u540D\u5B57");
+      if (id === "limit") throw new FamilyActionError("CHILD_LIMIT", "\u6700\u591A\u6DFB\u52A0 4 \u4E2A\u5B69\u5B50");
+      if (id === "avatar-taken") throw new FamilyActionError("AVATAR_TAKEN", "\u8FD9\u4E2A\u5934\u50CF\u5DF2\u7ECF\u6709\u5B69\u5B50\u5728\u7528");
       return id;
     }
-    case "updateChild":
-      workspace.updateChild({
+    case "updateChild": {
+      const updated = workspace.updateChild({
         id: String(payload.id || ""),
         name: typeof payload.name === "string" ? payload.name : void 0,
         avatarKey: payload.avatarKey
       });
+      if (updated === "not-found") throw new FamilyActionError("CHILD_NOT_FOUND", "\u8BE5\u5B69\u5B50\u5DF2\u4E0D\u5B58\u5728");
+      if (updated === "avatar-taken") throw new FamilyActionError("AVATAR_TAKEN", "\u8FD9\u4E2A\u5934\u50CF\u5DF2\u7ECF\u6709\u5B69\u5B50\u5728\u7528");
       return null;
+    }
     case "removeChild":
       return raiseCode(workspace.removeChild(String(payload.id || "")), {
         "not-found": ["CHILD_NOT_FOUND", "\u8BE5\u5B69\u5B50\u5DF2\u4E0D\u5B58\u5728"],
@@ -481,6 +486,11 @@ function applyFamilyAction(workspace, action, payload) {
       });
     case "addOccurrences":
       return raiseObject(workspace.addPresetOccurrence(String(payload.courseId || ""), payload.dates));
+    case "updateCourseNote":
+      return raiseCode(workspace.updateCourseNote(String(payload.courseId || ""), String(payload.note ?? "")), {
+        "not-found": ["COURSE_NOT_FOUND", "\u8BFE\u7A0B\u4E0D\u5B58\u5728"],
+        "not-temporary": ["INVALID_INPUT", "\u53EA\u6709\u4E34\u65F6\u8BA1\u5212\u53EF\u4EE5\u6539\u5907\u6CE8"]
+      });
     case "quickArrangement":
       return raiseObject(workspace.createQuickArrangement({
         dates: payload.dates,
@@ -991,26 +1001,34 @@ function createFamilyWorkspace(initial) {
     persist();
     return "removed";
   }
+  function avatarUsedByOther(key, exceptId) {
+    return snapshot.value.children.some((child2) => child2.id !== exceptId && childAvatarOption(child2.avatarKey).key === key);
+  }
   function updateChild(input) {
+    var _a;
     const target = snapshot.value.children.find((item) => item.id === input.id);
-    if (!target) return;
-    if (input.name !== void 0) {
-      const name = input.name.trim();
-      if (!name) return;
-      target.name = name;
-      target.avatarLabel = name.slice(0, 2);
+    if (!target) return "not-found";
+    const nextName = (_a = input.name) == null ? void 0 : _a.trim();
+    if (input.name !== void 0 && !nextName) return "empty";
+    const nextAvatar = input.avatarKey ? childAvatarOption(input.avatarKey) : void 0;
+    if (nextAvatar && avatarUsedByOther(nextAvatar.key, target.id)) return "avatar-taken";
+    if (nextName) {
+      target.name = nextName;
+      target.avatarLabel = nextName.slice(0, 2);
     }
-    if (input.avatarKey) {
-      const option = childAvatarOption(input.avatarKey);
-      target.avatarKey = option.key;
-      target.avatarColor = option.color;
+    if (nextAvatar) {
+      target.avatarKey = nextAvatar.key;
+      target.avatarColor = nextAvatar.color;
     }
     persist();
+    return "updated";
   }
   function addChild(name, avatarKey) {
     const trimmed = name.trim();
-    if (!trimmed) return "";
+    if (!trimmed) return "empty";
+    if (snapshot.value.children.length >= CHILD_AVATAR_OPTIONS.length) return "limit";
     const option = childAvatarOption(avatarKey);
+    if (avatarUsedByOther(option.key)) return "avatar-taken";
     const id = createId("child");
     snapshot.value.children.push({
       id,
@@ -1074,6 +1092,14 @@ function createFamilyWorkspace(initial) {
   }
   function findCourse(courseId) {
     return snapshot.value.courses.find((item) => item.id === courseId);
+  }
+  function updateCourseNote(courseId, note) {
+    const course = findCourse(courseId);
+    if (!course) return "not-found";
+    if (course.source !== "temporary") return "not-temporary";
+    course.note = note.trim().slice(0, 200);
+    persist();
+    return "updated";
   }
   function findExpense(expenseId) {
     return snapshot.value.expenses.find((item) => item.id === expenseId);
@@ -1854,6 +1880,7 @@ function createFamilyWorkspace(initial) {
     removeChild,
     selectChild,
     findCourse,
+    updateCourseNote,
     findExpense,
     findOccurrenceExpense,
     upsertCourse,

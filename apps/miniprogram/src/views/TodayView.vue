@@ -31,7 +31,7 @@ const clock = ref(dayjs().format('HH:mm'))
 
 function openAdd() {
   if (!store.ready) {
-    if (!hasLocalSession()) promptLogin('登录后才能新增计划。是否前往登录？')
+    if (!hasLocalSession()) promptLogin()
     return
   }
   if (!store.canWrite) return
@@ -40,7 +40,7 @@ function openAdd() {
 
 function openEdit(item: DayOccurrence) {
   if (!store.ready) {
-    if (!hasLocalSession()) promptLogin('登录后才能修改计划。是否前往登录？')
+    if (!hasLocalSession()) promptLogin()
     return
   }
   editing.value = item
@@ -48,7 +48,7 @@ function openEdit(item: DayOccurrence) {
 
 function openBills() {
   if (!store.ready) {
-    if (!hasLocalSession()) promptLogin('登录后才能查看账单。是否前往登录？')
+    if (!hasLocalSession()) promptLogin()
     return
   }
   uni.navigateTo({ url: '/subpages/bills/index?from=today' })

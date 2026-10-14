@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { CHILD_AVATAR_OPTIONS, COURSE_TYPE_LABEL } from '@server-domain/constants'
+import { CHILD_AVATAR_OPTIONS, childAvatarOption, COURSE_TYPE_LABEL } from '@server-domain/constants'
 import type { ChildAvatarKey, Course } from '@server-domain/types'
 import { getCourseAmountLabel, getCourseBillingSummary, getCourseLifecycle, getCoursePricingLabel } from '@server-domain/courseOverview'
 import { courseScheduleProgress } from '@server-domain/courseSchedule'
@@ -25,7 +25,7 @@ const managing = ref(false)
 
 function openCreate() {
   if (!store.ready) {
-    if (!hasLocalSession()) promptLogin('登录后才能新增课程。是否前往登录？')
+    if (!hasLocalSession()) promptLogin()
     return
   }
   uni.navigateTo({ url: '/subpages/course-edit/index' })
@@ -33,7 +33,7 @@ function openCreate() {
 
 function openManage() {
   if (!store.ready) {
-    if (!hasLocalSession()) promptLogin('登录后才能管理孩子。是否前往登录？')
+    if (!hasLocalSession()) promptLogin()
     return
   }
   managing.value = true
@@ -45,12 +45,32 @@ const newAvatar = ref<ChildAvatarKey>('boy-blue')
 const names = reactive<Record<string, string>>({})
 const newChildPlaceholder = computed(() => avatarDefaultName(newAvatar.value))
 
+function avatarUsedByOther(key: ChildAvatarKey, exceptId?: string) {
+  return store.snapshot.children.some((child) => child.id !== exceptId && childAvatarOption(child.avatarKey).key === key)
+}
+
+function firstFreeAvatar() {
+  return CHILD_AVATAR_OPTIONS.find((option) => !avatarUsedByOther(option.key))?.key
+}
+
+function pickNewAvatar(key: ChildAvatarKey) {
+  if (avatarUsedByOther(key)) {
+    formTip('这个头像已经有孩子在用')
+    return
+  }
+  newAvatar.value = key
+}
+
+const canAddChild = computed(() =>
+  store.snapshot.children.length < CHILD_AVATAR_OPTIONS.length && Boolean(firstFreeAvatar()),
+)
+
 watch(managing, (open) => {
   emit('cover', open)
   if (!open) return
   editingAvatarId.value = ''
   newName.value = ''
-  newAvatar.value = 'boy-blue'
+  newAvatar.value = firstFreeAvatar() ?? 'boy-blue'
   for (const child of store.snapshot.children) names[child.id] = child.name
 })
 const ui = useUiStore()
@@ -111,6 +131,15 @@ async function saveName(id: string) {
 }
 
 async function setAvatar(id: string, key: ChildAvatarKey) {
+  const current = store.snapshot.children.find((child) => child.id === id)
+  if (current && childAvatarOption(current.avatarKey).key === key) {
+    editingAvatarId.value = ''
+    return
+  }
+  if (avatarUsedByOther(key, id)) {
+    formTip('这个头像已经有孩子在用')
+    return
+  }
   try {
     await store.updateChild(id, { avatarKey: key })
     editingAvatarId.value = ''
@@ -120,6 +149,14 @@ async function setAvatar(id: string, key: ChildAvatarKey) {
 }
 
 async function addChild() {
+  if (!canAddChild.value) {
+    formTip('最多添加 4 个孩子')
+    return
+  }
+  if (avatarUsedByOther(newAvatar.value)) {
+    formTip('这个头像已经有孩子在用')
+    return
+  }
   const name = cleanText(newName.value, TEXT_LIMIT.childName) || newChildPlaceholder.value
   try {
     const id = await store.addChild(name, newAvatar.value)
@@ -129,7 +166,7 @@ async function addChild() {
     }
     names[id] = name
     newName.value = ''
-    newAvatar.value = 'boy-blue'
+    newAvatar.value = firstFreeAvatar() ?? newAvatar.value
   } catch (error) {
     showCloudError(error)
   }
@@ -218,7 +255,7 @@ function more(course: Course) {
               hover-stay-time="80"
               @click="onChildChange(child.id)"
             >
-              <ChildAvatar :avatar-key="child.avatarKey" :size="40" />
+              <ChildAvatar :avatar-key="child.avatarKey" :size="34" />
               <text>{{ child.name }}</text>
             </view>
             <view v-if="store.canWrite" class="manage press" hover-class="press-on" hover-stay-time="80" @click="openManage">
@@ -296,7 +333,7 @@ function more(course: Course) {
                 v-for="option in CHILD_AVATAR_OPTIONS"
                 :key="option.key"
                 class="press"
-                :class="{ on: child.avatarKey === option.key }"
+                :class="{ on: child.avatarKey === option.key, off: child.avatarKey !== option.key && avatarUsedByOther(option.key, child.id) }"
                 hover-class="press-on"
                 hover-stay-time="80"
                 @click="setAvatar(child.id, option.key)"
@@ -310,24 +347,27 @@ function more(course: Course) {
             </view>
             <text class="delete press" hover-class="press-on" hover-stay-time="80" @click="removeCurrentChild(child.id, child.name)">删除</text>
           </view>
-          <text class="field-label">选择头像</text>
-          <view class="avatar-choices new">
-            <view
-              v-for="option in CHILD_AVATAR_OPTIONS"
-              :key="option.key"
-              class="press"
-              :class="{ on: newAvatar === option.key }"
-              hover-class="press-on"
-              hover-stay-time="80"
-              @click="newAvatar = option.key"
-            >
-              <ChildAvatar :avatar-key="option.key" :size="48" />
+          <template v-if="canAddChild">
+            <text class="field-label">选择头像</text>
+            <view class="avatar-choices new">
+              <view
+                v-for="option in CHILD_AVATAR_OPTIONS"
+                :key="option.key"
+                class="press"
+                :class="{ on: newAvatar === option.key, off: avatarUsedByOther(option.key) }"
+                hover-class="press-on"
+                hover-stay-time="80"
+                @click="pickNewAvatar(option.key)"
+              >
+                <ChildAvatar :avatar-key="option.key" :size="44" />
+              </view>
             </view>
-          </view>
-          <view class="new-row">
-            <input v-model="newName" :maxlength="TEXT_LIMIT.childName" :placeholder="newChildPlaceholder" placeholder-class="ph" />
-            <button hover-class="press-on" hover-stay-time="80" class="btn" @click="addChild">添加</button>
-          </view>
+            <view class="new-row">
+              <input v-model="newName" :maxlength="TEXT_LIMIT.childName" :placeholder="newChildPlaceholder" placeholder-class="ph" />
+              <button hover-class="press-on" hover-stay-time="80" class="btn" @click="addChild">添加</button>
+            </view>
+          </template>
+          <text v-else class="child-limit">最多 4 个孩子，每个头像只能用一次</text>
         </scroll-view>
       </view>
     </view>
@@ -344,15 +384,15 @@ function more(course: Course) {
   letter-spacing: -0.03em;
   text-overflow: clip;
 }
-.child-row { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: flex-end; gap: 8px; }
-.child-pill { display: flex; width: 48px; flex-direction: column; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 650; }
+.child-row { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: flex-end; gap: 2px; }
+.child-pill { display: flex; width: 40px; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 3px; color: var(--muted); font-size: 9px; font-weight: 650; }
 .child-pill text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pill.on { color: var(--ink); font-weight: 750; }
-.child-pill.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #8eb6ff; }
+.child-pill.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .manage {
   display: flex;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   align-items: center;
   justify-content: center;
   border: 1px dashed rgba(255, 122, 69, 0.45);
@@ -460,9 +500,11 @@ function more(course: Course) {
 .profile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 9px; border-radius: 16px; background: var(--surface-2); }
 .profile-name { flex: 1; min-width: 0; margin-bottom: 0; }
 .delete { color: #ed5d6e; font-size: 12px; font-weight: 700; }
-.avatar-choices { display: flex; flex-wrap: wrap; gap: 8px; }
-.avatar-choices.new { margin: 8px 0 12px; }
-.avatar-choices .on :deep(.child-face) { box-shadow: 0 0 0 2px #ff7a45; }
+.avatar-choices { display: flex; flex-wrap: nowrap; gap: 6px; }
+.avatar-choices.new { margin: 8px 0 12px; justify-content: space-between; }
+.avatar-choices .on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
+.avatar-choices .off { opacity: 0.35; }
+.child-limit { display: block; margin: 8px 2px 4px; color: var(--muted); font-size: 12px; }
 .new-row { display: flex; align-items: center; gap: 8px; }
 .new-row input { flex: 1; min-height: 44px; padding: 0 12px; border-radius: 14px; color: var(--ink); background: var(--field-bg); box-shadow: inset 0 0 0 1px var(--line); }
 .course.inactive { color: var(--muted); }

@@ -94,6 +94,14 @@ function participants(item: DayOccurrence) {
   return store.snapshot.children.filter((child) => assigned.includes(child.id))
 }
 
+/** 当天看结束时间；更早的日期整张卡都算已过。 */
+function isFinished(date: string, end: string) {
+  const today = dayjs().format('YYYY-MM-DD')
+  if (date < today) return true
+  if (date > today) return false
+  return end <= now.value
+}
+
 function courseIcon(item: DayOccurrence) {
   const live = store.snapshot.courses.find((course) => course.id === item.course.id)
   return live?.icon || item.course.icon || 'generic'
@@ -148,7 +156,7 @@ const rows = computed(() => {
       background: `linear-gradient(90deg, ${mix(color, paper, 0.28)} 0%, ${deepTone(color)} 100%)`,
     },
     startStyle: { color: deepTone(color) },
-    finished: props.date === dayjs().format('YYYY-MM-DD') && endOf(item) <= now.value,
+    finished: isFinished(props.date || item.date, endOf(item)),
     endStyle: { color: mix(color, paper, dark ? 0.42 : 0.36) },
     lineStyle: {
       background: `linear-gradient(180deg, ${deepTone(color)} 0%, ${mix(color, paper, dark ? 0.68 : 0.58)} 100%)`,
@@ -188,13 +196,17 @@ const rows = computed(() => {
           </view>
         </view>
         <view class="lesson-card" :style="row.cardStyle">
-          <view v-if="row.finished" class="done-seal"><text>已完成</text></view>
+          <view v-if="row.finished" class="done-seal">
+            <view class="done-ring">
+              <view class="done-inner"><text>已完成</text></view>
+            </view>
+          </view>
           <view class="lesson-body">
             <view class="lesson-time" :style="row.tileStyle">
               <AppIcon :key="row.icon" :name="row.icon" tone="white" :size="26" />
             </view>
             <view class="lesson-copy">
-              <text class="lesson-type" :style="row.typeStyle">{{ COURSE_TYPE_LABEL[row.item.course.type] }}</text>
+              <text class="lesson-type" :style="row.typeStyle">{{ row.temporary ? '临时计划' : COURSE_TYPE_LABEL[row.item.course.type] }}</text>
               <text class="lesson-name">{{ row.item.course.title }}</text>
               <view class="lesson-meta">
                 <text v-if="row.temporary" class="remark">{{ row.remark }}</text>
@@ -332,31 +344,45 @@ const rows = computed(() => {
 }
 .done-seal {
   position: absolute;
-  z-index: 1;
-  top: 46px;
-  right: 18px;
+  z-index: 4;
+  right: -26px;
+  bottom: -22px;
   display: flex;
-  width: 68px;
-  height: 68px;
+  width: 100px;
+  height: 100px;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
-  border: 2px solid var(--paid);
-  border-radius: 50%;
   color: var(--paid);
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--paid);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  opacity: 0.55;
-  transform: rotate(-16deg);
+  opacity: 0.4;
+  transform: rotate(-18deg);
   pointer-events: none;
 }
-.done-seal text { line-height: 1; }
+.done-ring {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+.done-inner {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.done-inner text {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  transform: translate(-8px, -6px);
+}
 .lesson-body,
-.course-progress { position: relative; z-index: 2; }
+.course-progress { position: relative; z-index: 1; }
 .lesson-body { display: flex; align-items: flex-start; gap: 10px; }
 .lesson-time {
   display: flex;

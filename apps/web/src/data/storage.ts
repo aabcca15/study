@@ -26,7 +26,8 @@ const LEGACY_COLORS: Record<string, string> = {
   '#fff0c9': '#F0A92B',
   '#d8eff3': '#22C4CC',
   '#ffe7b8': '#F0A92B',
-  '#e7e9ef': '#7C8AA5',
+  '#e7e9ef': '#FF3D9A',
+  '#7c8aa5': '#FF3D9A',
 }
 
 function inferCourseIcon(course: Course): CourseIcon {

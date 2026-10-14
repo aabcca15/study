@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import ChildAvatar from '@/components/ChildAvatar.vue'
-import { CHILD_AVATAR_OPTIONS, DEFAULT_CHILD_AVATAR } from '@/domain/constants'
+import { CHILD_AVATAR_OPTIONS, childAvatarOption, DEFAULT_CHILD_AVATAR } from '@/domain/constants'
 import type { ChildAvatarKey } from '@/domain/types'
 
 const props = withDefaults(defineProps<{
@@ -26,11 +26,23 @@ const editingAvatarId = ref('')
 const error = ref('')
 const names = reactive<Record<string, string>>({})
 
+function avatarUsedByOther(key: ChildAvatarKey, exceptId?: string) {
+  return store.snapshot.children.some((child) => child.id !== exceptId && childAvatarOption(child.avatarKey).key === key)
+}
+
+function firstFreeAvatar() {
+  return CHILD_AVATAR_OPTIONS.find((option) => !avatarUsedByOther(option.key))?.key ?? DEFAULT_CHILD_AVATAR.key
+}
+
+const canAddChild = computed(() =>
+  store.snapshot.children.length < CHILD_AVATAR_OPTIONS.length && CHILD_AVATAR_OPTIONS.some((option) => !avatarUsedByOther(option.key)),
+)
+
 watch(managing, (open) => {
   if (!open) return
   error.value = ''
   editingAvatarId.value = ''
-  newChildAvatar.value = DEFAULT_CHILD_AVATAR.key
+  newChildAvatar.value = firstFreeAvatar()
   for (const child of store.snapshot.children) names[child.id] = child.name
 })
 
@@ -55,19 +67,40 @@ function childActionLabel(childId: string, childName: string) {
 
 async function addChild() {
   error.value = ''
-  const id = await store.addChild(newChildName.value, newChildAvatar.value)
-  if (!id) {
-    error.value = '请先填写孩子名字'
+  if (!canAddChild.value) {
+    error.value = '最多添加 4 个孩子'
     return
   }
-  names[id] = newChildName.value.trim()
-  newChildName.value = ''
-  newChildAvatar.value = DEFAULT_CHILD_AVATAR.key
+  if (avatarUsedByOther(newChildAvatar.value)) {
+    error.value = '这个头像已经有孩子在用'
+    return
+  }
+  try {
+    const id = await store.addChild(newChildName.value, newChildAvatar.value)
+    if (!id) {
+      error.value = '请先填写孩子名字'
+      return
+    }
+    names[id] = newChildName.value.trim()
+    newChildName.value = ''
+    newChildAvatar.value = firstFreeAvatar()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '添加失败'
+  }
 }
 
 async function setChildAvatar(childId: string, avatarKey: ChildAvatarKey) {
-  await store.updateChild({ id: childId, avatarKey })
-  editingAvatarId.value = ''
+  if (avatarUsedByOther(avatarKey, childId)) {
+    error.value = '这个头像已经有孩子在用'
+    return
+  }
+  error.value = ''
+  try {
+    await store.updateChild({ id: childId, avatarKey })
+    editingAvatarId.value = ''
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '更换头像失败'
+  }
 }
 
 async function saveName(childId: string) {
@@ -145,8 +178,9 @@ async function removeChild(childId: string, childName: string) {
                     type="button"
                     role="radio"
                     :aria-checked="child.avatarKey === option.key"
-                    :class="{ active: child.avatarKey === option.key }"
+                    :class="{ active: child.avatarKey === option.key, taken: avatarUsedByOther(option.key, child.id) }"
                     :aria-label="option.label"
+                    :disabled="avatarUsedByOther(option.key, child.id)"
                     @click="setChildAvatar(child.id, option.key)"
                   >
                     <ChildAvatar :avatar-key="option.key" :size="36" />
@@ -162,7 +196,7 @@ async function removeChild(childId: string, childName: string) {
               </div>
             </div>
 
-            <div class="new-child">
+            <div v-if="canAddChild" class="new-child">
               <p>选择头像</p>
               <div class="avatar-choices" role="radiogroup" aria-label="选择新孩子头像">
                 <button
@@ -171,8 +205,9 @@ async function removeChild(childId: string, childName: string) {
                   type="button"
                   role="radio"
                   :aria-checked="newChildAvatar === option.key"
-                  :class="{ active: newChildAvatar === option.key }"
+                  :class="{ active: newChildAvatar === option.key, taken: avatarUsedByOther(option.key) }"
                   :aria-label="option.label"
+                  :disabled="avatarUsedByOther(option.key)"
                   @click="newChildAvatar = option.key"
                 >
                   <ChildAvatar :avatar-key="option.key" :size="52" />
@@ -183,6 +218,7 @@ async function removeChild(childId: string, childName: string) {
                 <button type="button" @click="addChild">添加</button>
               </div>
             </div>
+            <p v-else class="child-limit">最多 4 个孩子，每个头像只能用一次</p>
             <p v-if="error" class="child-error">{{ error }}</p>
           </section>
         </div>
@@ -289,6 +325,8 @@ async function removeChild(childId: string, childName: string) {
   background: var(--accent-soft);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, #fff);
 }
+.avatar-choices button.taken { opacity: 0.35; }
+.child-limit { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .avatar-choices.compact {
   justify-content: flex-start;
   gap: 4px;

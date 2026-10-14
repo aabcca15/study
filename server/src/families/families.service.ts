@@ -50,18 +50,22 @@ export class FamiliesService {
   addChild(user: JwtUser, name: string, avatarKey?: string) {
     return this.mutate(user, (workspace) => {
       const id = workspace.addChild(name, avatarKey as ChildAvatarKey | undefined)
-      if (!id) throw new BusinessError('INVALID_CHILD_NAME', '请先填写孩子名字', 400)
+      if (id === 'empty') throw new BusinessError('INVALID_CHILD_NAME', '请先填写孩子名字', 400)
+      if (id === 'limit') throw new BusinessError('CHILD_LIMIT', '最多添加 4 个孩子', 400)
+      if (id === 'avatar-taken') throw new BusinessError('AVATAR_TAKEN', '这个头像已经有孩子在用', 409)
       return id
     })
   }
 
   updateChild(user: JwtUser, id: string, input: { name?: string; avatarKey?: string }) {
     return this.mutate(user, (workspace) => {
-      workspace.updateChild({
+      const updated = workspace.updateChild({
         id,
         name: input.name,
         avatarKey: input.avatarKey as ChildAvatarKey | undefined,
       })
+      if (updated === 'not-found') throw new BusinessError('CHILD_NOT_FOUND', '该孩子已不存在', 404)
+      if (updated === 'avatar-taken') throw new BusinessError('AVATAR_TAKEN', '这个头像已经有孩子在用', 409)
     })
   }
 

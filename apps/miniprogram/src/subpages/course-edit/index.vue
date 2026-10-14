@@ -600,8 +600,9 @@ function pickIcon(icon: CourseIcon) {
   box-shadow: var(--elev-sm);
 }
 .participants-title { display: block; margin-bottom: 12px; color: var(--muted); text-align: center; font-size: 12px; font-weight: 650; }
-.child-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.child-pick { display: flex; width: 76px; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.child-row { display: flex; flex-wrap: nowrap; justify-content: center; gap: 4px; }
+.child-pick { display: flex; flex: 1; max-width: 80px; min-width: 0; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.child-pick text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pick.on { color: var(--ink); }
 .child-pick.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .editor-card {

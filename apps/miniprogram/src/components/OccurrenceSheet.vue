@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import dayjs from 'dayjs'
-import { WEEKDAY_SHORT } from '@server-domain/constants'
 import type { DayOccurrence } from '@server-domain/types'
 import { tileBackground } from '@/utils/color'
 import AppIcon from './AppIcon.vue'
 import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
-import { occurrenceExpense, temporaryRemark } from '@/utils/view'
+import { occurrenceExpense, temporaryNoteValue, temporaryRemark } from '@/utils/view'
 import { TEXT_LIMIT } from '@/domain/limits'
-import { amountError, formTip } from '@/utils/form'
+import { amountError, cleanText, formTip } from '@/utils/form'
 import TimeField from './TimeField.vue'
 
 const props = defineProps<{
@@ -27,6 +25,7 @@ const startTime = ref('18:00')
 const endTime = ref('19:00')
 const amount = ref('0')
 const paid = ref(false)
+const note = ref('')
 const saving = ref(false)
 
 const expense = computed(() =>
@@ -39,24 +38,13 @@ const icon = computed(() => {
   if (!course) return 'generic'
   return store.snapshot.courses.find((item) => item.id === course.id)?.icon || course.icon || 'generic'
 })
-const dateLabel = computed(() => {
-  if (!props.item) return ''
-  const date = dayjs(props.item.date)
-  return `${date.format('M月D日')} 周${WEEKDAY_SHORT[date.day()]}`
-})
 const infoRows = computed(() => {
   const item = props.item
-  if (!item) return []
-  const rows = [
-    { icon: 'calendar', label: '日期', value: dateLabel.value },
-    { icon: 'clock', label: '时间', value: `${startTime.value}–${endTime.value}` },
+  if (!item || temporary.value) return []
+  return [
+    { icon: 'family', label: '老师', value: item.course.teacher || '待定' },
+    { icon: 'school', label: '地点', value: item.course.location || '待定' },
   ]
-  if (temporary.value) rows.push({ icon: 'clipboard', label: '备注', value: temporaryRemark(item.course) })
-  else {
-    rows.push({ icon: 'family', label: '老师', value: item.course.teacher || '待定' })
-    rows.push({ icon: 'school', label: '地点', value: item.course.location || '待定' })
-  }
-  return rows
 })
 const free = computed(() => {
   const course = props.item?.course
@@ -70,6 +58,7 @@ watch(() => props.item, (item) => {
   const bill = occurrenceExpense(store.overviewExpenses, item.course, item.date)
   amount.value = String(bill?.amount ?? item.course.amount ?? 0)
   paid.value = bill?.status === 'paid'
+  note.value = temporaryNoteValue(item.course)
 }, { immediate: true })
 
 async function save() {
@@ -102,6 +91,12 @@ async function save() {
     }
     if (!free.value && !locked.value) {
       await store.saveOccurrenceExpense(item.course.id, item.date, Number(amount.value) || 0, paid.value)
+    }
+    if (temporary.value) {
+      const nextNote = cleanText(note.value, TEXT_LIMIT.note)
+      if (nextNote !== temporaryNoteValue(item.course)) {
+        await store.updateCourseNote(item.course.id, nextNote)
+      }
     }
     emit('close')
   } catch (error) {
@@ -154,16 +149,22 @@ function cancelOnce() {
         <text class="close press" hover-class="press-on" hover-stay-time="80" @click="emit('close')">×</text>
       </view>
       <scroll-view scroll-y class="sheet-scroll" :show-scrollbar="false">
-        <view class="info-card">
+        <view v-if="infoRows.length" class="info-card">
           <view v-for="row in infoRows" :key="row.label" class="info-row">
             <view class="info-mark"><AppIcon :name="row.icon" tone="muted" :size="15" /></view>
             <text class="info-label">{{ row.label }}</text>
             <text class="info-value">{{ row.value }}</text>
           </view>
         </view>
+        <view v-else-if="temporary && readonly" class="info-card">
+          <view class="info-row">
+            <view class="info-mark"><AppIcon name="clipboard" tone="muted" :size="15" /></view>
+            <text class="info-label">备注</text>
+            <text class="info-value">{{ temporaryRemark(item.course) }}</text>
+          </view>
+        </view>
         <template v-if="!readonly">
-          <text class="section-label">调整这一次</text>
-          <view class="row">
+          <view class="row" :class="{ 'time-first': !infoRows.length }">
             <view class="field" style="flex: 1">
               <text class="field-label">开始</text>
               <TimeField v-model="startTime" />
@@ -172,6 +173,10 @@ function cancelOnce() {
               <text class="field-label">结束</text>
               <TimeField v-model="endTime" />
             </view>
+          </view>
+          <view v-if="temporary" class="field">
+            <text class="field-label">备注</text>
+            <input v-model="note" :maxlength="TEXT_LIMIT.note" placeholder="地点或事项" placeholder-class="ph" />
           </view>
           <view v-if="!free" class="field">
             <text class="field-label">金额</text>
@@ -235,6 +240,7 @@ function cancelOnce() {
   white-space: nowrap;
 }
 .info-card {
+  margin-bottom: 14px;
   padding: 4px 14px;
   border-radius: 18px;
   background: var(--surface-2);
@@ -263,13 +269,7 @@ function cancelOnce() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.section-label {
-  display: block;
-  margin: 18px 2px 10px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
+.time-first { margin-top: 2px; }
 .close {
   width: 34px;
   height: 34px;

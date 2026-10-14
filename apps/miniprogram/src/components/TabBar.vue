@@ -72,7 +72,7 @@ function measure() {
 function go(key: TabKey) {
   open.value = false
   if (key === 'stats' && !family.ready && !hasLocalSession()) {
-    promptLogin('登录后可以查看课程统计。是否前往登录？')
+    promptLogin()
     return
   }
   openTab(key)
@@ -89,7 +89,7 @@ function toggleFab() {
 function openFamily() {
   open.value = false
   if (!family.ready && !hasLocalSession()) {
-    promptLogin('登录后才能邀请家人。是否前往登录？')
+    promptLogin()
     return
   }
   uni.navigateTo({ url: '/subpages/family/index' })
@@ -98,7 +98,7 @@ function openFamily() {
 function quick(url: string) {
   if (!family.ready && !hasLocalSession()) {
     open.value = false
-    promptLogin('登录后才能新增计划、课程或记录账单。是否前往登录？')
+    promptLogin()
     return
   }
   if (!family.canWrite) {
@@ -135,21 +135,21 @@ onShow(measureSoon)
   <view class="quick-backdrop" :class="{ show: open, dark: theme.isDark }" @click="open = false" />
   <view class="quick-menu" :class="{ show: open, dark: theme.isDark }">
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('add')">
-      <text class="quick-badge accent">＋</text>
+      <view class="quick-badge accent"><AppIcon name="calendar" tone="white" :size="20" /></view>
       <view>
         <text class="title">快速新增计划</text>
         <text class="desc">选择日期、已有课程或临时计划</text>
       </view>
     </button>
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/subpages/course-edit/index')">
-      <text class="quick-badge amber">✦</text>
+      <view class="quick-badge amber"><AppIcon name="book" tone="white" :size="20" /></view>
       <view>
         <text class="title">新增课程</text>
         <text class="desc">建立新的课程预设</text>
       </view>
     </button>
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('/subpages/expense-edit/index')">
-      <text class="quick-badge teal">¥</text>
+      <view class="quick-badge teal"><AppIcon name="bill" tone="white" :size="20" /></view>
       <view>
         <text class="title">记一笔账单</text>
         <text class="desc">登记一次课程费用</text>
@@ -386,7 +386,9 @@ onShow(measureSoon)
   display: flex;
   gap: 11px;
   align-items: center;
+  justify-content: flex-start;
   padding: 9px;
+  line-height: 1;
   text-align: left;
   border-radius: 18px;
   background: transparent;
@@ -397,12 +399,13 @@ onShow(measureSoon)
   display: flex;
   width: 42px;
   height: 42px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  padding: 0;
   color: #fff;
   border-radius: 14px;
-  font-size: 18px;
-  font-weight: 700;
+  line-height: 1;
 }
 
 .quick-badge.accent { background: linear-gradient(135deg, #ffb45c, #f15a36); }

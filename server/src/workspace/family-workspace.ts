@@ -13,7 +13,7 @@ import type {
   ScheduleException,
   SettlementCycle,
 } from '../domain/types'
-import { childAvatarOption, createId, randomCourseColor } from '../domain/constants'
+import { CHILD_AVATAR_OPTIONS, childAvatarOption, createId, randomCourseColor } from '../domain/constants'
 import { currentPeriod } from '../domain/billing'
 import {
   busyIntervalsOnDate,
@@ -204,27 +204,35 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
     return 'removed' as const
   }
 
+  function avatarUsedByOther(key: ChildAvatarKey, exceptId?: string) {
+    return snapshot.value.children.some((child) => child.id !== exceptId && childAvatarOption(child.avatarKey).key === key)
+  }
+
   function updateChild(input: Pick<ChildProfile, 'id'> & Partial<Pick<ChildProfile, 'name' | 'avatarKey'>>) {
     const target = snapshot.value.children.find((item) => item.id === input.id)
-    if (!target) return
-    if (input.name !== undefined) {
-      const name = input.name.trim()
-      if (!name) return
-      target.name = name
-      target.avatarLabel = name.slice(0, 2)
+    if (!target) return 'not-found' as const
+    const nextName = input.name?.trim()
+    if (input.name !== undefined && !nextName) return 'empty' as const
+    const nextAvatar = input.avatarKey ? childAvatarOption(input.avatarKey) : undefined
+    if (nextAvatar && avatarUsedByOther(nextAvatar.key, target.id)) return 'avatar-taken' as const
+    if (nextName) {
+      target.name = nextName
+      target.avatarLabel = nextName.slice(0, 2)
     }
-    if (input.avatarKey) {
-      const option = childAvatarOption(input.avatarKey)
-      target.avatarKey = option.key
-      target.avatarColor = option.color
+    if (nextAvatar) {
+      target.avatarKey = nextAvatar.key
+      target.avatarColor = nextAvatar.color
     }
     persist()
+    return 'updated' as const
   }
 
   function addChild(name: string, avatarKey?: ChildAvatarKey) {
     const trimmed = name.trim()
-    if (!trimmed) return ''
+    if (!trimmed) return 'empty' as const
+    if (snapshot.value.children.length >= CHILD_AVATAR_OPTIONS.length) return 'limit' as const
     const option = childAvatarOption(avatarKey)
+    if (avatarUsedByOther(option.key)) return 'avatar-taken' as const
     const id = createId('child')
     snapshot.value.children.push({
       id,
@@ -299,6 +307,15 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
 
   function findCourse(courseId: string) {
     return snapshot.value.courses.find((item) => item.id === courseId)
+  }
+
+  function updateCourseNote(courseId: string, note: string) {
+    const course = findCourse(courseId)
+    if (!course) return 'not-found' as const
+    if (course.source !== 'temporary') return 'not-temporary' as const
+    course.note = note.trim().slice(0, 200)
+    persist()
+    return 'updated' as const
   }
 
   function findExpense(expenseId: string) {
@@ -1161,6 +1178,7 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
     removeChild,
     selectChild,
     findCourse,
+    updateCourseNote,
     findExpense,
     findOccurrenceExpense,
     upsertCourse,

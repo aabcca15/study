@@ -54,16 +54,21 @@ export function applyFamilyAction(workspace: Workspace, action: string, payload:
     }
     case 'addChild': {
       const id = workspace.addChild(String(payload.name || ''), payload.avatarKey as ChildAvatarKey | undefined)
-      if (!id) throw new FamilyActionError('INVALID_CHILD_NAME', '请先填写孩子名字')
+      if (id === 'empty') throw new FamilyActionError('INVALID_CHILD_NAME', '请先填写孩子名字')
+      if (id === 'limit') throw new FamilyActionError('CHILD_LIMIT', '最多添加 4 个孩子')
+      if (id === 'avatar-taken') throw new FamilyActionError('AVATAR_TAKEN', '这个头像已经有孩子在用')
       return id
     }
-    case 'updateChild':
-      workspace.updateChild({
+    case 'updateChild': {
+      const updated = workspace.updateChild({
         id: String(payload.id || ''),
         name: typeof payload.name === 'string' ? payload.name : undefined,
         avatarKey: payload.avatarKey as ChildAvatarKey | undefined,
       })
+      if (updated === 'not-found') throw new FamilyActionError('CHILD_NOT_FOUND', '该孩子已不存在')
+      if (updated === 'avatar-taken') throw new FamilyActionError('AVATAR_TAKEN', '这个头像已经有孩子在用')
       return null
+    }
     case 'removeChild':
       return raiseCode(workspace.removeChild(String(payload.id || '')), {
         'not-found': ['CHILD_NOT_FOUND', '该孩子已不存在'],
@@ -101,6 +106,11 @@ export function applyFamilyAction(workspace: Workspace, action: string, payload:
       })
     case 'addOccurrences':
       return raiseObject(workspace.addPresetOccurrence(String(payload.courseId || ''), payload.dates as string[]))
+    case 'updateCourseNote':
+      return raiseCode(workspace.updateCourseNote(String(payload.courseId || ''), String(payload.note ?? '')), {
+        'not-found': ['COURSE_NOT_FOUND', '课程不存在'],
+        'not-temporary': ['INVALID_INPUT', '只有临时计划可以改备注'],
+      })
     case 'quickArrangement':
       return raiseObject(workspace.createQuickArrangement({
         dates: payload.dates as string[] | undefined,
