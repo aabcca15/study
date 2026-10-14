@@ -1,3 +1,6 @@
+/** 还没有家庭时写操作被拦下，已经弹过创建引导，不再提示错误。 */
+export const NEED_FAMILY = 'NEED_FAMILY'
+
 export class CloudError extends Error {
   code: string
 
@@ -42,6 +45,7 @@ export function callCloud<T>(action: string, payload?: Record<string, unknown>):
 }
 
 export function showCloudError(error: unknown) {
+  if (error instanceof CloudError && error.code === NEED_FAMILY) return
   const message = error instanceof Error ? error.message : '操作失败'
   if (message.length > 18) {
     uni.showModal({ title: '提示', content: message, showCancel: false })

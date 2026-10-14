@@ -112,6 +112,17 @@ function askJoin(title: string, content: string) {
   })
 }
 
+/** 从哪个页面点进来就回哪里，表单还在，可以接着提交；直接打开的登录页回今日。 */
+function leave() {
+  if (getCurrentPages().length > 1) uni.navigateBack()
+  else openTab('today')
+}
+
+function cancel() {
+  if (submitting.value) return
+  leave()
+}
+
 async function stayHome() {
   if (submitting.value) return
   if (!store.ready && hasLocalSession()) {
@@ -174,7 +185,7 @@ async function submit() {
     } else {
       await store.login(cleanText(childName.value, TEXT_LIMIT.childName) || childPlaceholder.value, avatarKey.value)
     }
-    openTab('today')
+    leave()
   } catch (error) {
     showCloudError(error)
   } finally {
@@ -235,6 +246,9 @@ async function submit() {
           <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
             <text class="submit-label">{{ submitting ? '进入中…' : '创建并进入' }}</text>
           </view>
+          <view class="cancel press" hover-class="press-on" hover-stay-time="80" @click="cancel">
+            <text class="cancel-label">取消创建</text>
+          </view>
         </view>
 
         <view v-else class="form join-form">
@@ -250,6 +264,9 @@ async function submit() {
             <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
           </view>
           <text v-if="store.ready || hasLocalSession()" class="stay" @click="stayHome">回到我的课表</text>
+          <view v-else class="cancel press" hover-class="press-on" hover-stay-time="80" @click="cancel">
+            <text class="cancel-label">暂不加入</text>
+          </view>
         </view>
       </view>
     </view>
@@ -397,13 +414,9 @@ async function submit() {
 }
 .form {
   display: flex;
-  height: 240px;
+  min-height: 240px;
   flex-direction: column;
   animation: form-in 0.32s cubic-bezier(0.32, 0.72, 0, 1);
-}
-.form.join-form {
-  height: auto;
-  min-height: 240px;
 }
 .stay {
   display: block;
@@ -438,6 +451,22 @@ async function submit() {
 .submit.busy {
   opacity: 0.6;
 }
+.cancel {
+  width: 100%;
+  height: 44px;
+  margin-top: 10px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  text-align: center;
+}
+.cancel-label {
+  display: block;
+  height: 44px;
+  line-height: 44px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 650;
+}
 
 .picks {
   display: flex;
@@ -462,6 +491,7 @@ async function submit() {
 }
 .mode-tab.press-on,
 .submit.press-on,
+.cancel.press-on,
 .pick.press-on,
 .pick.on.press-on {
   transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);

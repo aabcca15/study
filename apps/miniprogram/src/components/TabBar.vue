@@ -2,12 +2,10 @@
 import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon.vue'
-import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import { openTab, type TabKey } from '@/utils/nav'
-import { promptLogin } from '@/utils/login-gate'
-
 const props = defineProps<{
   /** 子页面里高亮哪个 tab；主页面不传，直接跟着 ui.tab。 */
   active?: TabKey
@@ -71,10 +69,6 @@ function measure() {
 
 function go(key: TabKey) {
   open.value = false
-  if (key === 'stats' && !family.ready && !hasLocalSession()) {
-    promptLogin()
-    return
-  }
   openTab(key)
 }
 
@@ -88,19 +82,10 @@ function toggleFab() {
 
 function openFamily() {
   open.value = false
-  if (!family.ready && !hasLocalSession()) {
-    promptLogin()
-    return
-  }
   uni.navigateTo({ url: '/subpages/family/index' })
 }
 
 function quick(url: string) {
-  if (!family.ready && !hasLocalSession()) {
-    open.value = false
-    promptLogin()
-    return
-  }
   if (!family.canWrite) {
     uni.showToast({ icon: 'none', title: '家人只能查看课表' })
     return

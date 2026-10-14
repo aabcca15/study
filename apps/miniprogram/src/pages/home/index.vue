@@ -3,7 +3,6 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { onLoad, onPageScroll, onReady, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { appShare, momentsShare } from '@/utils/share'
 import { useFamilyPage } from '@/composables/useFamilyPage'
-import { hasLocalSession } from '@/stores/family'
 import { useUiStore } from '@/stores/ui'
 import { HOME_PATH, isTabKey, type TabKey } from '@/utils/nav'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
@@ -19,7 +18,7 @@ import StatsView from '@/views/StatsView.vue'
  * 切 tab 只是在同一个 WebView 里换显示的那块，不新建页面，所以没有新页面首帧的底色闪烁；
  * 换肤也直接作用到全部视图，不再有“缓存页还是旧主题”的问题。
  */
-useFamilyPage({ browse: true })
+useFamilyPage()
 const themeClass = useThemePage()
 onShareAppMessage(appShare)
 onShareTimeline(momentsShare)
@@ -47,7 +46,7 @@ function setCover(tab: TabKey, value: boolean) {
 
 onLoad((query) => {
   const tab = query?.tab
-  if (isTabKey(tab)) ui.tab = tab === 'stats' && !hasLocalSession() ? 'today' : tab
+  if (isTabKey(tab)) ui.tab = tab
   if (query?.add === '1') ui.pendingAdd = true
   mounted[ui.tab] = true
 })
@@ -61,7 +60,7 @@ onReady(() => {
   setTimeout(() => {
     mounted.calendar = true
     mounted.courses = true
-    if (hasLocalSession()) mounted.stats = true
+    mounted.stats = true
   }, 700)
 })
 

@@ -8,8 +8,7 @@ import { sumUnbilledCharges } from '@server-domain/charges'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
 import { onViewShow } from '@/composables/useTabView'
-import { promptLogin } from '@/utils/login-gate'
-import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { useFamilyStore } from '@/stores/family'
 import { useUiStore } from '@/stores/ui'
 import { openTab } from '@/utils/nav'
 import { occurrenceDots, weekDates, weekLabel } from '@/utils/view'
@@ -30,27 +29,15 @@ let undoTimer: ReturnType<typeof setTimeout> | undefined
 const clock = ref(dayjs().format('HH:mm'))
 
 function openAdd() {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   if (!store.canWrite) return
   addOpen.value = true
 }
 
 function openEdit(item: DayOccurrence) {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   editing.value = item
 }
 
 function openBills() {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   uni.navigateTo({ url: '/subpages/bills/index?from=today' })
 }
 

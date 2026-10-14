@@ -11,6 +11,7 @@ import {
   startTimeOptions,
 } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
+import { needFamily } from '@/utils/login-gate'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, cleanText, formTip } from '@/utils/form'
 import { useFamilyStore } from '@/stores/family'
@@ -122,7 +123,7 @@ function goCreateCourse() {
 }
 
 async function submit() {
-  if (saving.value) return
+  if (saving.value || needFamily()) return
   const cleanTitle = cleanText(title.value, TEXT_LIMIT.courseTitle)
   if (!sortedDates.value.length) {
     formTip('请选择上课日期')

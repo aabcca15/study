@@ -14,7 +14,8 @@ import type {
   ScheduleException,
 } from '@server-domain/types'
 import { emptySnapshot } from '@server-domain/constants'
-import { callCloud } from '@/cloud/call'
+import { callCloud, CloudError, NEED_FAMILY } from '@/cloud/call'
+import { promptLogin } from '@/utils/login-prompt'
 import {
   canInviteRole,
   canRemoveMember,
@@ -160,6 +161,10 @@ export const useFamilyStore = defineStore('family', {
       uni.setStorageSync(LOGGED_KEY, '1')
     },
     async dispatch<T>(action: string, payload?: Record<string, unknown>) {
+      if (needsFamily()) {
+        promptLogin()
+        throw new CloudError('请先创建家庭', NEED_FAMILY)
+      }
       const data = await callCloud<CloudMutation<T>>(action, payload)
       this.applySnapshot(data.snapshot)
       this.ready = true
@@ -301,4 +306,9 @@ export const useFamilyStore = defineStore('family', {
 
 export function hasLocalSession() {
   return uni.getStorageSync(LOGGED_KEY) === '1'
+}
+
+/** 既没有家庭、本机也没有登录记录：写操作要先创建家庭。 */
+export function needsFamily() {
+  return !useFamilyStore().ready && !hasLocalSession()
 }

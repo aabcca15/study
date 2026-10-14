@@ -44,7 +44,10 @@ onShow(() => {
     loaded.value = true
     return
   }
-  if (!store.ready) return
+  if (!store.ready) {
+    loaded.value = true
+    return
+  }
   refreshRoster()
 })
 

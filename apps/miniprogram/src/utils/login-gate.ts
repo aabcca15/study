@@ -1,27 +1,13 @@
-import { useFamilyStore } from '@/stores/family'
+import { needsFamily } from '@/stores/family'
+import { promptLogin } from '@/utils/login-prompt'
 
-let asking = false
-
-/** 还没有家庭时用同一句询问是否去创建。已有家庭直接通过。 */
-export function promptLogin() {
-  if (useFamilyStore().ready) return Promise.resolve(true)
-  if (asking) return Promise.resolve(false)
-  asking = true
-  return new Promise<boolean>((resolve) => {
-    uni.showModal({
-      title: '创建后继续',
-      content: '创建家庭即可开启课程计划管理，是否前往？',
-      confirmText: '去创建',
-      cancelText: '先看看',
-      confirmColor: '#ff7a45',
-      success: (result) => {
-        if (result.confirm) uni.navigateTo({ url: '/pages/login/index' })
-        resolve(Boolean(result.confirm))
-      },
-      fail: () => resolve(false),
-      complete: () => {
-        asking = false
-      },
-    })
-  })
+/**
+ * 审核要求先体验、提交时才引导：页面和表单都能打开，只有真正要写入云端时调用。
+ * 还没有家庭时弹一次引导并返回 true，调用方直接结束这次提交。
+ * 本机有登录记录但还在恢复中时放行，云函数按 openid 认人。
+ */
+export function needFamily() {
+  if (!needsFamily()) return false
+  promptLogin()
+  return true
 }

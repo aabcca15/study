@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { appShare, momentsShare } from '@/utils/share'
 import dayjs from 'dayjs'
@@ -14,6 +14,7 @@ import {
 import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, CourseType } from '@server-domain/types'
 import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts, type BusyInterval } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
+import { needFamily } from '@/utils/login-gate'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, cleanText, formTip } from '@/utils/form'
 import { denyViewerWrite } from '@/composables/useFamilyRole'
@@ -133,6 +134,13 @@ onLoad((query) => {
     item.courseId === courseId.value && (item.source === 'course_upfront' || item.billingMode === 'term'),
   )
   form.paymentStatus = upfront?.status === 'paid' ? 'paid' : 'unpaid'
+})
+
+/** 先填表、提交时才创建家庭；创建完回到这里，自动选上刚建好的孩子。 */
+watch(() => store.snapshot.children.length, (count, previous) => {
+  if (previous || !count || form.childIds.length) return
+  form.childIds = [store.childId || store.snapshot.children[0].id]
+  alignDefaultTime()
 })
 
 function toggleChild(id: string) {
@@ -257,7 +265,7 @@ function billingMode(): BillingMode {
 }
 
 async function save() {
-  if (saving.value) return
+  if (saving.value || needFamily()) return
   const title = cleanText(form.title, TEXT_LIMIT.courseTitle)
   if (!title) {
     formTip('请填写课程名称')
@@ -377,6 +385,7 @@ function pickIcon(icon: CourseIcon) {
           <ChildAvatar :avatar-key="child.avatarKey" :size="52" />
           <text>{{ child.name }}</text>
         </view>
+        <text v-if="!store.snapshot.children.length" class="child-empty">创建家庭后可在这里选择孩子</text>
       </view>
     </view>
 
@@ -604,6 +613,7 @@ function pickIcon(icon: CourseIcon) {
 .child-pick { display: flex; flex: 1; max-width: 80px; min-width: 0; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .child-pick text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pick.on { color: var(--ink); }
+.child-empty { padding: 14px 0; color: var(--muted); font-size: 12px; }
 .child-pick.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .editor-card {
   margin-bottom: 12px;

@@ -4,8 +4,7 @@ import dayjs from 'dayjs'
 import { occurrencesOnDate } from '@server-domain/schedule'
 import type { DayOccurrence } from '@server-domain/types'
 import { showCloudError } from '@/cloud/call'
-import { promptLogin } from '@/utils/login-gate'
-import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { useFamilyStore } from '@/stores/family'
 import { useUiStore } from '@/stores/ui'
 import { monthMatrix, occurrenceDots } from '@/utils/view'
 import PageHeader from '@/components/PageHeader.vue'
@@ -27,19 +26,11 @@ watch([addOpen, editing], () => {
 }, { immediate: true })
 
 function openAdd() {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   if (!store.canWrite) return
   addOpen.value = true
 }
 
 function openEdit(item: DayOccurrence) {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   editing.value = item
 }
 

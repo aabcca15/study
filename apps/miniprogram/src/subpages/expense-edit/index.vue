@@ -8,6 +8,7 @@ import { CATEGORY_LABEL } from '@server-domain/constants'
 import type { ExpenseCategory } from '@server-domain/types'
 import { storeToRefs } from 'pinia'
 import { showCloudError } from '@/cloud/call'
+import { needFamily } from '@/utils/login-gate'
 import { denyViewerBills } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { TEXT_LIMIT } from '@/domain/limits'
@@ -88,7 +89,7 @@ const tileStyle = computed(() => {
 })
 
 async function create() {
-  if (saving.value) return
+  if (saving.value || needFamily()) return
   const title = cleanText(form.title, TEXT_LIMIT.expenseTitle)
   if (!title) {
     formTip('请填写名称')

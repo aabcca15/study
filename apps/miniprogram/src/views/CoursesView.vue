@@ -8,8 +8,7 @@ import { showCloudError } from '@/cloud/call'
 import { avatarDefaultName } from '@/domain/avatar-names'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { cleanText, formTip } from '@/utils/form'
-import { promptLogin } from '@/utils/login-gate'
-import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import AppIcon from '@/components/AppIcon.vue'
@@ -24,18 +23,10 @@ const theme = useThemeStore()
 const managing = ref(false)
 
 function openCreate() {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   uni.navigateTo({ url: '/subpages/course-edit/index' })
 }
 
 function openManage() {
-  if (!store.ready) {
-    if (!hasLocalSession()) promptLogin()
-    return
-  }
   managing.value = true
 }
 
