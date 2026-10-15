@@ -328,7 +328,7 @@ var COURSE_COLORS = [
   "#C265F0",
   "#FF9A3D",
   "#22C4CC",
-  "#FF3D9A",
+  "#DC5454",
   "#FFC233"
 ];
 var CHILD_AVATAR_OPTIONS = [

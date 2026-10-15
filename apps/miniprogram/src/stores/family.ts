@@ -36,6 +36,24 @@ const STALE_MS = 5 * 60 * 1000
 let inflight: Promise<unknown> | null = null
 let snapshotJson = ''
 
+/** 倒数第二个课程色从灰蓝、玫红换成 #DC5454，已保存的课跟着换，卡片渐变一起变。 */
+const LEGACY_COURSE_COLORS: Record<string, string> = {
+  '#7c8aa5': '#DC5454',
+  '#e7e9ef': '#DC5454',
+  '#ff3d9a': '#DC5454',
+}
+
+function withCurrentCourseColors(snapshot: AppSnapshot) {
+  let changed = false
+  const courses = snapshot.courses.map((course) => {
+    const next = LEGACY_COURSE_COLORS[course.color?.toLowerCase()]
+    if (!next || next === course.color) return course
+    changed = true
+    return { ...course, color: next }
+  })
+  return changed ? { ...snapshot, courses } : snapshot
+}
+
 /** 快照总是整体替换、从不就地修改，不需要深层响应式代理。 */
 function frozen(snapshot: AppSnapshot) {
   return markRaw(snapshot)
@@ -142,6 +160,7 @@ export const useFamilyStore = defineStore('family', {
   actions: {
     /** 所有视图都跟着快照重新计算；内容没变就不替换，避免白白重绘。 */
     applySnapshot(snapshot: AppSnapshot) {
+      snapshot = withCurrentCourseColors(snapshot)
       const json = JSON.stringify(snapshot)
       if (json !== snapshotJson) {
         snapshotJson = json

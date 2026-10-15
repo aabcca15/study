@@ -67,7 +67,7 @@ export const COURSE_COLORS = [
   '#C265F0',
   '#FF9A3D',
   '#22C4CC',
-  '#FF3D9A',
+  '#DC5454',
   '#FFC233',
 ]
 
@@ -81,7 +81,7 @@ export const COURSE_ICON_COLORS: Record<CourseIcon, string> = {
   english: '#3E9BFF',
   calligraphy: '#F0A92B',
   homework: '#FFC233',
-  generic: '#FF3D9A',
+  generic: '#DC5454',
 }
 
 export const CHILD_AVATAR_OPTIONS: Array<{

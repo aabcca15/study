@@ -7,7 +7,7 @@ import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
 import { occurrenceExpense, temporaryNoteValue, temporaryRemark } from '@/utils/view'
 import { TEXT_LIMIT } from '@/domain/limits'
-import { amountError, cleanText, formTip } from '@/utils/form'
+import { amountError, amountInputValue, cleanText, formTip } from '@/utils/form'
 import TimeField from './TimeField.vue'
 
 const props = defineProps<{
@@ -23,7 +23,7 @@ const emit = defineEmits<{
 const store = useFamilyStore()
 const startTime = ref('18:00')
 const endTime = ref('19:00')
-const amount = ref('0')
+const amount = ref('')
 const paid = ref(false)
 const note = ref('')
 const saving = ref(false)
@@ -56,7 +56,7 @@ watch(() => props.item, (item) => {
   startTime.value = item.exception?.startTime ?? item.course.recurrence.startTime
   endTime.value = item.exception?.endTime ?? item.course.recurrence.endTime
   const bill = occurrenceExpense(store.overviewExpenses, item.course, item.date)
-  amount.value = String(bill?.amount ?? item.course.amount ?? 0)
+  amount.value = amountInputValue(bill?.amount ?? item.course.amount)
   paid.value = bill?.status === 'paid'
   note.value = temporaryNoteValue(item.course)
 }, { immediate: true })
@@ -182,7 +182,7 @@ function cancelOnce() {
             <text class="field-label">金额</text>
             <view class="money">
               <text>¥</text>
-              <input v-model="amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" :disabled="locked" />
+              <input v-model="amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0" placeholder-class="ph" :disabled="locked" />
             </view>
           </view>
           <view v-if="!free" class="row pay-row">

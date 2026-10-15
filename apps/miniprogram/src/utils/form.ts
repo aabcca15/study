@@ -19,6 +19,13 @@ export function formTip(message: string) {
   uni.showToast({ icon: 'none', title: message, duration: 2000 })
 }
 
+/** 金额输入的初始值：0 留空，输入框用 placeholder 显示 0，点进去可以直接输入。 */
+export function amountInputValue(value: number | string | null | undefined) {
+  const text = String(value ?? '').trim()
+  if (!text || Number(text) === 0) return ''
+  return text
+}
+
 /** 金额校验：返回错误文案，合法时返回空字符串。 */
 export function amountError(value: string, label: string, options: { required?: boolean } = {}) {
   const text = String(value ?? '').trim()

@@ -36,7 +36,7 @@ const title = ref('')
 const note = ref('')
 const startTime = ref('09:00')
 const endTime = ref('10:00')
-const amount = ref('0')
+const amount = ref('')
 const paid = ref(false)
 const saving = ref(false)
 const pickerOpen = ref(false)
@@ -96,7 +96,7 @@ function resetForm() {
   courseId.value = ''
   title.value = ''
   note.value = ''
-  amount.value = '0'
+  amount.value = ''
   paid.value = false
   pickerOpen.value = false
   pickDefaultTimes(dates.value[0])
@@ -260,7 +260,7 @@ async function submit() {
             <text class="field-label">费用</text>
             <view class="money">
               <text>¥</text>
-              <input v-model="amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" />
+              <input v-model="amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0" placeholder-class="ph" />
             </view>
           </view>
           <view class="row pay-row">

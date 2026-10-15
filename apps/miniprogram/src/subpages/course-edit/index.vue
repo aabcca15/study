@@ -15,8 +15,9 @@ import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, Course
 import { busyIntervalsForDates, findBusyConflict, findScheduleConflicts, type BusyInterval } from '@server-domain/schedule'
 import { showCloudError } from '@/cloud/call'
 import { needFamily } from '@/utils/login-gate'
+import { promptLogin } from '@/utils/login-prompt'
 import { TEXT_LIMIT } from '@/domain/limits'
-import { amountError, cleanText, formTip } from '@/utils/form'
+import { amountError, amountInputValue, cleanText, formTip } from '@/utils/form'
 import { denyViewerWrite } from '@/composables/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
@@ -51,7 +52,7 @@ const form = reactive({
   icon: 'generic' as CourseIcon,
   color: COURSE_COLORS[0],
   pricingMode: 'prepaid' as CoursePricingMode,
-  amount: '0',
+  amount: '',
   paymentStatus: 'unpaid' as 'paid' | 'unpaid',
   note: '',
 })
@@ -125,7 +126,7 @@ onLoad((query) => {
     ? 'per_session'
     : course?.billingPolicy?.pricingMode
       ?? (course?.billingMode === 'free' ? 'free' : course?.billingMode === 'session' ? 'per_session' : 'prepaid')
-  form.amount = String(course?.amount ?? 0)
+  form.amount = amountInputValue(course?.amount)
   form.note = course?.note ?? ''
   slots.value = [...(course?.recurrence.dates ?? [])]
   batchStart.value = course?.recurrence.startTime ?? '09:00'
@@ -385,7 +386,15 @@ function pickIcon(icon: CourseIcon) {
           <ChildAvatar :avatar-key="child.avatarKey" :size="52" />
           <text>{{ child.name }}</text>
         </view>
-        <text v-if="!store.snapshot.children.length" class="child-empty">创建家庭后可在这里选择孩子</text>
+        <view
+          v-if="!store.snapshot.children.length"
+          class="child-create press"
+          hover-class="press-on"
+          hover-stay-time="80"
+          @click="promptLogin()"
+        >
+          <text>前往创建</text>
+        </view>
       </view>
     </view>
 
@@ -394,7 +403,6 @@ function pickIcon(icon: CourseIcon) {
         <text>01</text>
         <view>
           <text class="h2">课程信息</text>
-          <text class="hint">这些信息会作为快速排课的预设</text>
         </view>
       </view>
       <view class="field">
@@ -418,7 +426,6 @@ function pickIcon(icon: CourseIcon) {
 
       <view class="billing">
         <text class="bill-title">课程费用</text>
-        <text class="hint">先选择收费方式，系统会提示需要填写的金额</text>
         <view class="plan-list">
           <view
             v-for="option in pricingPlans"
@@ -448,7 +455,7 @@ function pickIcon(icon: CourseIcon) {
           <text class="field-label">{{ amountLabel }}<text class="req">*</text></text>
           <view class="money">
             <text>¥</text>
-            <input v-model="form.amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" />
+            <input v-model="form.amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0" placeholder-class="ph" />
           </view>
         </view>
         <view v-if="form.pricingMode === 'prepaid'" class="row pay-row">
@@ -613,7 +620,24 @@ function pickIcon(icon: CourseIcon) {
 .child-pick { display: flex; flex: 1; max-width: 80px; min-width: 0; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .child-pick text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pick.on { color: var(--ink); }
-.child-empty { padding: 14px 0; color: var(--muted); font-size: 12px; }
+.child-create {
+  min-width: 132px;
+  height: 40px;
+  margin: 4px 0 6px;
+  padding: 0 22px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffb45c 0%, #ff7a45 48%, #f15a36 100%);
+  box-shadow: 0 10px 20px -10px rgba(255, 122, 69, 0.55);
+}
+.child-create text {
+  display: block;
+  height: 40px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 40px;
+  text-align: center;
+}
 .child-pick.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .editor-card {
   margin-bottom: 12px;

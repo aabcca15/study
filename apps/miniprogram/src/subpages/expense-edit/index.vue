@@ -186,7 +186,7 @@ function remove() {
       </view>
       <view class="field">
         <text class="field-label">金额<text class="req">*</text></text>
-        <input v-model="form.amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0.00" placeholder-class="ph" />
+        <input v-model="form.amount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0" placeholder-class="ph" />
       </view>
       <view class="field">
         <text class="field-label">日期<text class="req">*</text></text>
@@ -243,7 +243,7 @@ function remove() {
             <text class="field-label">退款金额<text class="req">*</text></text>
             <view class="money">
               <text>¥</text>
-              <input v-model="refundAmount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder-class="ph" />
+              <input v-model="refundAmount" type="digit" :maxlength="TEXT_LIMIT.amount" placeholder="0" placeholder-class="ph" />
             </view>
           </view>
           <view class="field">
