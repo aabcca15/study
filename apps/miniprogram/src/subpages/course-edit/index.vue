@@ -18,7 +18,7 @@ import { needFamily } from '@/utils/login-gate'
 import { promptLogin } from '@/utils/login-prompt'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, amountInputValue, cleanText, formTip } from '@/utils/form'
-import { denyViewerWrite } from '@/composables/useFamilyRole'
+import { denyViewerWrite } from '@/subpages/shared/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import TimeField from '@/components/TimeField.vue'
@@ -28,7 +28,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import DateDragGrid from '@/components/DateDragGrid.vue'
 
-const store = useFamilyPage({ refresh: false })
+const store = useFamilyPage()
 const themeClass = useThemePage()
 onShareAppMessage(appShare)
 onShareTimeline(momentsShare)

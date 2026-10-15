@@ -342,19 +342,20 @@ const rows = computed(() => {
   overflow: hidden;
   border-radius: 22px;
 }
+/* 盖在右下角、压在内容下面：「已完成」落在进度条上方的空白处，不压金额。 */
 .done-seal {
   position: absolute;
-  z-index: 4;
-  right: -26px;
-  bottom: -22px;
+  z-index: 0;
+  right: -18px;
+  bottom: 14px;
   display: flex;
-  width: 100px;
-  height: 100px;
+  width: 84px;
+  height: 84px;
   align-items: center;
   justify-content: center;
   color: var(--paid);
-  opacity: 0.4;
-  transform: rotate(-18deg);
+  opacity: 0.32;
+  transform: rotate(-16deg);
   pointer-events: none;
 }
 .done-ring {
@@ -375,11 +376,11 @@ const rows = computed(() => {
   border-radius: 50%;
 }
 .done-inner text {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   line-height: 1;
-  transform: translate(-8px, -6px);
+  transform: translate(-6px, -4px);
 }
 .lesson-body,
 .course-progress { position: relative; z-index: 1; }

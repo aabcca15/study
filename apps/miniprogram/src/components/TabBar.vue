@@ -73,10 +73,6 @@ function go(key: TabKey) {
 }
 
 function toggleFab() {
-  if (!family.canWrite) {
-    uni.showToast({ icon: 'none', title: '家人只能查看课表' })
-    return
-  }
   open.value = !open.value
 }
 
@@ -119,6 +115,7 @@ onShow(measureSoon)
   <view class="tab-host" :class="{ hidden }">
   <view class="quick-backdrop" :class="{ show: open, dark: theme.isDark }" @click="open = false" />
   <view class="quick-menu" :class="{ show: open, dark: theme.isDark }">
+    <template v-if="family.canWrite">
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="quick('add')">
       <view class="quick-badge accent"><text class="badge-glyph">＋</text></view>
       <view>
@@ -140,11 +137,12 @@ onShow(measureSoon)
         <text class="desc">登记一次课程费用</text>
       </view>
     </button>
+    </template>
     <button hover-class="press-on" hover-stay-time="80" class="quick-item" @click="openFamily">
       <view class="quick-badge violet"><AppIcon name="family" tone="white" :size="22" /></view>
       <view>
-        <text class="title">邀请家人</text>
-        <text class="desc">邀请家长或家人一起看课表</text>
+        <text class="title">{{ family.canWrite ? '邀请家人' : '家庭成员' }}</text>
+        <text class="desc">{{ family.canWrite ? '邀请家长或家人一起看课表' : '查看我的身份和家庭成员' }}</text>
       </view>
     </button>
   </view>

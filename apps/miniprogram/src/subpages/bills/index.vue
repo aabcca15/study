@@ -6,7 +6,7 @@ import { appShare, momentsShare } from '@/utils/share'
 import { billNetAmount, billsInDueRange, groupByCategory, money, refundedAmountOf } from '@server-domain/billing'
 import { CATEGORY_LABEL } from '@server-domain/constants'
 import { showCloudError } from '@/cloud/call'
-import { denyViewerBills } from '@/composables/useFamilyRole'
+import { denyViewerBills } from '@/subpages/shared/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage, useThemeStore } from '@/utils/wx-theme'
 import { weekDates, weekLabel } from '@/utils/view'
@@ -16,7 +16,7 @@ import { currentMixBase, mix, tileBackground } from '@/utils/color'
 import AppHeader from '@/components/AppHeader.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
-const store = useFamilyPage({ refresh: false })
+const store = useFamilyPage()
 const themeClass = useThemePage()
 onShareAppMessage(appShare)
 onShareTimeline(momentsShare)

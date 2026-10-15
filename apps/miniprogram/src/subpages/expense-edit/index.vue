@@ -9,7 +9,7 @@ import type { ExpenseCategory } from '@server-domain/types'
 import { storeToRefs } from 'pinia'
 import { showCloudError } from '@/cloud/call'
 import { needFamily } from '@/utils/login-gate'
-import { denyViewerBills } from '@/composables/useFamilyRole'
+import { denyViewerBills } from '@/subpages/shared/useFamilyRole'
 import { useFamilyPage } from '@/composables/useFamilyPage'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { amountError, cleanText, formTip } from '@/utils/form'
@@ -20,7 +20,7 @@ import DateField from '@/components/DateField.vue'
 import SelectField from '@/components/SelectField.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
-const store = useFamilyPage({ refresh: false })
+const store = useFamilyPage()
 const themeClass = useThemePage()
 onShareAppMessage(appShare)
 onShareTimeline(momentsShare)

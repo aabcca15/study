@@ -14,10 +14,11 @@ import type {
   ScheduleException,
 } from '@server-domain/types'
 import { emptySnapshot } from '@server-domain/constants'
-import { callCloud, CloudError, NEED_FAMILY } from '@/cloud/call'
+import { callCloud, CloudError, NEED_FAMILY, NOT_MEMBER } from '@/cloud/call'
 import { promptLogin } from '@/utils/login-prompt'
 import {
   canInviteRole,
+  canLeaveFamily,
   canRemoveMember,
   canViewBills,
   canWriteFamily,
@@ -30,8 +31,6 @@ import {
 } from '@/domain/family-account'
 
 const LOGGED_KEY = 'myhome.mp.logged'
-/** 数据只由本人录入，切页不必重拉；超过这个时长回到前台时再对一次，兼顾多台设备登录同一账号。 */
-const STALE_MS = 5 * 60 * 1000
 
 let inflight: Promise<unknown> | null = null
 let snapshotJson = ''
@@ -67,6 +66,7 @@ function belongsToChild(course: Course, childId: string) {
 export interface CloudMutation<T> {
   snapshot: AppSnapshot
   result: T
+  version?: number
 }
 
 export interface CloudSession {
@@ -74,8 +74,25 @@ export interface CloudSession {
   familyId: string
   role?: FamilyRole
   displayName?: string
+  nickName?: string
+  avatarUrl?: string
   snapshot: AppSnapshot
+  version?: number
 }
+
+type SyncResult = { changed: false } | { changed: true; session: CloudSession }
+
+/** 创建、加入家庭时一起带上的称呼、微信昵称和头像，都可以不填。 */
+export interface MemberProfile {
+  displayName?: string
+  nickName?: string
+  avatarUrl?: string
+}
+
+/** 切页时最多这么久问一次云端，连续切 tab 不重复请求。 */
+const SYNC_GAP_MS = 3000
+let syncTask: Promise<unknown> | null = null
+let syncedVersionAt = 0
 
 export interface FamilyRoster {
   members: FamilyMemberView[]
@@ -89,6 +106,10 @@ export const useFamilyStore = defineStore('family', {
     familyId: '',
     role: 'owner' as FamilyRole,
     displayName: '',
+    nickName: '',
+    avatarUrl: '',
+    /** 云端家庭文档的版本号，任何人改了课表都会 +1，用来判断本机数据是不是最新的。 */
+    version: 0,
     /** 家人只在本机切换正在看的孩子，不写进全家共用的快照。 */
     preferredChildId: '',
     snapshot: frozen(emptySnapshot() as AppSnapshot),
@@ -113,6 +134,9 @@ export const useFamilyStore = defineStore('family', {
     },
     canManageMembers(): boolean {
       return this.role === 'owner'
+    },
+    canLeave(): boolean {
+      return canLeaveFamily(this.role)
     },
     child(state): ChildProfile | undefined {
       const preferred = state.preferredChildId
@@ -173,8 +197,11 @@ export const useFamilyStore = defineStore('family', {
       this.familyId = data.familyId
       this.role = data.role || 'owner'
       this.displayName = data.displayName || FAMILY_ROLE_LABEL[this.role]
+      this.nickName = data.nickName || ''
+      this.avatarUrl = data.avatarUrl || ''
       if (canWriteFamily(this.role)) this.preferredChildId = ''
       this.applySnapshot(data.snapshot)
+      if (data.version) this.version = data.version
       this.rangeMonth = ''
       this.ready = true
       uni.setStorageSync(LOGGED_KEY, '1')
@@ -184,20 +211,60 @@ export const useFamilyStore = defineStore('family', {
         promptLogin()
         throw new CloudError('请先创建家庭', NEED_FAMILY)
       }
-      const data = await callCloud<CloudMutation<T>>(action, payload)
+      let data: CloudMutation<T>
+      try {
+        data = await callCloud<CloudMutation<T>>(action, payload)
+      } catch (error) {
+        if (error instanceof CloudError && error.code === NOT_MEMBER) this.logout()
+        throw error
+      }
       this.applySnapshot(data.snapshot)
+      if (data.version) this.version = data.version
       this.ready = true
       return data.result
     },
-    async login(childName = '小U', avatarKey?: ChildAvatarKey, displayName?: string) {
-      this.applySession(await callCloud<CloudSession>('login', { childName, avatarKey, displayName }))
+    /**
+     * 问云端家庭数据有没有被别人改过。没变只回一个标记，变了才带回完整快照。
+     * 跨月时走 refresh，顺带生成本月账期。被移出时抛 NOT_MEMBER 并回到未登录状态。
+     */
+    sync(force = false) {
+      if (!this.ready) return Promise.resolve(false)
+      if (this.rangeMonth !== dayjs().format('YYYY-MM')) return this.refresh().then(() => true)
+      if (syncTask) return syncTask
+      if (!force && Date.now() - syncedVersionAt < SYNC_GAP_MS) return Promise.resolve(false)
+      syncedVersionAt = Date.now()
+      syncTask = callCloud<SyncResult>('sync', { version: this.version, familyId: this.familyId, role: this.role })
+        .then((data) => {
+          this.syncedAt = Date.now()
+          if (!data.changed) return false
+          const month = this.rangeMonth
+          this.applySession(data.session)
+          this.rangeMonth = month
+          return true
+        })
+        .catch((error) => {
+          if (error instanceof CloudError && error.code === NOT_MEMBER) this.logout()
+          throw error
+        })
+        .finally(() => {
+          syncTask = null
+        })
+      return syncTask
+    },
+    async login(childName = '小U', avatarKey?: ChildAvatarKey, profile: MemberProfile = {}) {
+      this.applySession(await callCloud<CloudSession>('login', { childName, avatarKey, ...profile }))
     },
     /** 这个微信号已经有家庭时直接进入。没有家庭时不创建，回到登录页让用户自己选。 */
     async resume() {
       this.applySession(await callCloud<CloudSession>('login', { resume: true }))
     },
-    async joinFamily(code: string, displayName?: string) {
-      this.applySession(await callCloud<CloudSession>('joinFamily', { code, displayName }))
+    async joinFamily(code: string, profile: MemberProfile = {}) {
+      this.applySession(await callCloud<CloudSession>('joinFamily', { code, ...profile }))
+    },
+    /** 退出后这台手机回到没有家庭的状态，可以继续浏览或重新创建、加入。 */
+    async leaveFamily() {
+      await callCloud('leaveFamily')
+      this.logout()
     },
     previewInvite(code: string) {
       return callCloud<InviteJoinPreview>('previewInvite', { code })
@@ -220,6 +287,9 @@ export const useFamilyStore = defineStore('family', {
       this.familyId = ''
       this.role = 'owner'
       this.displayName = ''
+      this.nickName = ''
+      this.avatarUrl = ''
+      this.version = 0
       this.preferredChildId = ''
       snapshotJson = ''
       this.snapshot = frozen(emptySnapshot())
@@ -241,13 +311,6 @@ export const useFamilyStore = defineStore('family', {
           inflight = null
         })
       return inflight
-    },
-    /** 本月账期已生成且数据够新时什么都不做；跨月或久未同步才拉一次。 */
-    refreshIfStale() {
-      if (!this.ready) return Promise.resolve(null)
-      const sameMonth = this.rangeMonth === dayjs().format('YYYY-MM')
-      if (sameMonth && Date.now() - this.syncedAt < STALE_MS) return Promise.resolve(null)
-      return this.refresh()
     },
     addChild(name: string, avatarKey?: ChildAvatarKey) {
       return this.dispatch<string>('addChild', { name, avatarKey })

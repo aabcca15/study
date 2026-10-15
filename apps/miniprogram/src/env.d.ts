@@ -18,9 +18,17 @@ interface WxCloudCall {
   fail?: (err: { errMsg?: string }) => void
 }
 
+interface WxCloudUpload {
+  cloudPath: string
+  filePath: string
+  success?: (res: { fileID: string }) => void
+  fail?: (err: { errMsg?: string }) => void
+}
+
 interface WxCloud {
   init(options?: { env?: string; traceUser?: boolean }): void
   callFunction(options: WxCloudCall): void
+  uploadFile(options: WxCloudUpload): void
 }
 
 declare const wx: {

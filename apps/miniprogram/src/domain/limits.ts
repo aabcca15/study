@@ -1,7 +1,8 @@
 /** 表单字段长度上限。云函数另有一层兜底（见 cloudfunctions/api/src/index.ts 的 TEXT_LIMITS）。 */
 export const TEXT_LIMIT = {
   childName: 8,
-  displayName: 10,
+  displayName: 16,
+  nickName: 20,
   inviteCode: 8,
   courseTitle: 20,
   teacher: 12,

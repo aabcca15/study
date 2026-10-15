@@ -4,17 +4,18 @@ import { onLoad, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/un
 import { appShare, isMomentsPreview, momentsShare } from '@/utils/share'
 import { CHILD_AVATAR_OPTIONS } from '@server-domain/constants'
 import type { ChildAvatarKey } from '@server-domain/types'
-import { showCloudError } from '@/cloud/call'
+import { showCloudError, uploadAvatar } from '@/cloud/call'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
-import { normalizeInviteCode } from '@/domain/family-account'
+import { FAMILY_ROLE_LABEL, normalizeInviteCode } from '@/domain/family-account'
 import { avatarDefaultName } from '@/domain/avatar-names'
 import { TEXT_LIMIT } from '@/domain/limits'
 import { cleanText, formTip } from '@/utils/form'
 import { openTab } from '@/utils/nav'
 import { capsuleBox, statusBarHeight } from '@/utils/system'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import WechatProfileField from '@/components/WechatProfileField.vue'
 
 const store = useFamilyStore()
 const themeClass = useThemePage()
@@ -32,7 +33,12 @@ const mode = ref<'create' | 'join'>('create')
 const childName = ref('')
 const avatarKey = ref<ChildAvatarKey>('boy-blue')
 const inviteCode = ref('')
+/** 家里的称呼，加入家庭时填。 */
 const displayName = ref('')
+const useWechat = ref(true)
+const nickName = ref('')
+/** 刚选的头像是本地临时路径，提交时才传到云存储；已有家庭时预填 cloud:// 文件 ID。 */
+const userAvatar = ref('')
 const submitting = ref(false)
 /** 有登录记录时首帧就显示骨架，避免先闪一下表单再跳走。 */
 const booting = ref(!store.ready && hasLocalSession())
@@ -50,7 +56,11 @@ onLoad((query) => {
 onShow(() => {
   if (isMomentsPreview()) return
   if (inviteCode.value) {
-    if (store.ready && !displayName.value) displayName.value = store.displayName
+    if (store.ready && !displayName.value && !Object.values(FAMILY_ROLE_LABEL).includes(store.displayName)) {
+      displayName.value = store.displayName
+    }
+    if (store.ready && !nickName.value) nickName.value = store.nickName
+    if (store.ready && !userAvatar.value) userAvatar.value = store.avatarUrl
     return
   }
   if (store.ready) {
@@ -85,6 +95,22 @@ function pickAvatar(key: ChildAvatarKey) {
 
 function onCodeInput(event: { detail?: { value?: string } }) {
   inviteCode.value = normalizeInviteCode(event.detail?.value || '')
+}
+
+/** 没勾选微信资料时只带称呼；勾选了再带昵称和头像，头像先传到云存储。 */
+async function memberProfile() {
+  const profile = { displayName: cleanText(displayName.value, TEXT_LIMIT.displayName) }
+  if (!useWechat.value) return profile
+  let avatarUrl = userAvatar.value
+  if (avatarUrl && !avatarUrl.startsWith('cloud://')) {
+    avatarUrl = await uploadAvatar(avatarUrl)
+    userAvatar.value = avatarUrl
+  }
+  return {
+    ...profile,
+    nickName: cleanText(nickName.value, TEXT_LIMIT.nickName),
+    avatarUrl,
+  }
 }
 
 function alertJoin(title: string, content: string) {
@@ -181,9 +207,10 @@ async function submit() {
         if (store.ready) openTab('today')
         return
       }
-      await store.joinFamily(code, cleanText(displayName.value, TEXT_LIMIT.displayName))
+      await store.joinFamily(code, await memberProfile())
     } else {
-      await store.login(cleanText(childName.value, TEXT_LIMIT.childName) || childPlaceholder.value, avatarKey.value)
+      const profile = await memberProfile()
+      await store.login(cleanText(childName.value, TEXT_LIMIT.childName) || childPlaceholder.value, avatarKey.value, profile)
     }
     leave()
   } catch (error) {
@@ -226,6 +253,7 @@ async function submit() {
 
       <view class="forms">
         <view v-if="mode === 'create'" class="form">
+          <view class="field-label">孩子头像</view>
           <view class="picks">
             <view
               v-for="option in avatarOptions"
@@ -243,6 +271,7 @@ async function submit() {
             <view class="field-label">孩子名字</view>
             <input v-model="childName" :maxlength="TEXT_LIMIT.childName" :placeholder="childPlaceholder" placeholder-class="ph" />
           </view>
+          <WechatProfileField v-model:enabled="useWechat" v-model:avatar="userAvatar" v-model:nick-name="nickName" />
           <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
             <text class="submit-label">{{ submitting ? '进入中…' : '创建并进入' }}</text>
           </view>
@@ -260,6 +289,7 @@ async function submit() {
             <view class="field-label">你的称呼</view>
             <input v-model="displayName" :maxlength="TEXT_LIMIT.displayName" placeholder="爸爸/妈妈/爷爷/奶奶" placeholder-class="ph" />
           </view>
+          <WechatProfileField v-model:enabled="useWechat" v-model:avatar="userAvatar" v-model:nick-name="nickName" />
           <view class="submit press" :class="{ busy: submitting }" hover-class="press-on" hover-stay-time="80" @click="submit">
             <text class="submit-label">{{ submitting ? '加入中…' : '加入家庭' }}</text>
           </view>
@@ -473,6 +503,7 @@ async function submit() {
   justify-content: space-between;
   margin-bottom: 18px;
 }
+.form > .field-label { margin-bottom: 8px; }
 
 .pick {
   display: flex;

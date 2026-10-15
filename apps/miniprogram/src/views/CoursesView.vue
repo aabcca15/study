@@ -246,7 +246,7 @@ function more(course: Course) {
               hover-stay-time="80"
               @click="onChildChange(child.id)"
             >
-              <ChildAvatar :avatar-key="child.avatarKey" :size="34" />
+              <view class="face-ring"><ChildAvatar :avatar-key="child.avatarKey" :size="34" /></view>
               <text>{{ child.name }}</text>
             </view>
             <view v-if="store.canWrite" class="manage press" hover-class="press-on" hover-stay-time="80" @click="openManage">
@@ -323,7 +323,7 @@ function more(course: Course) {
               <view
                 v-for="option in CHILD_AVATAR_OPTIONS"
                 :key="option.key"
-                class="press"
+                class="face-ring press"
                 :class="{ on: child.avatarKey === option.key, off: child.avatarKey !== option.key && avatarUsedByOther(option.key, child.id) }"
                 hover-class="press-on"
                 hover-stay-time="80"
@@ -344,7 +344,7 @@ function more(course: Course) {
               <view
                 v-for="option in CHILD_AVATAR_OPTIONS"
                 :key="option.key"
-                class="press"
+                class="face-ring press"
                 :class="{ on: newAvatar === option.key, off: avatarUsedByOther(option.key) }"
                 hover-class="press-on"
                 hover-stay-time="80"
@@ -375,11 +375,14 @@ function more(course: Course) {
   letter-spacing: -0.03em;
   text-overflow: clip;
 }
-.child-row { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: flex-end; gap: 2px; }
+.child-row { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: flex-end; gap: 6px; padding-top: 4px; }
 .child-pill { display: flex; width: 40px; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 3px; color: var(--muted); font-size: 9px; font-weight: 650; }
 .child-pill text { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .child-pill.on { color: var(--ink); font-weight: 750; }
-.child-pill.on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
+/* 视图是组件，样式穿不进 ChildAvatar，选中环画在外层。和新增课程页选孩子同一个环。 */
+.face-ring { display: flex; flex: 0 0 auto; border-radius: 50%; }
+.child-pill.on .face-ring,
+.avatar-choices .face-ring.on { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .manage {
   display: flex;
   width: 34px;
@@ -491,9 +494,8 @@ function more(course: Course) {
 .profile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 9px; border-radius: 16px; background: var(--surface-2); }
 .profile-name { flex: 1; min-width: 0; margin-bottom: 0; }
 .delete { color: #ed5d6e; font-size: 12px; font-weight: 700; }
-.avatar-choices { display: flex; flex-wrap: nowrap; gap: 6px; }
+.avatar-choices { display: flex; flex-wrap: nowrap; gap: 10px; padding: 4px; }
 .avatar-choices.new { margin: 8px 0 12px; justify-content: space-between; }
-.avatar-choices .on :deep(.child-face) { box-shadow: 0 0 0 2px var(--halo), 0 0 0 4px #ff7a45; }
 .avatar-choices .off { opacity: 0.35; }
 .child-limit { display: block; margin: 8px 2px 4px; color: var(--muted); font-size: 12px; }
 .new-row { display: flex; align-items: center; gap: 8px; }

@@ -2,7 +2,7 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { onLoad, onPageScroll, onReady, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { appShare, momentsShare } from '@/utils/share'
-import { useFamilyPage } from '@/composables/useFamilyPage'
+import { syncFamily, useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
 import { HOME_PATH, isTabKey, type TabKey } from '@/utils/nav'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
@@ -72,6 +72,7 @@ watch(() => ui.tab, (tab, previous) => {
   if (previous) scrollTops[previous] = scrollTop
   mounted[tab] = true
   enterTick.value += 1
+  syncFamily()
   // 子页面的底栏也会改 ui.tab，这时主页面在后台，pageScrollTo 会滚到子页面上去。
   if (!isTopPage()) {
     scrollTop = 0

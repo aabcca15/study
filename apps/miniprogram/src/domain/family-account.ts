@@ -7,7 +7,12 @@ export interface FamilyMemberRecord {
   openid: string
   familyId: string
   role: FamilyRole
+  /** 家里的称呼（爸爸、奶奶…）；没填时是角色名。 */
   displayName: string
+  /** 微信昵称，用户勾选使用微信资料时才有。 */
+  nickName?: string
+  /** 微信头像，存在云存储里的 cloud:// 文件 ID。 */
+  avatarUrl?: string
   createdAt: string
 }
 
@@ -26,6 +31,8 @@ export interface FamilyMemberView {
   openid: string
   role: FamilyRole
   displayName: string
+  nickName: string
+  avatarUrl: string
   self: boolean
   createdAt: string
 }
@@ -44,6 +51,12 @@ export interface FamilyInviteView {
   maxUses: number
   usedCount: number
   expired: boolean
+}
+
+export const FAMILY_ROLE_HINT: Record<FamilyRole, string> = {
+  owner: '邀请家长一起管课表，或邀请家人只看计划。',
+  parent: '可以一起改课表和账单，也可以邀请家人只看计划。',
+  viewer: '接送时看今天上哪节课、在哪里。改课和账单由家长来。',
 }
 
 export const FAMILY_ROLE_LABEL: Record<FamilyRole, string> = {
@@ -85,6 +98,17 @@ export function canRemoveMember(actor: FamilyRole, target: FamilyRole, self: boo
   return actor === 'owner' && !self && target !== 'owner'
 }
 
+/** 家长和家人可以自己退出；创建者走开会让家庭没人管，不能退出。 */
+export function canLeaveFamily(role: FamilyRole) {
+  return role !== 'owner'
+}
+
+/** 只接受本小程序云存储里的头像文件，别的地址一律丢掉。 */
+export function normalizeAvatarUrl(value: unknown) {
+  const text = String(value || '').trim()
+  return /^cloud:\/\/[\w.-]+\/[\w./-]+$/.test(text) ? text : ''
+}
+
 export function normalizeRole(role: string | undefined, isOwner = false): FamilyRole {
   if (role === 'owner' || role === 'parent' || role === 'viewer') return role
   return isOwner ? 'owner' : 'parent'
@@ -96,6 +120,23 @@ export function normalizeInviteRole(role: unknown): InviteRole {
 
 export function defaultDisplayName(role: FamilyRole) {
   return FAMILY_ROLE_LABEL[role]
+}
+
+/** 称呼只是默认的角色名时不算用户填过。 */
+export function isDefaultDisplayName(name: string) {
+  return (Object.values(FAMILY_ROLE_LABEL) as string[]).includes(name)
+}
+
+/**
+ * 成员列表怎么显示：有微信昵称时主名用昵称，称呼放在后面的小标签；
+ * 没有昵称就用称呼当主名，不出标签。
+ */
+export function memberTitle(member: Pick<FamilyMemberView, 'displayName' | 'nickName'>) {
+  if (!member.nickName) return { name: member.displayName, tag: '' }
+  return {
+    name: member.nickName,
+    tag: isDefaultDisplayName(member.displayName) ? '' : member.displayName,
+  }
 }
 
 export function createInviteCode() {

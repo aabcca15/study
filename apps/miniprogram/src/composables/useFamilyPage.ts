@@ -1,39 +1,48 @@
 import { onShow } from '@dcloudio/uni-app'
-import { showCloudError } from '@/cloud/call'
+import { CloudError, NOT_MEMBER } from '@/cloud/call'
 import { isMomentsPreview } from '@/utils/share'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
+import { noticeNotMember } from '@/utils/login-prompt'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 
 /**
- * tab 页由微信缓存，切换时不重建；所有页面共用一份 store 快照，
- * 任一页写入后其他页自动跟着更新。显示时只在数据过期或跨月时补拉一次。
+ * 页面显示时（打开、返回、从后台切回）都问一次云端有没有别人改过数据，
+ * 所有页面共用一份 store 快照，拿到新数据后各页自动跟着更新。
  * 还没有家庭时所有页面和表单都能照常打开浏览，提交写入时才由 store 引导去创建。
  */
-export function useFamilyPage(options: { refresh?: boolean } = {}) {
+export function useFamilyPage() {
   const store = useFamilyStore()
   const ui = useUiStore()
   const theme = useThemeStore()
-  const refresh = options.refresh !== false
 
   onShow(() => {
     theme.apply()
     if (isMomentsPreview()) return
     if (store.ready) {
       ui.touchToday()
-      if (!refresh) return
-      store.refreshIfStale().catch((error) => showCloudError(error))
+      syncFamily()
       return
     }
     if (!hasLocalSession()) return
     ensureSession().then(() => {
-      if (!store.ready) return
-      ui.touchToday()
-      if (refresh) store.refreshIfStale().catch((error) => showCloudError(error))
+      if (store.ready) ui.touchToday()
     })
   })
 
   return store
+}
+
+/**
+ * 切页、返回、回到前台时调用。网络问题静默忽略，下次切页再试，不在切 tab 时弹错误。
+ * 已被移出家庭时提示一次，回到今日页的未登录浏览状态。
+ */
+export function syncFamily(force = false) {
+  const store = useFamilyStore()
+  return store.sync(force).catch((error) => {
+    if (error instanceof CloudError && error.code === NOT_MEMBER) noticeNotMember()
+    return false
+  })
 }
 
 let resumeTask: Promise<void> | null = null

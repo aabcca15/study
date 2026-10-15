@@ -5,6 +5,7 @@ import { applyFamilyAction, FamilyActionError } from '../../../../../server/src/
 import { createFamilyWorkspace } from '../../../../../server/src/workspace/family-workspace'
 import {
   canInviteRole,
+  canLeaveFamily,
   canRemoveMember,
   canWriteFamily,
   createInviteCode,
@@ -14,6 +15,7 @@ import {
   isInviteActive,
   isWorkspaceReadAction,
   maskSnapshotForRole,
+  normalizeAvatarUrl,
   normalizeInviteCode,
   normalizeInviteRole,
   normalizeRole,
@@ -58,6 +60,8 @@ const TEXT_LIMITS: Record<string, number> = {
   name: 20,
   childName: 20,
   displayName: 16,
+  nickName: 20,
+  avatarUrl: 300,
   title: 40,
   teacher: 20,
   location: 60,
@@ -117,6 +121,27 @@ function displayNameOf(payload: Record<string, unknown>, role: FamilyRole) {
   return name || defaultDisplayName(role)
 }
 
+function nickNameOf(payload: Record<string, unknown>) {
+  return String(payload.nickName || '').trim().slice(0, 20)
+}
+
+/**
+ * 创建或加入时带来的称呼、微信昵称和头像。称呼为空保持原样；
+ * 不勾选微信资料时客户端不带 nickName / avatarUrl，原有的也清掉，回到图标加称呼的展示。
+ */
+async function applyProfile(user: UserDoc, payload: Record<string, unknown>) {
+  const name = String(payload.displayName || '').trim().slice(0, 16)
+  const nickName = nickNameOf(payload)
+  const avatarUrl = normalizeAvatarUrl(payload.avatarUrl)
+  const data: Partial<UserDoc> = {}
+  if (name && name !== user.displayName) data.displayName = name
+  if (nickName !== (user.nickName || '')) data.nickName = nickName
+  if (avatarUrl !== (user.avatarUrl || '')) data.avatarUrl = avatarUrl
+  if (!user._id || !Object.keys(data).length) return
+  await users().doc(user._id).update({ data })
+  Object.assign(user, data)
+}
+
 async function findUser(openid: string): Promise<UserDoc | null> {
   const found = await users().where({ openid }).limit(1).get()
   const user = found.data?.[0] as UserDoc | undefined
@@ -126,12 +151,15 @@ async function findUser(openid: string): Promise<UserDoc | null> {
     _id: user._id ? String(user._id) : undefined,
     role: normalizeRole(user.role),
     displayName: user.displayName || defaultDisplayName(normalizeRole(user.role)),
+    nickName: user.nickName || '',
+    avatarUrl: user.avatarUrl || '',
   }
 }
 
+/** 没有成员记录：从没加入过，或者已被移出、已自己退出。客户端据此回到未登录状态。 */
 async function requireUser(openid: string) {
   const user = await findUser(openid)
-  if (!user) raise('UNAUTHENTICATED', '请先使用微信登录')
+  if (!user) raise('NOT_MEMBER', '你已不在这个家庭中，可以重新创建或加入家庭')
   return user
 }
 
@@ -142,19 +170,49 @@ async function loadFamilyDoc(familyId: string) {
   return raw
 }
 
-async function loadSnapshot(familyId: string) {
-  return JSON.parse((await loadFamilyDoc(familyId)).snapshotJson as string) as AppSnapshot
+async function loadFamily(familyId: string) {
+  const family = await loadFamilyDoc(familyId)
+  return {
+    snapshot: JSON.parse(family.snapshotJson as string) as AppSnapshot,
+    version: versionOf(family),
+  }
 }
 
-function sessionOf(user: UserDoc, snapshot: AppSnapshot) {
+/** 返回给客户端的快照都带版本号，客户端切页时拿它问一次有没有变化。 */
+async function familyMutation(user: UserDoc, result: unknown) {
+  const family = await loadFamily(user.familyId)
+  return { snapshot: maskSnapshotForRole(family.snapshot, user.role), result, version: family.version }
+}
+
+/**
+ * 切页、回到前台时调用。只读一次成员记录和家庭文档，版本号、角色、家庭都没变就只回 changed: false，
+ * 不传快照，开销很小；任何一项变了才把完整快照带回去。成员记录不在了由 requireUser 报 NOT_MEMBER。
+ */
+async function syncFamily(user: UserDoc, payload: Record<string, unknown>) {
+  const family = await loadFamily(user.familyId)
+  const same = Number(payload.version) === family.version
+    && payload.familyId === user.familyId
+    && payload.role === user.role
+  if (same) return { changed: false }
+  return { changed: true, session: sessionOf(user, family.snapshot, family.version) }
+}
+
+function sessionOf(user: UserDoc, snapshot: AppSnapshot, version = 0) {
   const role = normalizeRole(user.role)
   return {
     openid: user.openid,
     familyId: user.familyId,
     role,
     displayName: user.displayName || defaultDisplayName(role),
+    nickName: user.nickName || '',
+    avatarUrl: user.avatarUrl || '',
     snapshot: maskSnapshotForRole(cloneSnapshot(snapshot), role),
+    version,
   }
+}
+
+function versionOf(family: FamilyDoc) {
+  return family.version || 1
 }
 
 async function withFamily<T>(familyId: string, apply: (workspace: ReturnType<typeof createFamilyWorkspace>) => T | Promise<T>) {
@@ -167,11 +225,13 @@ async function withFamily<T>(familyId: string, apply: (workspace: ReturnType<typ
     const workspace = createFamilyWorkspace(JSON.parse(raw.snapshotJson) as AppSnapshot)
     const result = await apply(workspace)
     const nextJson = JSON.stringify(workspace.snapshot.value)
+    let version = versionOf(raw)
     if (nextJson !== raw.snapshotJson) {
+      version += 1
       await ref.update({
         data: {
           snapshotJson: nextJson,
-          version: (raw.version || 1) + 1,
+          version,
           updatedAt: new Date().toISOString(),
         },
       })
@@ -179,6 +239,7 @@ async function withFamily<T>(familyId: string, apply: (workspace: ReturnType<typ
     return {
       snapshot: JSON.parse(nextJson) as AppSnapshot,
       result: result ?? null,
+      version,
     }
   })
 }
@@ -211,6 +272,7 @@ async function login(openid: string, unionid: string, payload: Record<string, un
   if (existing) {
     const family = await loadFamilyDoc(existing.familyId)
     const role = normalizeRole(existing.role, family.ownerOpenid === openid)
+    if (payload.resume !== true) await applyProfile(existing, payload)
     const displayName = existing.displayName || defaultDisplayName(role)
     await persistUserRole(existing, role, displayName)
     if (canWriteFamily(role)) {
@@ -218,9 +280,9 @@ async function login(openid: string, unionid: string, payload: Record<string, un
         applyFamilyAction(workspace, 'snapshot', {})
         return null
       })
-      return sessionOf({ ...existing, role, displayName }, data.snapshot)
+      return sessionOf({ ...existing, role, displayName }, data.snapshot, data.version)
     }
-    return sessionOf({ ...existing, role, displayName }, JSON.parse(family.snapshotJson as string) as AppSnapshot)
+    return sessionOf({ ...existing, role, displayName }, JSON.parse(family.snapshotJson as string) as AppSnapshot, versionOf(family))
   }
 
   const childName = String(payload.childName || '').trim().slice(0, 20) || '小U'
@@ -240,6 +302,8 @@ async function login(openid: string, unionid: string, payload: Record<string, un
   const familyId = String(created._id || created.id || '')
   if (!familyId) raise('CLOUD_ERROR', '创建家庭失败')
   const displayName = displayNameOf(payload, 'owner')
+  const nickName = nickNameOf(payload)
+  const avatarUrl = normalizeAvatarUrl(payload.avatarUrl)
   await users().add({
     data: {
       openid,
@@ -247,6 +311,8 @@ async function login(openid: string, unionid: string, payload: Record<string, un
       familyId,
       role: 'owner',
       displayName,
+      nickName,
+      avatarUrl,
       createdAt: new Date().toISOString(),
     },
   })
@@ -255,8 +321,10 @@ async function login(openid: string, unionid: string, payload: Record<string, un
     familyId,
     role: 'owner',
     displayName,
+    nickName,
+    avatarUrl,
     createdAt: new Date().toISOString(),
-  }, snapshot)
+  }, snapshot, 1)
 }
 
 async function findInvite(code: string): Promise<FamilyInviteRecord | null> {
@@ -327,6 +395,8 @@ function toMemberViews(records: UserDoc[], openid: string): FamilyMemberView[] {
         openid: item.openid,
         role,
         displayName: item.displayName || defaultDisplayName(role),
+        nickName: item.nickName || '',
+        avatarUrl: item.avatarUrl || '',
         self: item.openid === openid,
         createdAt: item.createdAt || '',
       }
@@ -361,6 +431,13 @@ async function removeMember(actor: UserDoc, payload: Record<string, unknown>) {
   return null
 }
 
+/** 家长或家人自己退出：删掉成员记录，家庭和课表留给其他人。 */
+async function leaveFamily(user: UserDoc) {
+  if (!canLeaveFamily(user.role)) raise('OWNER_CANNOT_LEAVE', '创建者不能退出家庭')
+  if (user._id) await users().doc(user._id).remove()
+  return { left: true }
+}
+
 /** 只读判断，不占用邀请码、不换家庭。结论要和 joinFamily 的分支保持一致。 */
 async function previewInvite(openid: string, payload: Record<string, unknown>) {
   const code = normalizeInviteCode(String(payload.code || ''))
@@ -391,15 +468,21 @@ async function joinFamily(openid: string, unionid: string, payload: Record<strin
 
   const existing = await findUser(openid)
   if (existing?.familyId === invite.familyId) {
-    const snapshot = await loadSnapshot(existing.familyId)
-    return sessionOf(existing, snapshot)
+    await applyProfile(existing, payload)
+    const family = await loadFamily(existing.familyId)
+    return sessionOf(existing, family.snapshot, family.version)
   }
   if (existing && existing.role === 'owner' && await countFamilyMembers(existing.familyId) > 1) {
     raise('OWNER_HAS_MEMBERS', '请先让其他成员退出后再加入别的家庭')
   }
 
   const role = normalizeInviteRole(invite.role)
-  const displayName = displayNameOf(payload, role)
+  const keptName = existing && !(['owner', 'parent', 'viewer'] as FamilyRole[]).some((item) => defaultDisplayName(item) === existing.displayName)
+    ? existing.displayName
+    : ''
+  const displayName = String(payload.displayName || '').trim().slice(0, 16) || keptName || defaultDisplayName(role)
+  const nickName = nickNameOf(payload)
+  const avatarUrl = normalizeAvatarUrl(payload.avatarUrl)
   const now = new Date().toISOString()
   const previousFamilyId = existing?.role === 'owner' ? existing.familyId : ''
   await db.runTransaction(async (transaction) => {
@@ -425,6 +508,8 @@ async function joinFamily(openid: string, unionid: string, payload: Record<strin
           familyId: current.familyId,
           role,
           displayName,
+          nickName,
+          avatarUrl,
         },
       })
     } else {
@@ -435,6 +520,8 @@ async function joinFamily(openid: string, unionid: string, payload: Record<strin
           familyId: current.familyId,
           role,
           displayName,
+          nickName,
+          avatarUrl,
           createdAt: now,
         },
       })
@@ -450,14 +537,16 @@ async function joinFamily(openid: string, unionid: string, payload: Record<strin
       }
     }
   }
-  const snapshot = await loadSnapshot(invite.familyId)
+  const family = await loadFamily(invite.familyId)
   return sessionOf({
     openid,
     familyId: invite.familyId,
     role,
     displayName,
+    nickName,
+    avatarUrl,
     createdAt: existing?.createdAt || now,
-  }, snapshot)
+  }, family.snapshot, family.version)
 }
 
 async function dispatchWorkspace(user: UserDoc, action: string, payload: Record<string, unknown>) {
@@ -465,30 +554,22 @@ async function dispatchWorkspace(user: UserDoc, action: string, payload: Record<
     raise('SCOPE_FORBIDDEN', '家人只能查看课表和地点')
   }
   if (!canWriteFamily(user.role) && action === 'snapshot') {
-    return {
-      snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role),
-      result: null,
-    }
+    return familyMutation(user, null)
   }
   const data = await withFamily(user.familyId, (workspace) => applyFamilyAction(workspace, action, payload))
   return {
     snapshot: maskSnapshotForRole(data.snapshot, user.role),
     result: data.result,
+    version: data.version,
   }
 }
 
 async function dispatchAccount(user: UserDoc, action: string, payload: Record<string, unknown>) {
-  if (action === 'createInvite') {
-    const result = await createInvite(user, payload)
-    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result }
-  }
-  if (action === 'listMembers') {
-    const result = await listMembers(user)
-    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result }
-  }
+  if (action === 'createInvite') return familyMutation(user, await createInvite(user, payload))
+  if (action === 'listMembers') return familyMutation(user, await listMembers(user))
   if (action === 'removeMember') {
     await removeMember(user, payload)
-    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result: null }
+    return familyMutation(user, null)
   }
   raise('INVALID_ACTION', '不支持的操作')
 }
@@ -498,6 +579,8 @@ async function handle(openid: string, unionid: string, action: string, payload: 
   if (action === 'previewInvite') return previewInvite(openid, payload)
   if (action === 'joinFamily') return joinFamily(openid, unionid, payload)
   const user = await requireUser(openid)
+  if (action === 'leaveFamily') return leaveFamily(user)
+  if (action === 'sync') return syncFamily(user, payload)
   if (action === 'createInvite' || action === 'listMembers' || action === 'removeMember') {
     return dispatchAccount(user, action, payload)
   }

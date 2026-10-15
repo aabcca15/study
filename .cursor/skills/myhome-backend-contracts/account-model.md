@@ -73,18 +73,24 @@ Family（租户）
 
 ## 小程序家庭邀请（云函数）
 
-集合：`users`（openid、familyId、role、displayName）、`families`（已有 snapshotJson + ownerOpenid）、`invites`（code 为文档 ID，familyId、role=parent|viewer、expireAt、maxUses、usedCount）。
+集合：`users`（openid、familyId、role、displayName=家里的称呼或角色名、nickName=微信昵称、avatarUrl=云存储 `cloud://` 文件 ID）、`families`（snapshotJson + ownerOpenid + version，快照每变一次 version 加 1）、`invites`（code 为文档 ID，familyId、role=parent|viewer、expireAt、maxUses、usedCount）。
 
 | action | 谁能调 | 作用 |
 |---|---|---|
-| `login` | 微信用户 | 已有用户回家庭。`resume: true` 且没有家庭时返回 `UNAUTHENTICATED`，不创建。否则新用户建家庭并成为 `owner` |
+| `login` `{ childName, avatarKey, displayName?, nickName?, avatarUrl? }` | 微信用户 | 已有用户回家庭。`resume: true` 且没有家庭时返回 `UNAUTHENTICATED`，不创建。否则新用户建家庭并成为 `owner`。非 resume 时按本次提交写入称呼、昵称、头像；没带昵称、头像表示没勾选，清空原值 |
 | `previewInvite` `{ code }` | 微信用户 | 只读。返回 `new` / `same` / `blocked` / `replace` / `leave`，不占用邀请码、不换家庭 |
-| `joinFamily` `{ code, displayName? }` | 微信用户 | 按邀请码绑定家庭；创建者若家庭里还有别人则拒绝 `OWNER_HAS_MEMBERS` |
+| `joinFamily` `{ code, displayName?, nickName?, avatarUrl? }` | 微信用户 | 按邀请码绑定家庭；创建者若家庭里还有别人则拒绝 `OWNER_HAS_MEMBERS`。称呼为空时沿用原称呼，再没有就用角色名；昵称、头像只用本次提交的 |
+| `sync` `{ version, familyId, role }` | 家庭成员 | 切页时轻量检查。版本、家庭、角色都没变返回 `{ changed: false }`，否则返回完整会话 |
 | `createInvite` `{ role }` | owner：parent/viewer；parent：viewer | 生成邀请码 |
-| `listMembers` | 家庭成员 | 成员 + 未过期邀请 |
+| `listMembers` | 家庭成员 | 成员（含 avatarUrl）+ 未过期邀请 |
 | `removeMember` `{ openid }` | 仅 owner | 不能移自己或创建者 |
+| `leaveFamily` | parent、viewer | 自己退出，删掉自己的 `users` 记录，家庭数据留给其他人。创建者调用返回 `OWNER_CANNOT_LEAVE` |
 
-错误码：`INVITE_INVALID` `INVITE_EXPIRED` `INVITE_USED_UP` `INVITE_FORBIDDEN` `OWNER_HAS_MEMBERS` `MEMBER_REMOVE_FORBIDDEN` `CANNOT_REMOVE_OWNER` `CANNOT_REMOVE_SELF` `SCOPE_FORBIDDEN`。
+`avatarUrl` 只接受 `cloud://` 开头的文件 ID（`normalizeAvatarUrl`），小程序先用 `wx.cloud.uploadFile` 把 `chooseAvatar` 拿到的临时文件传到 `avatars/` 再提交。云存储权限需保持「所有用户可读」，家里其他人才能看到头像。
+
+错误码：`INVITE_INVALID` `INVITE_EXPIRED` `INVITE_USED_UP` `INVITE_FORBIDDEN` `OWNER_HAS_MEMBERS` `MEMBER_REMOVE_FORBIDDEN` `CANNOT_REMOVE_OWNER` `CANNOT_REMOVE_SELF` `OWNER_CANNOT_LEAVE` `SCOPE_FORBIDDEN` `NOT_MEMBER`（已有家庭的会话找不到成员记录，即被移出或在别处退出；客户端清会话、提示一次并回今日页）。
+
+同步：所有写操作和 `sync` 都返回 `version`。小程序在页面 onShow、首页切 tab 时调 `sync`（3 秒内去重、并发合并），所以别人改了课程、移出成员后，其他人切页或返回就能拿到最新数据；写操作本身在事务里读最新快照，不会覆盖别人的改动。
 
 家人切换正在看的孩子只保存在本机，不改家庭快照里的默认孩子。邀请码占用次数在云数据库事务里递增，避免并发把同一个码用超。已登录时打开带邀请码的链接会停在加入页，确认后才换家庭。创建者若是家里唯一的人，确认文案会说明课程和账单将被清除；加入成功后删掉空的旧家庭。家里还有别人时不发起加入。家长或家人离开当前家庭时，旧家庭数据仍留给其他成员。
 

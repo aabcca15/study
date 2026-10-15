@@ -1936,6 +1936,13 @@ function canInviteRole(actor, target) {
 function canRemoveMember(actor, target, self2) {
   return actor === "owner" && !self2 && target !== "owner";
 }
+function canLeaveFamily(role) {
+  return role !== "owner";
+}
+function normalizeAvatarUrl(value) {
+  const text = String(value || "").trim();
+  return /^cloud:\/\/[\w.-]+\/[\w./-]+$/.test(text) ? text : "";
+}
 function normalizeRole(role, isOwner = false) {
   if (role === "owner" || role === "parent" || role === "viewer") return role;
   return isOwner ? "owner" : "parent";
@@ -2008,6 +2015,8 @@ var TEXT_LIMITS = {
   name: 20,
   childName: 20,
   displayName: 16,
+  nickName: 20,
+  avatarUrl: 300,
   title: 40,
   teacher: 20,
   location: 60,
@@ -2048,6 +2057,21 @@ function displayNameOf(payload, role) {
   const name = String(payload.displayName || "").trim().slice(0, 16);
   return name || defaultDisplayName(role);
 }
+function nickNameOf(payload) {
+  return String(payload.nickName || "").trim().slice(0, 20);
+}
+async function applyProfile(user, payload) {
+  const name = String(payload.displayName || "").trim().slice(0, 16);
+  const nickName = nickNameOf(payload);
+  const avatarUrl = normalizeAvatarUrl(payload.avatarUrl);
+  const data = {};
+  if (name && name !== user.displayName) data.displayName = name;
+  if (nickName !== (user.nickName || "")) data.nickName = nickName;
+  if (avatarUrl !== (user.avatarUrl || "")) data.avatarUrl = avatarUrl;
+  if (!user._id || !Object.keys(data).length) return;
+  await users().doc(user._id).update({ data });
+  Object.assign(user, data);
+}
 async function findUser(openid) {
   var _a;
   const found = await users().where({ openid }).limit(1).get();
@@ -2057,12 +2081,14 @@ async function findUser(openid) {
     ...user,
     _id: user._id ? String(user._id) : void 0,
     role: normalizeRole(user.role),
-    displayName: user.displayName || defaultDisplayName(normalizeRole(user.role))
+    displayName: user.displayName || defaultDisplayName(normalizeRole(user.role)),
+    nickName: user.nickName || "",
+    avatarUrl: user.avatarUrl || ""
   };
 }
 async function requireUser(openid) {
   const user = await findUser(openid);
-  if (!user) raise("UNAUTHENTICATED", "\u8BF7\u5148\u4F7F\u7528\u5FAE\u4FE1\u767B\u5F55");
+  if (!user) raise("NOT_MEMBER", "\u4F60\u5DF2\u4E0D\u5728\u8FD9\u4E2A\u5BB6\u5EAD\u4E2D\uFF0C\u53EF\u4EE5\u91CD\u65B0\u521B\u5EFA\u6216\u52A0\u5165\u5BB6\u5EAD");
   return user;
 }
 async function loadFamilyDoc(familyId) {
@@ -2071,18 +2097,38 @@ async function loadFamilyDoc(familyId) {
   if (!(raw == null ? void 0 : raw.snapshotJson)) raise("FAMILY_MISMATCH", "\u5BB6\u5EAD\u4E0D\u5B58\u5728\u6216\u65E0\u6743\u8BBF\u95EE");
   return raw;
 }
-async function loadSnapshot(familyId) {
-  return JSON.parse((await loadFamilyDoc(familyId)).snapshotJson);
+async function loadFamily(familyId) {
+  const family = await loadFamilyDoc(familyId);
+  return {
+    snapshot: JSON.parse(family.snapshotJson),
+    version: versionOf(family)
+  };
 }
-function sessionOf(user, snapshot) {
+async function familyMutation(user, result) {
+  const family = await loadFamily(user.familyId);
+  return { snapshot: maskSnapshotForRole(family.snapshot, user.role), result, version: family.version };
+}
+async function syncFamily(user, payload) {
+  const family = await loadFamily(user.familyId);
+  const same = Number(payload.version) === family.version && payload.familyId === user.familyId && payload.role === user.role;
+  if (same) return { changed: false };
+  return { changed: true, session: sessionOf(user, family.snapshot, family.version) };
+}
+function sessionOf(user, snapshot, version = 0) {
   const role = normalizeRole(user.role);
   return {
     openid: user.openid,
     familyId: user.familyId,
     role,
     displayName: user.displayName || defaultDisplayName(role),
-    snapshot: maskSnapshotForRole(cloneSnapshot(snapshot), role)
+    nickName: user.nickName || "",
+    avatarUrl: user.avatarUrl || "",
+    snapshot: maskSnapshotForRole(cloneSnapshot(snapshot), role),
+    version
   };
+}
+function versionOf(family) {
+  return family.version || 1;
 }
 async function withFamily(familyId, apply) {
   return db.runTransaction(async (transaction) => {
@@ -2093,18 +2139,21 @@ async function withFamily(familyId, apply) {
     const workspace = createFamilyWorkspace(JSON.parse(raw.snapshotJson));
     const result = await apply(workspace);
     const nextJson = JSON.stringify(workspace.snapshot.value);
+    let version = versionOf(raw);
     if (nextJson !== raw.snapshotJson) {
+      version += 1;
       await ref.update({
         data: {
           snapshotJson: nextJson,
-          version: (raw.version || 1) + 1,
+          version,
           updatedAt: (/* @__PURE__ */ new Date()).toISOString()
         }
       });
     }
     return {
       snapshot: JSON.parse(nextJson),
-      result: result ?? null
+      result: result ?? null,
+      version
     };
   });
 }
@@ -2134,6 +2183,7 @@ async function login(openid, unionid, payload) {
   if (existing) {
     const family = await loadFamilyDoc(existing.familyId);
     const role = normalizeRole(existing.role, family.ownerOpenid === openid);
+    if (payload.resume !== true) await applyProfile(existing, payload);
     const displayName2 = existing.displayName || defaultDisplayName(role);
     await persistUserRole(existing, role, displayName2);
     if (canWriteFamily(role)) {
@@ -2141,9 +2191,9 @@ async function login(openid, unionid, payload) {
         applyFamilyAction(workspace, "snapshot", {});
         return null;
       });
-      return sessionOf({ ...existing, role, displayName: displayName2 }, data.snapshot);
+      return sessionOf({ ...existing, role, displayName: displayName2 }, data.snapshot, data.version);
     }
-    return sessionOf({ ...existing, role, displayName: displayName2 }, JSON.parse(family.snapshotJson));
+    return sessionOf({ ...existing, role, displayName: displayName2 }, JSON.parse(family.snapshotJson), versionOf(family));
   }
   const childName = String(payload.childName || "").trim().slice(0, 20) || "\u5C0FU";
   const avatarKey = typeof payload.avatarKey === "string" ? payload.avatarKey : void 0;
@@ -2162,6 +2212,8 @@ async function login(openid, unionid, payload) {
   const familyId = String(created._id || created.id || "");
   if (!familyId) raise("CLOUD_ERROR", "\u521B\u5EFA\u5BB6\u5EAD\u5931\u8D25");
   const displayName = displayNameOf(payload, "owner");
+  const nickName = nickNameOf(payload);
+  const avatarUrl = normalizeAvatarUrl(payload.avatarUrl);
   await users().add({
     data: {
       openid,
@@ -2169,6 +2221,8 @@ async function login(openid, unionid, payload) {
       familyId,
       role: "owner",
       displayName,
+      nickName,
+      avatarUrl,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     }
   });
@@ -2177,8 +2231,10 @@ async function login(openid, unionid, payload) {
     familyId,
     role: "owner",
     displayName,
+    nickName,
+    avatarUrl,
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  }, snapshot);
+  }, snapshot, 1);
 }
 async function findInvite(code) {
   const normalized = normalizeInviteCode(code);
@@ -2242,6 +2298,8 @@ function toMemberViews(records, openid) {
       openid: item.openid,
       role,
       displayName: item.displayName || defaultDisplayName(role),
+      nickName: item.nickName || "",
+      avatarUrl: item.avatarUrl || "",
       self: item.openid === openid,
       createdAt: item.createdAt || ""
     };
@@ -2272,6 +2330,11 @@ async function removeMember(actor, payload) {
   if (target._id) await users().doc(String(target._id)).remove();
   return null;
 }
+async function leaveFamily(user) {
+  if (!canLeaveFamily(user.role)) raise("OWNER_CANNOT_LEAVE", "\u521B\u5EFA\u8005\u4E0D\u80FD\u9000\u51FA\u5BB6\u5EAD");
+  if (user._id) await users().doc(user._id).remove();
+  return { left: true };
+}
 async function previewInvite(openid, payload) {
   const code = normalizeInviteCode(String(payload.code || ""));
   const invite = await findInvite(code);
@@ -2299,14 +2362,18 @@ async function joinFamily(openid, unionid, payload) {
   }
   const existing = await findUser(openid);
   if ((existing == null ? void 0 : existing.familyId) === invite.familyId) {
-    const snapshot2 = await loadSnapshot(existing.familyId);
-    return sessionOf(existing, snapshot2);
+    await applyProfile(existing, payload);
+    const family2 = await loadFamily(existing.familyId);
+    return sessionOf(existing, family2.snapshot, family2.version);
   }
   if (existing && existing.role === "owner" && await countFamilyMembers(existing.familyId) > 1) {
     raise("OWNER_HAS_MEMBERS", "\u8BF7\u5148\u8BA9\u5176\u4ED6\u6210\u5458\u9000\u51FA\u540E\u518D\u52A0\u5165\u522B\u7684\u5BB6\u5EAD");
   }
   const role = normalizeInviteRole(invite.role);
-  const displayName = displayNameOf(payload, role);
+  const keptName = existing && !["owner", "parent", "viewer"].some((item) => defaultDisplayName(item) === existing.displayName) ? existing.displayName : "";
+  const displayName = String(payload.displayName || "").trim().slice(0, 16) || keptName || defaultDisplayName(role);
+  const nickName = nickNameOf(payload);
+  const avatarUrl = normalizeAvatarUrl(payload.avatarUrl);
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const previousFamilyId = (existing == null ? void 0 : existing.role) === "owner" ? existing.familyId : "";
   await db.runTransaction(async (transaction) => {
@@ -2331,7 +2398,9 @@ async function joinFamily(openid, unionid, payload) {
         data: {
           familyId: current.familyId,
           role,
-          displayName
+          displayName,
+          nickName,
+          avatarUrl
         }
       });
     } else {
@@ -2342,6 +2411,8 @@ async function joinFamily(openid, unionid, payload) {
           familyId: current.familyId,
           role,
           displayName,
+          nickName,
+          avatarUrl,
           createdAt: now
         }
       });
@@ -2356,43 +2427,37 @@ async function joinFamily(openid, unionid, payload) {
       }
     }
   }
-  const snapshot = await loadSnapshot(invite.familyId);
+  const family = await loadFamily(invite.familyId);
   return sessionOf({
     openid,
     familyId: invite.familyId,
     role,
     displayName,
+    nickName,
+    avatarUrl,
     createdAt: (existing == null ? void 0 : existing.createdAt) || now
-  }, snapshot);
+  }, family.snapshot, family.version);
 }
 async function dispatchWorkspace(user, action, payload) {
   if (!canWriteFamily(user.role) && !isWorkspaceReadAction(action)) {
     raise("SCOPE_FORBIDDEN", "\u5BB6\u4EBA\u53EA\u80FD\u67E5\u770B\u8BFE\u8868\u548C\u5730\u70B9");
   }
   if (!canWriteFamily(user.role) && action === "snapshot") {
-    return {
-      snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role),
-      result: null
-    };
+    return familyMutation(user, null);
   }
   const data = await withFamily(user.familyId, (workspace) => applyFamilyAction(workspace, action, payload));
   return {
     snapshot: maskSnapshotForRole(data.snapshot, user.role),
-    result: data.result
+    result: data.result,
+    version: data.version
   };
 }
 async function dispatchAccount(user, action, payload) {
-  if (action === "createInvite") {
-    const result = await createInvite(user, payload);
-    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result };
-  }
-  if (action === "listMembers") {
-    const result = await listMembers(user);
-    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result };
-  }
+  if (action === "createInvite") return familyMutation(user, await createInvite(user, payload));
+  if (action === "listMembers") return familyMutation(user, await listMembers(user));
   if (action === "removeMember") {
     await removeMember(user, payload);
-    return { snapshot: maskSnapshotForRole(await loadSnapshot(user.familyId), user.role), result: null };
+    return familyMutation(user, null);
   }
   raise("INVALID_ACTION", "\u4E0D\u652F\u6301\u7684\u64CD\u4F5C");
 }
@@ -2401,6 +2466,8 @@ async function handle(openid, unionid, action, payload) {
   if (action === "previewInvite") return previewInvite(openid, payload);
   if (action === "joinFamily") return joinFamily(openid, unionid, payload);
   const user = await requireUser(openid);
+  if (action === "leaveFamily") return leaveFamily(user);
+  if (action === "sync") return syncFamily(user, payload);
   if (action === "createInvite" || action === "listMembers" || action === "removeMember") {
     return dispatchAccount(user, action, payload);
   }

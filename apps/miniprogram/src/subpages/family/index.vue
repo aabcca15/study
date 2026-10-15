@@ -7,17 +7,20 @@ import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import PageHeader from '@/components/PageHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { inviteShare, isMomentsPreview, momentsShare } from '@/utils/share'
+import { openTab } from '@/utils/nav'
 import {
+  FAMILY_ROLE_HINT,
   FAMILY_ROLE_LABEL,
   formatInviteCode,
   INVITE_ROLE_HINT,
   isInviteActive,
+  memberTitle,
   type FamilyInviteView,
   type FamilyMemberView,
   type InviteRole,
 } from '@/domain/family-account'
 
-const store = useFamilyPage({ refresh: false })
+const store = useFamilyPage()
 const themeClass = useThemePage()
 const pageBg = usePageBackground()
 const members = ref<FamilyMemberView[]>([])
@@ -114,12 +117,32 @@ function remove(member: FamilyMemberView) {
   if (!store.canRemove(member)) return
   uni.showModal({
     title: '移出家庭',
-    content: `确定把「${member.displayName}」移出这个家庭？`,
+    content: `确定把「${memberTitle(member).name}」移出这个家庭？`,
     success: async (res) => {
       if (!res.confirm) return
       try {
         await store.removeMember(member.openid)
         await refreshRoster()
+      } catch (error) {
+        showCloudError(error)
+      }
+    },
+  })
+}
+
+function leave() {
+  if (!store.canLeave) return
+  uni.showModal({
+    title: '退出家庭',
+    content: '退出后将看不到这个家庭的课表，需要家长重新邀请才能再加入。',
+    confirmText: '退出',
+    confirmColor: '#ed5d6e',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await store.leaveFamily()
+        uni.showToast({ icon: 'none', title: '已退出家庭' })
+        openTab('today')
       } catch (error) {
         showCloudError(error)
       }
@@ -133,12 +156,15 @@ function remove(member: FamilyMemberView) {
   <page-meta :page-style="pageBg.style" :background-color="pageBg.bg" :background-color-top="pageBg.bg" :background-color-bottom="pageBg.bg" :root-background-color="pageBg.bg" :background-text-style="pageBg.text" />
   <view class="theme-root" :class="themeClass">
     <view class="page family-page">
-      <PageHeader show-back safe title="家庭成员" :caption="`你是${store.roleLabel} · ${store.canWrite ? '可以改课表和账单' : '只能看课表和地点'}`" />
+      <PageHeader show-back safe title="家庭成员" />
 
       <view class="card role-card">
-        <text class="eyebrow">当前身份</text>
-        <text class="role-name">{{ store.displayName || store.roleLabel }}</text>
-        <text class="muted">{{ store.role === 'viewer' ? '接送时看今天上哪节课、在哪里。改课和账单由家长来。' : '邀请家长一起管课表，或邀请家人只看计划。' }}</text>
+        <view class="role-copy">
+          <text class="eyebrow">当前身份</text>
+          <text class="role-name">{{ store.ready ? store.roleLabel : '还没有家庭' }}</text>
+          <text class="muted">{{ store.ready ? FAMILY_ROLE_HINT[store.role] : '创建或加入家庭后，可以和家人一起看课表。' }}</text>
+        </view>
+        <button v-if="store.ready && store.canLeave" hover-class="press-on" hover-stay-time="80" class="ghost" @click="leave">退出</button>
       </view>
 
       <view class="section-head">
@@ -156,12 +182,18 @@ function remove(member: FamilyMemberView) {
           </view>
         </template>
         <view v-for="member in members" :key="member.openid" class="member">
-          <view class="avatar" :class="member.role">{{ member.displayName.slice(0, 1) }}</view>
+          <image v-if="member.avatarUrl" class="avatar photo" :src="member.avatarUrl" mode="aspectFill" />
+          <view v-else class="avatar" :class="member.role">{{ memberTitle(member).name.slice(0, 1) }}</view>
           <view class="member-copy">
-            <text class="name">{{ member.displayName }}{{ member.self ? ' · 我' : '' }}</text>
+            <view class="name-row">
+              <text class="name">{{ memberTitle(member).name }}</text>
+              <text v-if="memberTitle(member).tag" class="name-tag">{{ memberTitle(member).tag }}</text>
+              <text v-if="member.self" class="name-self">· 我</text>
+            </view>
             <text class="muted">{{ FAMILY_ROLE_LABEL[member.role] }}</text>
           </view>
           <button hover-class="press-on" hover-stay-time="80" v-if="store.canRemove(member)" class="ghost" @click="remove(member)">移出</button>
+          <button hover-class="press-on" hover-stay-time="80" v-else-if="member.self && store.canLeave" class="ghost" @click="leave">退出</button>
         </view>
       </view>
 
@@ -231,7 +263,8 @@ function remove(member: FamilyMemberView) {
 
 <style scoped>
 .family-page { padding-bottom: 48px; }
-.role-card { margin-bottom: 22px; }
+.role-card { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.role-copy { flex: 1; min-width: 0; }
 .role-name {
   display: block;
   margin: 6px 0 8px;
@@ -266,14 +299,43 @@ function remove(member: FamilyMemberView) {
   font-weight: 800;
   background: #8c93a3;
 }
+.avatar.photo { flex: 0 0 auto; background: var(--surface-2); }
 .avatar.owner { background: linear-gradient(135deg, #ffb45c, #f15a36); }
 .avatar.parent { background: linear-gradient(135deg, #5d9cff, #3c6fe0); }
 .avatar.viewer { background: linear-gradient(135deg, #39c6a4, #1fa98c); }
 .member-copy { flex: 1; min-width: 0; }
 .avatar-sk { width: 40px; height: 40px; border-radius: 14px; }
 .code-sk { margin-left: auto; margin-right: auto; }
-.name { display: block; font-size: 15px; font-weight: 700; }
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.name-tag {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: #f15a36;
+  background: rgba(255, 122, 69, 0.12);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.name-self {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+}
 .ghost {
+  flex: 0 0 auto;
   padding: 6px 10px;
   color: #ed5d6e;
   background: var(--danger-soft);

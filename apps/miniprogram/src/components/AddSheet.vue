@@ -204,8 +204,9 @@ async function submit() {
         </view>
 
         <view class="mode-tabs">
-          <text class="press" :class="{ on: mode === 'preset' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'preset'">选择已有课程</text>
-          <text class="press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">新增临时计划</text>
+          <view class="mode-thumb" :class="{ right: mode === 'temporary' }" />
+          <text class="mode-tab press" :class="{ on: mode === 'preset' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'preset'">选择已有课程</text>
+          <text class="mode-tab press" :class="{ on: mode === 'temporary' }" hover-class="press-on" hover-stay-time="80" @click="mode = 'temporary'">新增临时计划</text>
         </view>
 
         <template v-if="mode === 'preset'">
@@ -229,19 +230,18 @@ async function submit() {
             </view>
           </view>
           <view v-else class="empty-course">
-            <text>还没有课程预设，请先新增课程。</text>
-            <button hover-class="press-on" hover-stay-time="80" class="btn ghost" @click="goCreateCourse">新增课程</button>
+            <button hover-class="press-on" hover-stay-time="80" class="btn outline" @click="goCreateCourse">新增课程</button>
           </view>
         </template>
 
         <template v-else>
           <view class="field">
             <text class="field-label">计划名称<text class="req">*</text></text>
-            <input v-model="title" :maxlength="TEXT_LIMIT.courseTitle" placeholder="例如 家长会 / 临时钢琴课" placeholder-class="ph" />
+            <input v-model="title" :maxlength="TEXT_LIMIT.courseTitle" placeholder="请输入计划名称" placeholder-class="ph" />
           </view>
           <view class="field">
             <text class="field-label">备注</text>
-            <input v-model="note" :maxlength="TEXT_LIMIT.note" placeholder="地点或事项，不是课程也可以" placeholder-class="ph" />
+            <input v-model="note" :maxlength="TEXT_LIMIT.note" placeholder="请输入备注信息" placeholder-class="ph" />
           </view>
           <view class="row">
             <view class="field" style="flex: 1">
@@ -325,30 +325,44 @@ async function submit() {
   font-size: 22px;
 }
 .mode-tabs {
+  position: relative;
   display: flex;
-  gap: 5px;
   margin-bottom: 14px;
   padding: 4px;
   border-radius: 16px;
   background: var(--surface-2);
 }
-.mode-tabs text {
+.mode-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: 39px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.mode-thumb.right { transform: translateX(100%); }
+.mode-tab {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1;
-  min-height: 39px;
+  height: 39px;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+  transition: color 0.3s ease;
 }
-.mode-tabs text.on {
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: var(--elev-sm);
+.mode-tab.on { color: var(--accent-text); }
+.mode-tab.press-on {
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
+  transform: scale(0.94);
 }
 .tip, .preset-meta, .busy text {
   display: block;
@@ -371,7 +385,15 @@ async function submit() {
 .preset-copy { flex: 1; min-width: 0; }
 .preset-name { display: block; font-weight: 700; }
 .preset-mark { color: var(--accent-text); font-size: 12px; font-weight: 700; }
-.empty-course { display: flex; flex-direction: column; gap: 12px; padding: 8px 0 16px; }
+.empty-course { padding: 4px 0 16px; }
+.btn.outline {
+  width: 100%;
+  height: 44px;
+  color: var(--accent-text);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px #ff7a45;
+  font-weight: 700;
+}
 .money {
   display: flex;
   align-items: center;
