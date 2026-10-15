@@ -15,6 +15,7 @@ import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/utils/wx-theme'
 import { cardBackground, currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
 import AppIcon from '@/components/AppIcon.vue'
+import EmptyHint from '@/components/EmptyHint.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 
 const props = withDefaults(defineProps<{
@@ -254,10 +255,14 @@ const rows = computed(() => {
       </view>
     </view>
 
-    <view v-else class="empty-state">
-      <button hover-class="press-on" hover-stay-time="80" v-if="!readonly" class="empty-add" @click="emit('add')"><AppIcon name="plus" tone="accent" :size="22" /></button>
-      <text class="empty-title">这一天没有课程</text>
-      <text class="empty-desc">{{ emptyLine }}</text>
+    <view v-else class="empty-card">
+      <EmptyHint icon="calendar" :label="emptyLine">
+        <template v-if="!readonly" #mark>
+          <button hover-class="press-on" hover-stay-time="80" class="empty-add press" @click="emit('add')">
+            <AppIcon name="plus" tone="accent" :size="22" />
+          </button>
+        </template>
+      </EmptyHint>
     </view>
   </view>
 </template>
@@ -460,24 +465,24 @@ const rows = computed(() => {
 .progress-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress-track { height: 5px; border-radius: 999px; overflow: hidden; }
 .progress-track view { height: 100%; border-radius: 999px; }
-.empty-state {
-  padding: 28px 20px 24px;
-  text-align: center;
+.empty-card {
   border-radius: 24px;
   background: var(--paper);
   box-shadow: var(--elev-md);
 }
 .empty-add {
   display: flex;
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 12px;
+  width: 52px;
+  height: 52px;
+  min-height: 52px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1.5px dashed rgba(255, 122, 69, 0.45);
-  border-radius: 14px;
+  margin: 0;
+  padding: 0;
+  border-radius: 18px;
   background: var(--accent-soft);
+  line-height: 1;
 }
-.empty-title { display: block; font-size: 17px; font-weight: 700; }
-.empty-desc { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.empty-add::after { border: 0; }
 </style>

@@ -9,6 +9,7 @@ import { useThemeStore } from '@/utils/wx-theme'
 import { currentMixBase, deepTone, mix, tileBackground } from '@/utils/color'
 import { windowWidth } from '@/utils/system'
 import AppIcon from '@/components/AppIcon.vue'
+import EmptyHint from '@/components/EmptyHint.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import TrendChart from '@/components/TrendChart.vue'
 
@@ -135,7 +136,7 @@ function formatTrendHours(hours: number) {
             </view>
           </view>
         </view>
-        <text v-else class="empty">当前周期还没有账单。</text>
+        <EmptyHint v-else icon="bill" label="还没有账单" />
       </view>
 
       <view class="quick-metrics">
@@ -197,7 +198,9 @@ function formatTrendHours(hours: number) {
           </view>
         </view>
       </scroll-view>
-      <text v-else class="empty">当前周期暂无课程计划。</text>
+      <view v-else class="card">
+        <EmptyHint icon="calendar" label="还没有课程" />
+      </view>
 
       <TrendChart
         title="课时趋势"
@@ -284,7 +287,6 @@ function formatTrendHours(hours: number) {
 .swatch { width: 7px; height: 7px; border-radius: 50%; }
 .legend-row text:nth-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legend-amount { color: var(--ink); font-weight: 700; }
-.empty { display: block; padding: 18px 8px; color: var(--muted); text-align: center; font-size: 12px; }
 .quick-metrics { display: flex; gap: 10px; margin-bottom: 18px; }
 .metric { display: flex; flex: 1; align-items: center; gap: 10px; padding: 14px; border-radius: 20px; background: var(--paper); box-shadow: var(--elev-sm); }
 .metric-icon { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 12px; }

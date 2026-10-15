@@ -11,6 +11,7 @@ import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import { cardBackground, tileBackground } from '@/utils/color'
 import AppIcon from '@/components/AppIcon.vue'
+import EmptyHint from '@/components/EmptyHint.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 const store = useFamilyPage()
@@ -72,7 +73,9 @@ function subOf(day: { startTime?: string; endTime?: string; kind?: string }) {
         <text class="muted">按上课日</text>
         <text class="h2">{{ ledger.days.length }} 次记录</text>
       </view>
-      <view v-if="!ledger.days.length" class="empty">这门课还没有上课日期或账单。</view>
+      <view v-if="!ledger.days.length" class="card">
+        <EmptyHint icon="calendar" label="还没有记录" />
+      </view>
       <view v-for="day in ledger.days" :key="day.key" class="day-row press" hover-class="press-on" hover-stay-time="80" @click="openBill(day.expenseId)">
         <view class="day-copy">
           <text class="day-title">{{ dayjs(day.date).format('M月D日') }} {{ day.weekdayLabel }}</text>

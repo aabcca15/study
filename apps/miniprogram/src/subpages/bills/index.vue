@@ -11,6 +11,7 @@ import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage, useThemeStore } from '@/utils/wx-theme'
 import { weekDates, weekLabel } from '@/utils/view'
 import AppIcon from '@/components/AppIcon.vue'
+import EmptyHint from '@/components/EmptyHint.vue'
 import TabBar from '@/components/TabBar.vue'
 import { currentMixBase, mix, tileBackground } from '@/utils/color'
 import AppHeader from '@/components/AppHeader.vue'
@@ -117,13 +118,15 @@ function shift(delta: number) {
             </view>
           </view>
         </view>
-        <text v-else class="empty">本周还没有支出记录。</text>
+        <EmptyHint v-else icon="bill" label="还没有账单" />
       </view>
       <view class="list-title">
         <text class="muted">账单明细</text>
         <text class="h2">{{ bills.length }} 笔记录</text>
       </view>
-      <view v-if="!bills.length" class="empty dashed">本周暂无账单。</view>
+      <view v-if="!bills.length" class="card">
+        <EmptyHint icon="bill" label="还没有账单" />
+      </view>
       <view
         v-for="bill in bills"
         :key="bill.id"
@@ -200,8 +203,6 @@ function shift(delta: number) {
 .legend-amount { color: var(--ink); font-weight: 700; }
 .list-title { margin: 4px 0 11px; }
 .h2 { display: block; margin-top: 2px; font-size: 18px; font-weight: 800; }
-.empty { display: block; padding: 18px 8px; color: var(--muted); text-align: center; font-size: 12px; }
-.empty.dashed { border: 1px dashed var(--line); border-radius: 20px; }
 .bill { display: flex; align-items: center; gap: 11px; }
 .bill-icon {
   display: flex;

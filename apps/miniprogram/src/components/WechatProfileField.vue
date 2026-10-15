@@ -31,14 +31,10 @@ function onNickname(event: { detail?: { value?: string } }) {
 
 <template>
   <view class="wechat-profile">
-    <view class="check press" hover-class="press-on" hover-stay-time="80" @click="emit('update:enabled', !enabled)">
-      <view class="box" :class="{ on: enabled }"><text v-if="enabled" class="tick">✓</text></view>
-      <text class="check-label">使用微信头像和昵称，方便家人认出你</text>
-    </view>
     <view v-if="enabled" class="row">
-      <button class="avatar press" hover-class="press-on" hover-stay-time="80" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+      <button class="avatar press" :class="{ picked: avatar }" hover-class="press-on" hover-stay-time="80" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
         <image v-if="avatar" class="avatar-image" :src="avatar" mode="aspectFill" />
-        <AppIcon v-else name="family" tone="muted" :size="22" />
+        <AppIcon v-else name="image" tone="accent" :size="22" />
       </button>
       <input
         class="nick"
@@ -50,6 +46,10 @@ function onNickname(event: { detail?: { value?: string } }) {
         @input="onNickname"
         @blur="onNickname"
       />
+    </view>
+    <view class="check press" hover-class="press-on" hover-stay-time="80" @click="emit('update:enabled', !enabled)">
+      <view class="box" :class="{ on: enabled }"><text v-if="enabled" class="tick">✓</text></view>
+      <text class="check-label">使用微信头像和昵称，方便家人认出你</text>
     </view>
   </view>
 </template>
@@ -92,7 +92,7 @@ function onNickname(event: { detail?: { value?: string } }) {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
+  margin-bottom: 12px;
   animation: row-in 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .avatar {
@@ -104,7 +104,13 @@ function onNickname(event: { detail?: { value?: string } }) {
   justify-content: center;
   overflow: hidden;
   padding: 0;
+  border: 1.5px dashed rgba(255, 122, 69, 0.55);
   border-radius: 16px;
+  background: var(--accent-soft);
+}
+.avatar.picked {
+  border-style: solid;
+  border-color: transparent;
   background: var(--paper);
   box-shadow: var(--elev-sm);
 }
@@ -131,7 +137,7 @@ function onNickname(event: { detail?: { value?: string } }) {
   transform: scale(0.96);
 }
 @keyframes row-in {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 </style>

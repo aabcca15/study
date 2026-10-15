@@ -12,6 +12,7 @@ import { useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 import AppIcon from '@/components/AppIcon.vue'
+import EmptyHint from '@/components/EmptyHint.vue'
 import ChildAvatar from '@/components/ChildAvatar.vue'
 import { cardBackground, currentMixBase, deepTone, folderTab, mix, tileBackground } from '@/utils/color'
 import PageHeader from '@/components/PageHeader.vue'
@@ -256,7 +257,10 @@ function more(course: Course) {
         </template>
       </PageHeader>
 
-      <view class="course-grid">
+      <view v-if="!cards.length && !store.canWrite" class="card">
+        <EmptyHint icon="calendar" label="还没有课程" />
+      </view>
+      <view v-else class="course-grid">
         <view
           v-for="card in cards"
           :key="card.course.id"

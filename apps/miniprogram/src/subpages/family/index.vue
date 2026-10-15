@@ -6,6 +6,7 @@ import { useFamilyPage } from '@/composables/useFamilyPage'
 import { usePageBackground, useThemePage } from '@/utils/wx-theme'
 import PageHeader from '@/components/PageHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import EmptyHint from '@/components/EmptyHint.vue'
 import { inviteShare, isMomentsPreview, momentsShare } from '@/utils/share'
 import { openTab } from '@/utils/nav'
 import {
@@ -195,6 +196,7 @@ function leave() {
           <button hover-class="press-on" hover-stay-time="80" v-if="store.canRemove(member)" class="ghost" @click="remove(member)">移出</button>
           <button hover-class="press-on" hover-stay-time="80" v-else-if="member.self && store.canLeave" class="ghost" @click="leave">退出</button>
         </view>
+        <EmptyHint v-if="loaded && !members.length" icon="family" label="还没有成员" />
       </view>
 
       <view v-if="store.canInviteParent || store.canInviteViewer" class="section-head">
