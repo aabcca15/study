@@ -3,7 +3,7 @@ import type { Charge, Course, Expense, Payment, ScheduleException } from './type
 import { billNetAmount } from './billing'
 import { WEEKDAY_SHORT } from './constants'
 import { effectiveCourseSlots } from './courseSchedule'
-import { expectedUsageCharge, isUsagePriced, occurrenceIdFor, roundMoney } from './charges'
+import { expectedUsageCharge, isUsagePriced, occurrenceDateFromCharge, occurrenceIdFor, roundMoney } from './charges'
 
 export type CourseBillRowKind = 'session' | 'prepaid' | 'period' | 'free'
 export type CourseBillPayState = 'paid' | 'unpaid' | 'free'
@@ -140,8 +140,16 @@ export function buildCourseBillLedger(
     })
   }
 
+  const sessionDates = new Set(days.filter((row) => row.kind === 'session' && row.expenseId).map((row) => row.date))
   for (const bill of bills) {
     if (usedExpenseIds.has(bill.id)) continue
+    if (bill.statementKey && bill.chargeIds?.length && sessionDates.size) {
+      const dates = bill.chargeIds
+        .map((id) => charges.find((item) => item.id === id))
+        .filter((item): item is Charge => Boolean(item))
+        .map((item) => occurrenceDateFromCharge(item, []))
+      if (dates.length && dates.every((date) => sessionDates.has(date))) continue
+    }
     days.push({
       key: `bill-${bill.id}`,
       date: bill.dueDate,

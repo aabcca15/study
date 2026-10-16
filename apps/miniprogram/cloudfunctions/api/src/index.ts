@@ -2,7 +2,7 @@ import cloud from 'wx-server-sdk'
 import type { AppSnapshot, ChildAvatarKey } from '../../../../../server/src/domain/types'
 import { createEmptyFamilySnapshot } from '../../../../../server/src/workspace/empty-snapshot'
 import { applyFamilyAction, FamilyActionError } from '../../../../../server/src/workspace/family-actions'
-import { createFamilyWorkspace } from '../../../../../server/src/workspace/family-workspace'
+import { createFamilyWorkspace, hourlyBillsNeedRefresh } from '../../../../../server/src/workspace/family-workspace'
 import {
   canInviteRole,
   canLeaveFamily,
@@ -190,6 +190,12 @@ async function familyMutation(user: UserDoc, result: unknown) {
  */
 async function syncFamily(user: UserDoc, payload: Record<string, unknown>) {
   const family = await loadFamily(user.familyId)
+  if (hourlyBillsNeedRefresh(family.snapshot)) {
+    const healed = await withFamily(user.familyId, (workspace) => {
+      workspace.refreshUnpaidSessionAmounts()
+    })
+    return { changed: true, session: sessionOf(user, healed.snapshot, healed.version) }
+  }
   const same = Number(payload.version) === family.version
     && payload.familyId === user.familyId
     && payload.role === user.role

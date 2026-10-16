@@ -179,14 +179,14 @@ export function calculateLearningStatistics(
   }).sort((a, b) => b.scheduledMinutes - a.scheduledMinutes || b.expense - a.expense)
 
   return {
-    totalExpense: scopedPayments.reduce(
+    totalExpense: Math.round(scopedPayments.reduce(
       (sum, item) => sum + (item.kind === 'refund' ? -item.amount : item.amount),
       0,
-    ),
-    paidExpense: scopedPayments.reduce(
+    ) * 100) / 100,
+    paidExpense: Math.round(scopedPayments.reduce(
       (sum, item) => sum + (item.kind === 'refund' ? -item.amount : item.amount),
       0,
-    ),
+    ) * 100) / 100,
     openExpense: openExpenses.reduce((sum, item) => sum + item.amount, 0),
     pendingExpense: openExpenses
       .filter((item) => item.status === 'pending')
@@ -212,6 +212,7 @@ export function calculateLearningStatistics(
     trend: trend.map((item) => ({
       ...item,
       courseHours: Number(item.courseHours.toFixed(1)),
+      expense: Math.round(item.expense * 100) / 100,
     })),
     temporaryExpense,
     unassignedExpense,

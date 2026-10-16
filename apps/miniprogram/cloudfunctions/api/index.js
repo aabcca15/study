@@ -858,6 +858,23 @@ function computed(fn) {
     return fn();
   } };
 }
+function hourlySessionAmount(course, slot) {
+  return expectedUsageCharge(course, slot.startTime, slot.endTime).amount;
+}
+function hourlyBillsNeedRefresh(snapshot) {
+  var _a, _b;
+  for (const course of snapshot.courses) {
+    if (course.archived || ((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) !== "per_hour") continue;
+    for (const expense of snapshot.expenses) {
+      if (expense.courseId !== course.id || expense.status === "paid" || expense.status === "void") continue;
+      if (expense.statementKey || expense.source === "course_upfront") continue;
+      const slot = (_b = course.recurrence.dates) == null ? void 0 : _b.find((item) => item.date === expense.dueDate);
+      if (!slot) continue;
+      if (expense.amount !== hourlySessionAmount(course, slot)) return true;
+    }
+  }
+  return false;
+}
 function createFamilyWorkspace(initial) {
   const snapshot = { value: initial };
   const persist = () => {
@@ -1362,6 +1379,7 @@ function createFamilyWorkspace(initial) {
   function generateBillingStatements(period) {
     var _a, _b, _c, _d, _e, _f, _g;
     ensureBillingCollections();
+    refreshUnpaidSessionAmounts();
     const created = [];
     const updated = [];
     const records = snapshot.value.occurrenceRecords ?? [];
@@ -1374,6 +1392,15 @@ function createFamilyWorkspace(initial) {
       if (!course || course.needsBillingReview) continue;
       const cycle = (_a = course.billingPolicy) == null ? void 0 : _a.settlementCycle;
       if (!cycle || cycle === "upfront") continue;
+      const sessionBill = snapshot.value.expenses.find(
+        (expense) => expense.courseId === course.id && expense.status !== "void" && !expense.statementKey && expense.dueDate === date
+      );
+      if (sessionBill) {
+        charge.status = "billed";
+        charge.billedExpenseId = sessionBill.id;
+        sessionBill.chargeIds = [.../* @__PURE__ */ new Set([...sessionBill.chargeIds ?? [], charge.id])];
+        continue;
+      }
       const key = chargeStatementKey(charge, course, records);
       const group = grouped.get(key) ?? { course, charges: [] };
       group.charges.push(charge);
@@ -1477,8 +1504,43 @@ function createFamilyWorkspace(initial) {
         created.push(expenseId);
       }
     }
+    releaseStatementsCoveredBySessions(records);
     persist();
     return { created: created.length, updated: updated.length };
+  }
+  function releaseStatementsCoveredBySessions(records) {
+    const sessionDates = /* @__PURE__ */ new Map();
+    for (const expense of snapshot.value.expenses) {
+      if (!expense.courseId || expense.status === "void" || expense.statementKey) continue;
+      const dates = sessionDates.get(expense.courseId) ?? /* @__PURE__ */ new Set();
+      dates.add(expense.dueDate);
+      sessionDates.set(expense.courseId, dates);
+    }
+    const covered = snapshot.value.expenses.filter((expense) => {
+      var _a;
+      if (!expense.statementKey || expense.status === "paid" || expense.status === "void") return false;
+      if (!expense.courseId || !((_a = expense.chargeIds) == null ? void 0 : _a.length)) return false;
+      const dates = sessionDates.get(expense.courseId);
+      if (!(dates == null ? void 0 : dates.size)) return false;
+      const chargeDates = expense.chargeIds.map((id) => {
+        var _a2;
+        return (_a2 = snapshot.value.charges) == null ? void 0 : _a2.find((item) => item.id === id);
+      }).filter((item) => Boolean(item)).map((item) => occurrenceDateFromCharge(item, records)).filter(Boolean);
+      return chargeDates.length > 0 && chargeDates.every((date) => dates.has(date));
+    });
+    if (!covered.length) return;
+    const coveredIds = new Set(covered.map((item) => item.id));
+    for (const charge of snapshot.value.charges ?? []) {
+      if (!charge.billedExpenseId || !coveredIds.has(charge.billedExpenseId)) continue;
+      const date = occurrenceDateFromCharge(charge, records);
+      const sessionBill = snapshot.value.expenses.find(
+        (expense) => expense.courseId === charge.courseId && expense.status !== "void" && !expense.statementKey && expense.dueDate === date
+      );
+      if (!sessionBill) continue;
+      charge.billedExpenseId = sessionBill.id;
+      sessionBill.chargeIds = [.../* @__PURE__ */ new Set([...sessionBill.chargeIds ?? [], charge.id])];
+    }
+    snapshot.value.expenses = snapshot.value.expenses.filter((expense) => !coveredIds.has(expense.id));
   }
   function monthsOverlapping(from, to) {
     const months = [];
@@ -1501,21 +1563,47 @@ function createFamilyWorkspace(initial) {
     }
     return { created, updated };
   }
+  function sessionAmount(course, slot) {
+    var _a;
+    if (((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) === "per_hour") return hourlySessionAmount(course, slot);
+    return roundMoney(course.amount);
+  }
+  function refreshUnpaidSessionAmounts() {
+    var _a, _b;
+    for (const course of snapshot.value.courses) {
+      if (course.archived || ((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) !== "per_hour") continue;
+      for (const expense of snapshot.value.expenses) {
+        if (expense.courseId !== course.id || expense.status === "paid" || expense.status === "void") continue;
+        if (expense.statementKey || expense.source === "course_upfront") continue;
+        const slot = (_b = course.recurrence.dates) == null ? void 0 : _b.find((item) => item.date === expense.dueDate);
+        if (!slot) continue;
+        const amount = sessionAmount(course, slot);
+        expense.amount = amount;
+        for (const charge of snapshot.value.charges ?? []) {
+          if (charge.billedExpenseId !== expense.id || charge.status === "reversed") continue;
+          charge.amount = amount;
+        }
+      }
+    }
+  }
   function syncUnpaidCourseFees(course) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     if (((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) === "prepaid" || course.billingMode === "term") return;
     if (((_b = course.billingPolicy) == null ? void 0 : _b.pricingMode) === "free" || course.billingMode === "free") return;
+    const hourly = ((_c = course.billingPolicy) == null ? void 0 : _c.pricingMode) === "per_hour";
     const unit = roundMoney(course.amount);
-    if (unit < 0) return;
+    if (!hourly && unit < 0) return;
     for (const expense of snapshot.value.expenses) {
       if (expense.courseId !== course.id) continue;
       if (expense.status === "paid" || expense.status === "void") continue;
-      if (expense.source === "course_upfront") continue;
-      if (((_c = course.billingPolicy) == null ? void 0 : _c.pricingMode) === "per_hour") continue;
-      expense.amount = unit;
+      if (expense.source === "course_upfront" || expense.statementKey) continue;
+      const slot = (_d = course.recurrence.dates) == null ? void 0 : _d.find((item) => item.date === expense.dueDate);
+      const amount = hourly ? slot ? sessionAmount(course, slot) : void 0 : unit;
+      if (amount == null) continue;
+      expense.amount = amount;
       for (const charge of snapshot.value.charges ?? []) {
         if (charge.billedExpenseId !== expense.id || charge.status === "reversed") continue;
-        charge.amount = unit;
+        charge.amount = amount;
       }
     }
     recomputeUnbilledChargesForCourse(course);
@@ -1527,7 +1615,7 @@ function createFamilyWorkspace(initial) {
     if (!isUsagePriced(course) && course.billingMode !== "session") return;
     for (const slot of course.recurrence.dates ?? []) {
       upsertOccurrenceExpense(course.id, slot.date, {
-        amount: roundMoney(course.amount),
+        amount: sessionAmount(course, slot),
         paid: false
       });
     }
@@ -1896,6 +1984,7 @@ function createFamilyWorkspace(initial) {
     upsertExpense,
     syncCourseUpfrontExpense,
     generateBillingStatements,
+    refreshUnpaidSessionAmounts,
     ensureBillingForRange,
     ensureCourseBilling,
     addPresetOccurrence,
@@ -2110,6 +2199,12 @@ async function familyMutation(user, result) {
 }
 async function syncFamily(user, payload) {
   const family = await loadFamily(user.familyId);
+  if (hourlyBillsNeedRefresh(family.snapshot)) {
+    const healed = await withFamily(user.familyId, (workspace) => {
+      workspace.refreshUnpaidSessionAmounts();
+    });
+    return { changed: true, session: sessionOf(user, healed.snapshot, healed.version) };
+  }
   const same = Number(payload.version) === family.version && payload.familyId === user.familyId && payload.role === user.role;
   if (same) return { changed: false };
   return { changed: true, session: sessionOf(user, family.snapshot, family.version) };

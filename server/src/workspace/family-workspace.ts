@@ -8,6 +8,7 @@ import type {
   Expense,
   Goal,
   OccurrenceAttendance,
+  OccurrenceRecord,
   Payment,
   QuickArrangementInput,
   ScheduleException,
@@ -41,6 +42,25 @@ import dayjs from 'dayjs'
 
 function computed<T>(fn: () => T) {
   return { get value() { return fn() } }
+}
+
+function hourlySessionAmount(course: Course, slot: { startTime: string; endTime: string }) {
+  return expectedUsageCharge(course, slot.startTime, slot.endTime).amount
+}
+
+/** 未支付的按时课次账单仍等于小时单价、没有按上课时长折算。 */
+export function hourlyBillsNeedRefresh(snapshot: AppSnapshot) {
+  for (const course of snapshot.courses) {
+    if (course.archived || course.billingPolicy?.pricingMode !== 'per_hour') continue
+    for (const expense of snapshot.expenses) {
+      if (expense.courseId !== course.id || expense.status === 'paid' || expense.status === 'void') continue
+      if (expense.statementKey || expense.source === 'course_upfront') continue
+      const slot = course.recurrence.dates?.find((item) => item.date === expense.dueDate)
+      if (!slot) continue
+      if (expense.amount !== hourlySessionAmount(course, slot)) return true
+    }
+  }
+  return false
 }
 
 export function createFamilyWorkspace(initial: AppSnapshot) {
@@ -609,6 +629,7 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
 
   function generateBillingStatements(period: string) {
     ensureBillingCollections()
+    refreshUnpaidSessionAmounts()
     const created: string[] = []
     const updated: string[] = []
     const records = snapshot.value.occurrenceRecords ?? []
@@ -622,6 +643,18 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
       if (!course || course.needsBillingReview) continue
       const cycle = course.billingPolicy?.settlementCycle
       if (!cycle || cycle === 'upfront') continue
+      const sessionBill = snapshot.value.expenses.find(
+        (expense) => expense.courseId === course.id
+          && expense.status !== 'void'
+          && !expense.statementKey
+          && expense.dueDate === date,
+      )
+      if (sessionBill) {
+        charge.status = 'billed'
+        charge.billedExpenseId = sessionBill.id
+        sessionBill.chargeIds = [...new Set([...(sessionBill.chargeIds ?? []), charge.id])]
+        continue
+      }
       const key = chargeStatementKey(charge, course, records)
       const group = grouped.get(key) ?? { course, charges: [] }
       group.charges.push(charge)
@@ -735,8 +768,48 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
       }
     }
 
+    releaseStatementsCoveredBySessions(records)
     persist()
     return { created: created.length, updated: updated.length }
+  }
+
+  /** 上课日已有课次账单时，未支付的汇总账单会把同一笔钱再加一次。 */
+  function releaseStatementsCoveredBySessions(records: OccurrenceRecord[]) {
+    const sessionDates = new Map<string, Set<string>>()
+    for (const expense of snapshot.value.expenses) {
+      if (!expense.courseId || expense.status === 'void' || expense.statementKey) continue
+      const dates = sessionDates.get(expense.courseId) ?? new Set<string>()
+      dates.add(expense.dueDate)
+      sessionDates.set(expense.courseId, dates)
+    }
+    const covered = snapshot.value.expenses.filter((expense) => {
+      if (!expense.statementKey || expense.status === 'paid' || expense.status === 'void') return false
+      if (!expense.courseId || !expense.chargeIds?.length) return false
+      const dates = sessionDates.get(expense.courseId)
+      if (!dates?.size) return false
+      const chargeDates = expense.chargeIds
+        .map((id) => snapshot.value.charges?.find((item) => item.id === id))
+        .filter((item): item is Charge => Boolean(item))
+        .map((item) => occurrenceDateFromCharge(item, records))
+        .filter(Boolean)
+      return chargeDates.length > 0 && chargeDates.every((date) => dates.has(date))
+    })
+    if (!covered.length) return
+    const coveredIds = new Set(covered.map((item) => item.id))
+    for (const charge of snapshot.value.charges ?? []) {
+      if (!charge.billedExpenseId || !coveredIds.has(charge.billedExpenseId)) continue
+      const date = occurrenceDateFromCharge(charge, records)
+      const sessionBill = snapshot.value.expenses.find(
+        (expense) => expense.courseId === charge.courseId
+          && expense.status !== 'void'
+          && !expense.statementKey
+          && expense.dueDate === date,
+      )
+      if (!sessionBill) continue
+      charge.billedExpenseId = sessionBill.id
+      sessionBill.chargeIds = [...new Set([...(sessionBill.chargeIds ?? []), charge.id])]
+    }
+    snapshot.value.expenses = snapshot.value.expenses.filter((expense) => !coveredIds.has(expense.id))
   }
 
   function monthsOverlapping(from: string, to: string) {
@@ -762,20 +835,46 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
     return { created, updated }
   }
 
+  function sessionAmount(course: Course, slot: { startTime: string; endTime: string }) {
+    if (course.billingPolicy?.pricingMode === 'per_hour') return hourlySessionAmount(course, slot)
+    return roundMoney(course.amount)
+  }
+
+  function refreshUnpaidSessionAmounts() {
+    for (const course of snapshot.value.courses) {
+      if (course.archived || course.billingPolicy?.pricingMode !== 'per_hour') continue
+      for (const expense of snapshot.value.expenses) {
+        if (expense.courseId !== course.id || expense.status === 'paid' || expense.status === 'void') continue
+        if (expense.statementKey || expense.source === 'course_upfront') continue
+        const slot = course.recurrence.dates?.find((item) => item.date === expense.dueDate)
+        if (!slot) continue
+        const amount = sessionAmount(course, slot)
+        expense.amount = amount
+        for (const charge of snapshot.value.charges ?? []) {
+          if (charge.billedExpenseId !== expense.id || charge.status === 'reversed') continue
+          charge.amount = amount
+        }
+      }
+    }
+  }
+
   function syncUnpaidCourseFees(course: Course) {
     if (course.billingPolicy?.pricingMode === 'prepaid' || course.billingMode === 'term') return
     if (course.billingPolicy?.pricingMode === 'free' || course.billingMode === 'free') return
+    const hourly = course.billingPolicy?.pricingMode === 'per_hour'
     const unit = roundMoney(course.amount)
-    if (unit < 0) return
+    if (!hourly && unit < 0) return
     for (const expense of snapshot.value.expenses) {
       if (expense.courseId !== course.id) continue
       if (expense.status === 'paid' || expense.status === 'void') continue
-      if (expense.source === 'course_upfront') continue
-      if (course.billingPolicy?.pricingMode === 'per_hour') continue
-      expense.amount = unit
+      if (expense.source === 'course_upfront' || expense.statementKey) continue
+      const slot = course.recurrence.dates?.find((item) => item.date === expense.dueDate)
+      const amount = hourly ? (slot ? sessionAmount(course, slot) : undefined) : unit
+      if (amount == null) continue
+      expense.amount = amount
       for (const charge of snapshot.value.charges ?? []) {
         if (charge.billedExpenseId !== expense.id || charge.status === 'reversed') continue
-        charge.amount = unit
+        charge.amount = amount
       }
     }
     recomputeUnbilledChargesForCourse(course)
@@ -787,7 +886,7 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
     if (!isUsagePriced(course) && course.billingMode !== 'session') return
     for (const slot of course.recurrence.dates ?? []) {
       upsertOccurrenceExpense(course.id, slot.date, {
-        amount: roundMoney(course.amount),
+        amount: sessionAmount(course, slot),
         paid: false,
       })
     }
@@ -1194,6 +1293,7 @@ export function createFamilyWorkspace(initial: AppSnapshot) {
     upsertExpense,
     syncCourseUpfrontExpense,
     generateBillingStatements,
+    refreshUnpaidSessionAmounts,
     ensureBillingForRange,
     ensureCourseBilling,
     addPresetOccurrence,
