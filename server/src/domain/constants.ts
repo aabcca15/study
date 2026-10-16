@@ -79,7 +79,7 @@ export const COURSE_ICON_COLORS: Record<CourseIcon, string> = {
   music: '#C265F0',
   swimming: '#22C4CC',
   english: '#3E9BFF',
-  calligraphy: '#F0A92B',
+  calligraphy: '#DC5454',
   homework: '#FFC233',
   generic: '#DC5454',
 }

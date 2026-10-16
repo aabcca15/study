@@ -165,7 +165,6 @@ function leave() {
           <text class="role-name">{{ store.ready ? store.roleLabel : '还没有家庭' }}</text>
           <text class="muted">{{ store.ready ? FAMILY_ROLE_HINT[store.role] : '创建或加入家庭后，可以和家人一起看课表。' }}</text>
         </view>
-        <button v-if="store.ready && store.canLeave" hover-class="press-on" hover-stay-time="80" class="ghost" @click="leave">退出</button>
       </view>
 
       <view class="section-head">
@@ -245,8 +244,8 @@ function leave() {
         </view>
         <view v-for="item in others" :key="item.code" class="invite-row">
           <view class="invite-copy">
-            <text class="name">{{ formatInviteCode(item.code) }} · {{ FAMILY_ROLE_LABEL[item.role] }}</text>
-            <text class="muted">{{ expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
+            <text class="invite-title">{{ formatInviteCode(item.code) }} · {{ FAMILY_ROLE_LABEL[item.role] }}</text>
+            <text class="invite-meta">{{ expireLabel(item.expireAt) }} · 已用 {{ item.usedCount }}/{{ item.maxUses }}</text>
           </view>
           <button
             hover-class="press-on"
@@ -386,6 +385,26 @@ function leave() {
   margin-top: 12px;
 }
 .invite-copy { flex: 1; min-width: 0; }
+.invite-title {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invite-meta {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .share-icon {
   display: flex;
   width: 34px;

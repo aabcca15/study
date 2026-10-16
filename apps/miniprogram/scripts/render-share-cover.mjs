@@ -50,7 +50,11 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <text x="375" y="530" text-anchor="middle" fill="#8B93A5" font-family="${font}" font-size="18">Plan Your Day. Grow Your Way.</text>
 </svg>`
 
-const png = new Resvg(svg, { fitTo: { mode: 'width', value: 750 } }).render().asPng()
-const out = path.join(root, 'src/static/share-cover.png')
-fs.writeFileSync(out, png)
-console.log(`share-cover.png ${(png.length / 1024).toFixed(1)} KB`)
+const png = new Resvg(svg, { fitTo: { mode: 'width', value: 500 } }).render().asPng()
+const Jimp = (await import('jimp')).default
+const image = await Jimp.read(png)
+const jpeg = await image.quality(72).getBufferAsync(Jimp.MIME_JPEG)
+const out = path.join(root, 'src/static/share-cover.jpg')
+fs.writeFileSync(out, jpeg)
+fs.rmSync(path.join(root, 'src/static/share-cover.png'), { force: true })
+console.log(`share-cover.jpg ${(jpeg.length / 1024).toFixed(1)} KB`)

@@ -1,5 +1,5 @@
 /** 右上角转发、朋友圈和邀请家人共用同一张推广图。好友卡片是 5:4，朋友圈缩略图会裁成正方形。 */
-export const SHARE_IMAGE = '/static/share-cover.png'
+export const SHARE_IMAGE = '/static/share-cover.jpg'
 
 /** 朋友圈标题用海报上的 slogan，不提邀请，避免被理解成加入家庭。 */
 export const MOMENTS_TITLE = '今天上什么课，Uday 家庭课表，家人一起看'

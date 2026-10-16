@@ -210,7 +210,6 @@ async function submit() {
         </view>
 
         <template v-if="mode === 'preset'">
-          <text class="tip">老师、时间和地点将自动带入，添加后仍可单独调整这一次计划。</text>
           <view v-if="courses.length" class="preset-list">
             <view
               v-for="course in courses"
@@ -364,12 +363,11 @@ async function submit() {
   transition: transform 0.12s cubic-bezier(0.2, 0, 0.2, 1);
   transform: scale(0.94);
 }
-.tip, .preset-meta, .busy text {
+.preset-meta, .busy text {
   display: block;
   color: var(--muted);
   font-size: 12px;
 }
-.tip { margin-bottom: 10px; }
 .preset {
   display: flex;
   align-items: center;

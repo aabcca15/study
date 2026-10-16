@@ -404,13 +404,33 @@ function toMemberViews(records: UserDoc[], openid: string): FamilyMemberView[] {
     .sort((left, right) => rank[left.role] - rank[right.role] || left.displayName.localeCompare(right.displayName, 'zh'))
 }
 
+/**
+ * 客户端 uploadFile 得到的 cloud:// 默认只有上传者自己能读，所以成员页里别人的头像是空白。
+ * 云函数用管理员身份换成临时 https，家里其他人就能显示。库里仍存 cloud://。
+ */
+async function readableAvatarUrls(members: FamilyMemberView[]) {
+  const fileList = [...new Set(members.map((item) => item.avatarUrl).filter((url) => url.startsWith('cloud://')))]
+  if (!fileList.length) return members
+  try {
+    const got = await cloud.getTempFileURL({ fileList })
+    const urls = new Map<string, string>()
+    for (const file of (got.fileList || []) as Array<{ fileID?: string; tempFileURL?: string }>) {
+      if (file.fileID && file.tempFileURL) urls.set(file.fileID, file.tempFileURL)
+    }
+    return members.map((item) => ({ ...item, avatarUrl: urls.get(item.avatarUrl) || item.avatarUrl }))
+  } catch (error) {
+    console.error('getTempFileURL', errorText(error))
+    return members
+  }
+}
+
 async function listMembers(user: UserDoc) {
   const [members, inviteViews] = await Promise.all([
     listFamilyUsers(user.familyId),
     listFamilyInvites(user.familyId),
   ])
   return {
-    members: toMemberViews(members, user.openid),
+    members: await readableAvatarUrls(toMemberViews(members, user.openid)),
     invites: inviteViews,
   }
 }

@@ -82,11 +82,11 @@ Family（租户）
 | `joinFamily` `{ code, displayName?, nickName?, avatarUrl? }` | 微信用户 | 按邀请码绑定家庭；创建者若家庭里还有别人则拒绝 `OWNER_HAS_MEMBERS`。称呼为空时沿用原称呼，再没有就用角色名；昵称、头像只用本次提交的 |
 | `sync` `{ version, familyId, role }` | 家庭成员 | 切页时轻量检查。版本、家庭、角色都没变返回 `{ changed: false }`，否则返回完整会话 |
 | `createInvite` `{ role }` | owner：parent/viewer；parent：viewer | 生成邀请码 |
-| `listMembers` | 家庭成员 | 成员（含 avatarUrl）+ 未过期邀请 |
+| `listMembers` | 家庭成员 | 成员 + 未过期邀请。返回前把 `avatarUrl` 的 `cloud://` 换成临时 https，其他成员才能显示头像 |
 | `removeMember` `{ openid }` | 仅 owner | 不能移自己或创建者 |
 | `leaveFamily` | parent、viewer | 自己退出，删掉自己的 `users` 记录，家庭数据留给其他人。创建者调用返回 `OWNER_CANNOT_LEAVE` |
 
-`avatarUrl` 只接受 `cloud://` 开头的文件 ID（`normalizeAvatarUrl`），小程序先用 `wx.cloud.uploadFile` 把 `chooseAvatar` 拿到的临时文件传到 `avatars/` 再提交。云存储权限需保持「所有用户可读」，家里其他人才能看到头像。
+`avatarUrl` 入库只接受 `cloud://` 开头的文件 ID（`normalizeAvatarUrl`），小程序先用 `wx.cloud.uploadFile` 把 `chooseAvatar` 拿到的临时文件传到 `avatars/` 再提交。客户端直读 `cloud://` 时只有上传者本人看得到，所以 `listMembers` 用云函数 `getTempFileURL` 发给其他成员。
 
 错误码：`INVITE_INVALID` `INVITE_EXPIRED` `INVITE_USED_UP` `INVITE_FORBIDDEN` `OWNER_HAS_MEMBERS` `MEMBER_REMOVE_FORBIDDEN` `CANNOT_REMOVE_OWNER` `CANNOT_REMOVE_SELF` `OWNER_CANNOT_LEAVE` `SCOPE_FORBIDDEN` `NOT_MEMBER`（已有家庭的会话找不到成员记录，即被移出或在别处退出；客户端清会话、提示一次并回今日页）。
 

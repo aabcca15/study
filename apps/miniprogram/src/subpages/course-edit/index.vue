@@ -9,6 +9,7 @@ import {
   COURSE_ICON_OPTIONS,
   COURSE_TYPE_OPTIONS,
   WEEKDAY_SHORT,
+  randomCourseColor,
   unusedCourseColor,
 } from '@server-domain/constants'
 import type { BillingMode, CourseDateSlot, CourseIcon, CoursePricingMode, CourseType } from '@server-domain/types'
@@ -105,7 +106,6 @@ const batchConflict = computed(() => {
 const batchHint = computed(() => {
   if (batchEnd.value <= batchStart.value) return '结束时间要晚于开始时间'
   if (batchConflict.value) return batchConflict.value
-  if (!slots.value.length) return '先选择日期，这里的时间会自动套到每一天。'
   return ''
 })
 
@@ -354,10 +354,10 @@ async function archive() {
 
 function pickIcon(icon: CourseIcon) {
   form.icon = icon
-  form.color = unusedCourseColor(store.snapshot.courses, {
-    preferred: COURSE_ICON_COLORS[icon],
-    exceptId: courseId.value || undefined,
-  })
+  // 通用图标沿用随机且避开已用颜色；其它图标各有固定默认色，选完仍可再改颜色。
+  form.color = icon === 'generic'
+    ? randomCourseColor(store.snapshot.courses, { exceptId: courseId.value || undefined })
+    : COURSE_ICON_COLORS[icon]
 }
 </script>
 
