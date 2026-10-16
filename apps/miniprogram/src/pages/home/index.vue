@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { onLoad, onPageScroll, onReady, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
+import { onLoad, onPageScroll, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { appShare, momentsShare } from '@/utils/share'
 import { syncFamily, useFamilyPage } from '@/composables/useFamilyPage'
 import { useUiStore } from '@/stores/ui'
@@ -53,15 +53,6 @@ onLoad((query) => {
 
 onShow(() => {
   ui.homeShown += 1
-})
-
-onReady(() => {
-  // 首屏画完再把其它视图挂上，之后切换就只是显示和隐藏。
-  setTimeout(() => {
-    mounted.calendar = true
-    mounted.courses = true
-    mounted.stats = true
-  }, 700)
 })
 
 function isTopPage() {

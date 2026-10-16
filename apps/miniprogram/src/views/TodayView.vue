@@ -221,8 +221,8 @@ async function undoCancel() {
         <text>已取消“{{ cancelled.course.title }}”</text>
         <button hover-class="press-on" hover-stay-time="80" @click="undoCancel">撤销</button>
       </view>
-      <AddSheet v-if="store.canWrite" :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
-      <OccurrenceSheet :item="editing" :readonly="!store.canWrite" @close="editing = null" @cancelled="rememberCancel" />
+      <AddSheet v-if="store.canWrite && addOpen" :open="addOpen" :date="ui.selectedDate" @close="addOpen = false" />
+      <OccurrenceSheet v-if="editing" :item="editing" :readonly="!store.canWrite" @close="editing = null" @cancelled="rememberCancel" />
   </view>
 </template>
 

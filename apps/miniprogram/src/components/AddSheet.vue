@@ -104,7 +104,7 @@ function resetForm() {
 
 watch(() => props.open, (open) => {
   if (open) resetForm()
-})
+}, { immediate: true })
 
 function selectCourse(id: string) {
   if (courseScheduledOnAllDates(id)) return
