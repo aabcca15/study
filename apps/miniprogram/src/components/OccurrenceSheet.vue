@@ -7,6 +7,7 @@ import { showCloudError } from '@/cloud/call'
 import { useFamilyStore } from '@/stores/family'
 import { occurrenceExpense, temporaryNoteValue, temporaryRemark } from '@/utils/view'
 import { TEXT_LIMIT } from '@/domain/limits'
+import { expectedUsageCharge } from '@server-domain/charges'
 import { amountError, amountInputValue, cleanText, formTip } from '@/utils/form'
 import TimeField from './TimeField.vue'
 
@@ -60,6 +61,16 @@ watch(() => props.item, (item) => {
   paid.value = bill?.status === 'paid'
   note.value = temporaryNoteValue(item.course)
 }, { immediate: true })
+
+watch([startTime, endTime], () => {
+  const item = props.item
+  if (!item || locked.value || free.value) return
+  if (item.course.billingPolicy?.pricingMode !== 'per_hour') return
+  const scheduledStart = item.exception?.startTime ?? item.course.recurrence.startTime
+  const scheduledEnd = item.exception?.endTime ?? item.course.recurrence.endTime
+  if (startTime.value === scheduledStart && endTime.value === scheduledEnd) return
+  amount.value = amountInputValue(expectedUsageCharge(item.course, startTime.value, endTime.value).amount)
+})
 
 async function save() {
   const item = props.item

@@ -1269,7 +1269,7 @@ function createFamilyWorkspace(initial) {
     persist();
   }
   function upsertScheduleException(input, options = {}) {
-    var _a;
+    var _a, _b, _c;
     const course = findCourse(input.courseId);
     const existingIndex = snapshot.value.scheduleExceptions.findIndex(
       (item) => item.courseId === input.courseId && item.date === input.date
@@ -1285,19 +1285,25 @@ function createFamilyWorkspace(initial) {
     else snapshot.value.scheduleExceptions.push(next);
     if (course) applyExceptionToCourse(course, next);
     if (course) {
+      const slot = (_b = course.recurrence.dates) == null ? void 0 : _b.find((item) => item.date === next.date);
+      const startTime = next.startTime ?? (slot == null ? void 0 : slot.startTime) ?? course.recurrence.startTime;
+      const endTime = next.endTime ?? (slot == null ? void 0 : slot.endTime) ?? course.recurrence.endTime;
       if (next.status === "cancelled") {
         const record = (snapshot.value.occurrenceRecords ?? []).find(
           (item) => item.id === occurrenceIdFor(course.id, next.date)
         );
         if (record) record.status = "cancelled";
         waiveUnbilledCharge(occurrenceIdFor(course.id, next.date));
+        discardUnpaidSessionBill(course, next.date);
       } else {
-        syncUsageChargeForDate(
-          course,
-          next.date,
-          next.startTime ?? course.recurrence.startTime,
-          next.endTime ?? course.recurrence.endTime
-        );
+        if (((_c = course.billingPolicy) == null ? void 0 : _c.pricingMode) === "per_hour" && (next.startTime || next.endTime)) {
+          const bill = snapshot.value.expenses.find(
+            (item) => item.courseId === course.id && item.dueDate === next.date && item.status !== "paid" && item.status !== "void" && isSessionBill(item)
+          );
+          if (bill) bill.amount = hourlySessionAmount(course, { startTime, endTime });
+        }
+        syncUsageChargeForDate(course, next.date, startTime, endTime);
+        ensureMissingSessionBill(course, next.date, startTime, endTime);
       }
     }
     if (options.persist !== false) persist();
@@ -1321,13 +1327,78 @@ function createFamilyWorkspace(initial) {
       record.billable = false;
     }
     if (course) syncUsageChargeForDate(course, slot.date, slot.startTime, slot.endTime);
+    if (course) ensureMissingSessionBill(course, slot.date, slot.startTime, slot.endTime);
     persist();
+  }
+  function isSessionBill(expense) {
+    if (expense.statementKey) return false;
+    if (expense.source === "course_upfront" || expense.source === "course_period" || expense.source === "manual") return false;
+    return true;
+  }
+  function deleteUnpaidExpense(expense) {
+    var _a;
+    if (expense.status === "paid" || expense.status === "void") return;
+    if ((_a = snapshot.value.payments) == null ? void 0 : _a.some((item) => item.expenseId === expense.id)) return;
+    for (const charge of snapshot.value.charges ?? []) {
+      if (charge.billedExpenseId !== expense.id) continue;
+      charge.status = "waived";
+      charge.billedExpenseId = void 0;
+    }
+    snapshot.value.expenses = snapshot.value.expenses.filter((item) => item.id !== expense.id);
+  }
+  function discardUnpaidSessionBill(course, date) {
+    const bill = snapshot.value.expenses.find(
+      (item) => item.courseId === course.id && item.dueDate === date && item.status !== "paid" && item.status !== "void" && isSessionBill(item)
+    );
+    if (!bill) return;
+    const remaining = (course.recurrence.dates ?? []).map((slot) => slot.date).filter((item) => item !== date).sort();
+    const soleTemporary = course.source === "temporary" && remaining.length > 0 && snapshot.value.expenses.filter(
+      (item) => item.courseId === course.id && item.status !== "paid" && item.status !== "void" && isSessionBill(item)
+    ).length === 1;
+    if (soleTemporary) {
+      bill.dueDate = remaining[0];
+      bill.period = remaining[0].slice(0, 7);
+      return;
+    }
+    deleteUnpaidExpense(bill);
+  }
+  function pruneUnpaidSessionBills(course) {
+    var _a, _b;
+    const dropAll = ((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) === "free" || course.billingMode === "free" || ((_b = course.billingPolicy) == null ? void 0 : _b.pricingMode) === "prepaid" || course.billingMode === "term";
+    const dates = new Set((course.recurrence.dates ?? []).map((slot) => slot.date));
+    const unpaid = snapshot.value.expenses.filter(
+      (item) => item.courseId === course.id && item.status !== "paid" && item.status !== "void" && isSessionBill(item)
+    );
+    if (!dropAll && course.source === "temporary" && unpaid.length === 1 && dates.size && !dates.has(unpaid[0].dueDate)) {
+      const next = [...dates].sort()[0];
+      unpaid[0].dueDate = next;
+      unpaid[0].period = next.slice(0, 7);
+      return;
+    }
+    for (const expense of unpaid) {
+      if (dropAll || !dates.has(expense.dueDate)) deleteUnpaidExpense(expense);
+    }
+  }
+  function ensureMissingSessionBill(course, date, startTime, endTime) {
+    var _a, _b;
+    if (course.source === "temporary") return;
+    if (((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) === "free" || course.billingMode === "free") return;
+    if (((_b = course.billingPolicy) == null ? void 0 : _b.pricingMode) === "prepaid" || course.billingMode === "term") return;
+    if (!isUsagePriced(course) && course.billingMode !== "session") return;
+    const existing = snapshot.value.expenses.find(
+      (item) => item.courseId === course.id && item.status !== "void" && item.dueDate === date && isSessionBill(item)
+    );
+    if (existing) return;
+    const amount = sessionAmount(course, { startTime, endTime });
+    if (amount <= 0) return;
+    upsertOccurrenceExpense(course.id, date, { amount, paid: false });
   }
   function dropOccurrenceSlot(courseId, date) {
     const course = findCourse(courseId);
     if (course) removeCourseSlot(course, date);
     removeScheduleException(courseId, date, { persist: false });
     waiveUnbilledCharge(occurrenceIdFor(courseId, date));
+    if (course) discardUnpaidSessionBill(course, date);
     persist();
   }
   function clearScheduleExceptionsForCourse(courseId) {
@@ -1380,6 +1451,7 @@ function createFamilyWorkspace(initial) {
     var _a, _b, _c, _d, _e, _f, _g;
     ensureBillingCollections();
     refreshUnpaidSessionAmounts();
+    for (const course of snapshot.value.courses) pruneUnpaidSessionBills(course);
     const created = [];
     const updated = [];
     const records = snapshot.value.occurrenceRecords ?? [];
@@ -1610,6 +1682,7 @@ function createFamilyWorkspace(initial) {
   }
   function ensureSessionExpensesForCourse(course) {
     var _a, _b;
+    if (course.source === "temporary") return;
     if (((_a = course.billingPolicy) == null ? void 0 : _a.pricingMode) === "free" || course.billingMode === "free") return;
     if (((_b = course.billingPolicy) == null ? void 0 : _b.pricingMode) === "prepaid" || course.billingMode === "term") return;
     if (!isUsagePriced(course) && course.billingMode !== "session") return;
@@ -1625,6 +1698,7 @@ function createFamilyWorkspace(initial) {
     recomputeUnbilledChargesForCourse(course);
     syncUnpaidCourseFees(course);
     ensureSessionExpensesForCourse(course);
+    pruneUnpaidSessionBills(course);
     const dates = (((_a = course.recurrence.dates) == null ? void 0 : _a.map((slot) => slot.date)) ?? [course.recurrence.startDate]).filter(Boolean);
     if (dates.length) {
       dates.sort();

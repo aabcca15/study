@@ -107,6 +107,17 @@ export function buildCourseBillLedger(
 
     const expense = bills.find((item) => item.dueDate === slot.date)
     if (expense) usedExpenseIds.add(expense.id)
+    if (!expense && course.source === 'temporary') {
+      days.push({
+        ...base,
+        amount: 0,
+        amountLabel: '—',
+        payState: 'free',
+        payLabel: '—',
+        kind: 'session',
+      })
+      continue
+    }
     if (expense) {
       days.push({
         ...base,
