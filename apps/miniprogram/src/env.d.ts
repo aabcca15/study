@@ -1,9 +1,11 @@
 /// <reference types="@dcloudio/types" />
 
 interface ImportMetaEnv {
-  /** dev / prod，来自 .env.development / .env.production */
-  readonly VITE_APP_ENV?: string
-  /** 微信云开发环境 ID */
+  /** 开发版、体验版连接的云环境 ID */
+  readonly VITE_CLOUD_ENV_DEV?: string
+  /** 正式版连接的云环境 ID */
+  readonly VITE_CLOUD_ENV_PROD?: string
+  /** 临时强制所有版本连接同一个云环境，只写在 .env.*.local */
   readonly VITE_CLOUD_ENV?: string
 }
 
@@ -33,4 +35,5 @@ interface WxCloud {
 
 declare const wx: {
   cloud?: WxCloud
+  getAccountInfoSync?: () => { miniProgram: { appId: string; envVersion: string; version?: string } }
 }

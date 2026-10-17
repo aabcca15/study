@@ -19,8 +19,7 @@ scripts/build-cloud.mjs 把家庭工作区打进云函数
 scripts/use-env.mjs     打包前按 .env 改 project.config.json 的 miniprogramRoot / appid
 scripts/report-size.mjs 打包后统计主包、分包体积
 scripts/optimize-logo.mjs 把 docs/prd/UI/logo.svg 压成 src/static/logo-u.svg
-.env.development        开发云环境 ID、AppID（dev:mp、build:mp:dev）
-.env.production         正式云环境 ID、AppID（build:mp）
+.env                    测试 / 正式云环境 ID、AppID，所有打包命令共用，入库
 ```
 
 新增二级页面放进 `src/subpages/` 并登记到 `pages.json` 的 `subPackages`，路由写 `/subpages/xxx/index`。主包限制 2MB，图片先压缩。
@@ -35,7 +34,7 @@ scripts/optimize-logo.mjs 把 docs/prd/UI/logo.svg 压成 src/static/logo-u.svg
 
 ## 本地运行
 
-1. 用自己的小程序 AppID 开通云开发。在 `.env.development` / `.env.production` 填 `WX_APPID` 和 `VITE_CLOUD_ENV`；`VITE_CLOUD_ENV` 留空则用开发者工具当前环境。不要手改 `project.config.json` 的 `miniprogramRoot` / `appid`，打包命令会改。
+1. 用自己的小程序 AppID 开通云开发。在 `.env` 填 `WX_APPID`、`VITE_CLOUD_ENV_DEV`、`VITE_CLOUD_ENV_PROD`；开发版和体验版连测试环境，正式版连正式环境，运行时按 `envVersion` 自动选择，见 `docs/miniprogram-deploy.md`。不要手改 `project.config.json` 的 `miniprogramRoot` / `appid`，打包命令会改。
 2. 在仓库根目录安装依赖：`npm install`
 3. 打包云函数：`npm run build:cloud`
 4. 安装云函数依赖：在微信开发者工具里对 `api` 选择「安装依赖」，或进入 `apps/miniprogram/cloudfunctions/api` 后执行 `npm install`

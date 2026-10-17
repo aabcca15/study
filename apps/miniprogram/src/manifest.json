@@ -10,7 +10,7 @@
     "enable": false
   },
   "mp-weixin": {
-    "appid": "",
+    "appid": "wxappid",
     "cloudfunctionRoot": "cloudfunctions/",
     "setting": {
       "urlCheck": false,

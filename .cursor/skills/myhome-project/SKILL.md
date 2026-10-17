@@ -36,7 +36,7 @@ description: >-
 ## 改代码放哪
 
 - 小程序页面、Pinia、云调用：`apps/miniprogram/src/`。不要把 H5 的 Vue 页面改成小程序语法。主包只有两个页面：`src/pages/home/index.vue`（今日、日历、课程、统计四个视图都挂在这一个页面里，`src/views/*View.vue`，由 `ui.tab` 切换，不走微信原生 tabBar，避免切页新建 WebView 时的底色闪烁）和 `src/pages/login/index.vue`。底栏是 `components/TabBar.vue`，切 tab 调 `utils/nav.ts` 的 `openTab(key)`。二级页面在分包 `src/subpages/`，路由写 `/subpages/xxx/index`。
-- 小程序环境：`apps/miniprogram/.env.development`（`dev:mp`、`build:mp:dev`）和 `.env.production`（`build:mp`）里填 `VITE_CLOUD_ENV`、`WX_APPID`；`miniprogramRoot` 由打包脚本自动切换。
+- 小程序环境：`apps/miniprogram/.env`（所有打包命令共用，入库）里填 `VITE_CLOUD_ENV_DEV`、`VITE_CLOUD_ENV_PROD`、`WX_APPID`。上传体验版和正式版都用 `build:mp`，`src/config.ts` 按 `envVersion` 选环境：开发版、体验版连 dev，正式版连 prod。`miniprogramRoot` 由打包脚本自动切换。
 - 云函数源码：`apps/miniprogram/cloudfunctions/api/src/index.ts`。改完必须 `npm run build:cloud`，再在微信开发者工具里重新上传部署。只改源码不部署，线上仍是旧逻辑。
 - 网页与 Nest API：`apps/web/`、`server/`。
 - `apps/miniprogram/dist/` 被 git 忽略。换电脑后要重新 `npm install`、`npm run build:cloud`、`npm run build:mp`。

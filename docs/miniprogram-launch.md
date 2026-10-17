@@ -41,13 +41,13 @@ Uday家庭课表计划的小程序不需要自己买服务器，也不需要开�
 
 ## 3. 把 AppID 写进项目
 
-用编辑器打开 `apps/miniprogram/.env.development` 和 `apps/miniprogram/.env.production`，把上一步的 AppID 填到 `WX_APPID=` 后面，两个文件填同一个。
+用编辑器打开 `apps/miniprogram/.env`，把上一步的 AppID 填到 `WX_APPID=` 后面。
 
-`VITE_CLOUD_ENV=` 先空着，第 6 步拿到云环境 ID 后再填。空着表示使用开发者工具当前选中的云环境。
+`VITE_CLOUD_ENV_DEV=` / `VITE_CLOUD_ENV_PROD=` 先空着，第 6 步拿到云环境 ID 后再填。空着表示使用默认云环境。
 
 打包时脚本会把 AppID 写进 `project.config.json` 和 `src/manifest.json`，这两个文件不用手动改。
 
-怎样算做完：两个 `.env` 文件里的 `WX_APPID` 相同，以 `wx` 开头，不是 `touristappid`。
+怎样算做完：`.env` 里的 `WX_APPID` 以 `wx` 开头，不是 `touristappid`。
 
 ## 4. 在这台电脑装依赖并打包
 
@@ -90,11 +90,11 @@ npm install
 
 1. 开发者工具顶部点「云开发」。第一次会要求开通，按提示同意协议。
 2. 创建一个环境。名字可以用 `myhome-prod`。环境有免费额度，家庭自己用足够。想把测试数据和正式数据分开，再建一个 `myhome-dev`。
-3. 在「设置」里复制环境 ID，填进 `apps/miniprogram/.env.production` 的 `VITE_CLOUD_ENV=`。有测试环境时，把测试环境 ID 填进 `.env.development`；只有一个环境就两个文件填同一个。填完重新执行 `npm run build:mp`。
+3. 在「设置」里复制环境 ID。填进 `apps/miniprogram/.env`：正式环境 ID 填 `VITE_CLOUD_ENV_PROD=`，测试环境 ID 填 `VITE_CLOUD_ENV_DEV=`；只有一个环境就两项填同一个。开发版、体验版连测试环境，正式版连正式环境，打开时自动选择。填完重新执行 `npm run build:mp`。
 
 数据库不用手动建集合。第一次登录时云函数会自动创建 `users`、`families`、`invites`。集合出现后，建议把三个集合的权限改成「所有用户不可读写」：小程序端本来就只调用云函数，云函数使用管理员权限，不受这条限制。不要选「所有用户可读写」。
 
-怎样算做完：云开发概览里能看到环境 ID，并且已经填进 `.env` 文件。
+怎样算做完：云开发概览里能看到环境 ID，并且已经填进 `.env`。
 
 ## 7. 上传云函数
 

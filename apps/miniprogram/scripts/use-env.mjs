@@ -18,13 +18,13 @@ function readEnv(file) {
   return values
 }
 
-const envFile = path.join(root, `.env.${mode}`)
-const env = {
-  ...readEnv(path.join(root, '.env')),
-  ...readEnv(envFile),
-  ...readEnv(path.join(root, `.env.${mode}.local`)),
-}
-if (!fs.existsSync(envFile)) console.warn(`[env] 没有找到 ${path.basename(envFile)}，按空配置继续`)
+// 与 Vite 的读取顺序一致，后面的覆盖前面的。
+const env = Object.assign(
+  {},
+  ...['.env', '.env.local', `.env.${mode}`, `.env.${mode}.local`].map((name) => readEnv(path.join(root, name))),
+)
+const envFile = path.join(root, '.env')
+if (!fs.existsSync(envFile)) console.warn('[env] 没有找到 apps/miniprogram/.env，按空配置继续')
 
 function updateJson(file, change) {
   const json = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -48,7 +48,14 @@ updateJson(path.join(root, 'src/manifest.json'), (json) => {
   if (appid) json['mp-weixin'].appid = appid
 })
 
-console.log(`[env] ${env.VITE_APP_ENV || mode} · miniprogramRoot=${miniprogramRoot} · appid=${appid || '(未填，沿用原值)'} · cloud=${env.VITE_CLOUD_ENV || '(未填，用开发者工具当前环境)'}`)
-if (mode === 'production' && !env.VITE_CLOUD_ENV) {
-  console.warn('[env] 正式包没有填写 VITE_CLOUD_ENV。上线前请在 apps/miniprogram/.env.production 填正式云环境 ID。')
+const cloud = env.VITE_CLOUD_ENV
+  ? `全部版本强制=${env.VITE_CLOUD_ENV}`
+  : `开发版/体验版=${env.VITE_CLOUD_ENV_DEV || '(未填)'} · 正式版=${env.VITE_CLOUD_ENV_PROD || '(未填)'}`
+console.log(`[env] ${mode} · miniprogramRoot=${miniprogramRoot} · appid=${appid || '(未填，沿用原值)'} · ${cloud}`)
+if (!appid) console.warn(`[env] ${path.basename(envFile)} 没有填写 WX_APPID，真机预览和上传需要自己的 AppID。`)
+if (!env.VITE_CLOUD_ENV && (!env.VITE_CLOUD_ENV_DEV || !env.VITE_CLOUD_ENV_PROD)) {
+  console.warn(`[env] ${path.basename(envFile)} 缺少 VITE_CLOUD_ENV_DEV 或 VITE_CLOUD_ENV_PROD，缺的那一档会连到默认云环境。`)
+}
+if (env.VITE_CLOUD_ENV) {
+  console.warn(`[env] VITE_CLOUD_ENV=${env.VITE_CLOUD_ENV} 会让体验版和正式版连同一个环境，上传正式版前请删掉。`)
 }
