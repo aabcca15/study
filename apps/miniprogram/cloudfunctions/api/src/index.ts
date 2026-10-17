@@ -281,7 +281,8 @@ async function login(openid: string, unionid: string, payload: Record<string, un
     if (payload.resume !== true) await applyProfile(existing, payload)
     const displayName = existing.displayName || defaultDisplayName(role)
     await persistUserRole(existing, role, displayName)
-    if (canWriteFamily(role)) {
+    // 冷启动恢复先只读两份文档，把课表尽快交给客户端；账单校准由首屏完成后的 snapshot 执行。
+    if (canWriteFamily(role) && payload.resume !== true) {
       const data = await withFamily(existing.familyId, (workspace) => {
         applyFamilyAction(workspace, 'snapshot', {})
         return null

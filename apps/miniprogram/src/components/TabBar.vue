@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon.vue'
 import { useFamilyStore } from '@/stores/family'
 import { useThemeStore } from '@/utils/wx-theme'
@@ -105,10 +104,9 @@ function measureSoon() {
   setTimeout(measure, 280)
 }
 
-watch(() => ui.tab, () => measureSoon())
+watch(() => ui.tab, measureSoon)
 
 onMounted(measureSoon)
-onShow(measureSoon)
 </script>
 
 <template>

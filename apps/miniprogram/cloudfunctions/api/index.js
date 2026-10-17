@@ -2355,7 +2355,7 @@ async function login(openid, unionid, payload) {
     if (payload.resume !== true) await applyProfile(existing, payload);
     const displayName2 = existing.displayName || defaultDisplayName(role);
     await persistUserRole(existing, role, displayName2);
-    if (canWriteFamily(role)) {
+    if (canWriteFamily(role) && payload.resume !== true) {
       const data = await withFamily(existing.familyId, (workspace) => {
         applyFamilyAction(workspace, "snapshot", {});
         return null;

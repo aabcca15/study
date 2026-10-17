@@ -3,7 +3,6 @@ import { CloudError, NOT_MEMBER } from '@/cloud/call'
 import { isMomentsPreview } from '@/utils/share'
 import { hasLocalSession, useFamilyStore } from '@/stores/family'
 import { noticeNotMember } from '@/utils/login-prompt'
-import { useThemeStore } from '@/utils/wx-theme'
 import { useUiStore } from '@/stores/ui'
 
 /**
@@ -14,10 +13,8 @@ import { useUiStore } from '@/stores/ui'
 export function useFamilyPage() {
   const store = useFamilyStore()
   const ui = useUiStore()
-  const theme = useThemeStore()
 
   onShow(() => {
-    theme.apply()
     if (isMomentsPreview()) return
     if (store.ready) {
       ui.touchToday()
@@ -26,7 +23,10 @@ export function useFamilyPage() {
     }
     if (!hasLocalSession()) return
     ensureSession().then(() => {
-      if (store.ready) ui.touchToday()
+      if (!store.ready) return
+      ui.touchToday()
+      // 先把只读快照画出来；账单校准放到首屏稳定后，避免云端事务拖长冷启动恢复。
+      setTimeout(() => syncFamily(true), 600)
     })
   })
 

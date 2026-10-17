@@ -33,7 +33,6 @@ import {
 const LOGGED_KEY = 'myhome.mp.logged'
 
 let inflight: Promise<unknown> | null = null
-let snapshotJson = ''
 
 /** 倒数第二个课程色从灰蓝、玫红换成 #DC5454，已保存的课跟着换，卡片渐变一起变。 */
 const LEGACY_COURSE_COLORS: Record<string, string> = {
@@ -182,14 +181,14 @@ export const useFamilyStore = defineStore('family', {
     },
   },
   actions: {
-    /** 所有视图都跟着快照重新计算；内容没变就不替换，避免白白重绘。 */
-    applySnapshot(snapshot: AppSnapshot) {
-      snapshot = withCurrentCourseColors(snapshot)
-      const json = JSON.stringify(snapshot)
-      if (json !== snapshotJson) {
-        snapshotJson = json
-        this.snapshot = frozen(snapshot)
+    /** 云端版本没变就不替换快照；避免为整份家庭数据 stringify 后再比较。 */
+    applySnapshot(snapshot: AppSnapshot, version?: number) {
+      if (this.ready && version && version === this.version) {
+        this.syncedAt = Date.now()
+        return
       }
+      snapshot = withCurrentCourseColors(snapshot)
+      this.snapshot = frozen(snapshot)
       this.syncedAt = Date.now()
     },
     applySession(data: CloudSession) {
@@ -200,6 +199,7 @@ export const useFamilyStore = defineStore('family', {
       this.nickName = data.nickName || ''
       this.avatarUrl = data.avatarUrl || ''
       if (canWriteFamily(this.role)) this.preferredChildId = ''
+      // 会话可能只改了角色而家庭版本没变；必须接收云端已经按新角色脱敏的快照。
       this.applySnapshot(data.snapshot)
       if (data.version) this.version = data.version
       this.rangeMonth = ''
@@ -218,7 +218,7 @@ export const useFamilyStore = defineStore('family', {
         if (error instanceof CloudError && error.code === NOT_MEMBER) this.logout()
         throw error
       }
-      this.applySnapshot(data.snapshot)
+      this.applySnapshot(data.snapshot, data.version)
       if (data.version) this.version = data.version
       this.ready = true
       return data.result
@@ -291,7 +291,6 @@ export const useFamilyStore = defineStore('family', {
       this.avatarUrl = ''
       this.version = 0
       this.preferredChildId = ''
-      snapshotJson = ''
       this.snapshot = frozen(emptySnapshot())
       this.syncedAt = 0
       this.rangeMonth = ''
